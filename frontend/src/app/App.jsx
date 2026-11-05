@@ -1,13 +1,46 @@
-import ThemeToggle from "../components/ThemeToggle";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import LoginPage from "../pages/LoginPage";
+import { AdminRoute, ProtectedRoute, SignedInPlaceholder } from "./routes";
+import { AuthProvider } from "../context/AuthContext";
 import { ThemeProvider } from "../context/ThemeContext";
 
 export default function App() {
   return (
     <ThemeProvider>
-      <main className="theme-demo">
-        <ThemeToggle />
-        <h1>Gosrani Wholesalers Limited</h1>
-      </main>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<LoginPage />} path="/login" />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Navigate replace to="/inventory" />} path="/" />
+              <Route
+                element={<SignedInPlaceholder />}
+                path="/inventory/*"
+              />
+              <Route
+                element={<AdminRoute />}
+              >
+                <Route
+                  element={<SignedInPlaceholder title="User management" />}
+                  path="/users"
+                />
+                <Route
+                  element={<SignedInPlaceholder title="Product catalog" />}
+                  path="/catalog"
+                />
+              </Route>
+              <Route
+                element={<SignedInPlaceholder title="AI assistant" />}
+                path="/assistant"
+              />
+              <Route
+                element={<SignedInPlaceholder title="Page not found" />}
+                path="*"
+              />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

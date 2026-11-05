@@ -315,6 +315,7 @@ let requests = [
 ];
 
 let activeUser = null;
+const AUTH_TOKEN_KEY = "gosrani-auth-token";
 let nextRecordId = 1049;
 let nextUserId = 5;
 let nextItemId = 1;
@@ -627,6 +628,9 @@ export const api = {
     if (!user) fail(401, "The email or password you entered is incorrect.");
 
     activeUser = publicUser(user);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, `mock-jwt-${user.id}`);
+    }
     return ok({
       token: `mock-jwt-${user.id}`,
       user: activeUser,
@@ -635,16 +639,43 @@ export const api = {
 
   async me() {
     await wait();
+    if (!activeUser && typeof window !== "undefined") {
+      const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
+      const userId = token?.match(/^mock-jwt-(\d+)$/)?.[1];
+      const user = users.find(
+        (entry) => entry.id === Number(userId) && entry.status === "Active",
+      );
+      if (user) activeUser = publicUser(user);
+    }
+    if (activeUser) {
+      const user = users.find(
+        (entry) => entry.id === activeUser.id && entry.status === "Active",
+      );
+      if (!user) {
+        activeUser = null;
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(AUTH_TOKEN_KEY);
+        }
+      } else {
+        activeUser = publicUser(user);
+      }
+    }
     ensureSignedIn();
     return ok(activeUser);
   },
 
   logout() {
     activeUser = null;
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
   },
 
   setActiveUser(user) {
     activeUser = user ? clone(user) : null;
+    if (!user && typeof window !== "undefined") {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
   },
 
   async getInventory(params = {}) {

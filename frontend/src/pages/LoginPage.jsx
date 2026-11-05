@@ -1,0 +1,167 @@
+import { useState } from "react";
+import { ArrowRight, Boxes, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
+import { Button, Field, Input, RoleBadge } from "../components/ui";
+import { useAuth } from "../context/AuthContext";
+
+const demoAccounts = [
+  {
+    label: "Administrator",
+    email: "admin@gosrani.co.ke",
+    password: "admin123",
+    role: "Admin",
+  },
+  {
+    label: "Staff member",
+    email: "grace@gosrani.co.ke",
+    password: "user123",
+    role: "User",
+  },
+];
+
+export default function LoginPage() {
+  const { user, loading, login } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  if (loading) return <div className="login-loading" role="status">Checking your session…</div>;
+  if (user) return <Navigate replace to="/inventory" />;
+
+  const destination = location.state?.from?.pathname ?? "/inventory";
+
+  async function signIn(credentials) {
+    setError("");
+    setSubmitting(true);
+    try {
+      await login(credentials);
+      navigate(destination, { replace: true });
+    } catch (loginError) {
+      setError(loginError.message || "Unable to sign in. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (!email.trim() || !password) {
+      setError("Enter your email address and password.");
+      return;
+    }
+    signIn({ email, password });
+  }
+
+  return (
+    <main className="login-page">
+      <section aria-label="About Gosrani Wholesalers" className="login-brand-panel">
+        <Link aria-label="Gosrani Wholesalers home" className="login-brand" to="/login">
+          <span className="login-brand-icon"><Boxes aria-hidden="true" size={22} /></span>
+          <span>
+            <strong>Gosrani Wholesalers Limited</strong>
+            <small>Eldoret, Kenya</small>
+          </span>
+        </Link>
+        <div className="login-brand-copy">
+          <div className="login-kicker"><span /> INVENTORY MANAGEMENT</div>
+          <h1>Everything in stock. Everything in sync.</h1>
+          <p>
+            Keep your inventory accurate and your team connected with one
+            reliable workspace.
+          </p>
+        </div>
+        <div className="login-brand-footer">
+          <ShieldCheck aria-hidden="true" size={17} />
+          <span>Secure access for your team</span>
+        </div>
+      </section>
+
+      <section aria-labelledby="login-heading" className="login-form-panel">
+        <div className="login-form-wrap">
+          <div className="login-mobile-brand">
+            <span className="login-brand-icon"><Boxes aria-hidden="true" size={21} /></span>
+            <strong>Gosrani Wholesalers Limited</strong>
+          </div>
+          <div className="login-heading">
+            <p className="eyebrow">WELCOME BACK</p>
+            <h2 id="login-heading">Sign in to your account</h2>
+            <p>Enter your work email and password to continue.</p>
+          </div>
+
+          <form className="login-form" onSubmit={handleSubmit}>
+            {error && <div className="login-error" role="alert">{error}</div>}
+            <Field label="Email address" required>
+              <Input
+                autoComplete="username"
+                autoFocus
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="name@gosrani.co.ke"
+                type="email"
+                value={email}
+              />
+            </Field>
+            <Field label="Password" required>
+              <div className="login-password">
+                <Input
+                  autoComplete="current-password"
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter your password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                />
+                <button
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="login-password-toggle"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  type="button"
+                >
+                  {showPassword
+                    ? <EyeOff aria-hidden="true" size={17} />
+                    : <Eye aria-hidden="true" size={17} />}
+                </button>
+              </div>
+            </Field>
+            <Button className="login-submit" loading={submitting} type="submit">
+              Sign in <ArrowRight aria-hidden="true" size={17} />
+            </Button>
+          </form>
+
+          <div className="login-demo">
+            <div className="login-demo-heading">
+              <span>DEMO ACCOUNTS</span>
+              <span className="login-demo-divider" />
+            </div>
+            <div className="login-demo-list">
+              {demoAccounts.map((account) => (
+                <button
+                  className="login-demo-account"
+                  disabled={submitting}
+                  key={account.role}
+                  onClick={() => signIn(account)}
+                  type="button"
+                >
+                  <span className="login-demo-person">
+                    <strong>{account.label}</strong>
+                    <small>{account.email}</small>
+                  </span>
+                  <RoleBadge role={account.role} />
+                </button>
+              ))}
+            </div>
+            <p className="login-demo-note">
+              Demo only · Passwords: administrator <code>admin123</code>, staff <code>user123</code>
+            </p>
+          </div>
+
+          <p className="login-copyright">
+            © {new Date().getFullYear()} Gosrani Wholesalers Limited · Eldoret, Kenya
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}
