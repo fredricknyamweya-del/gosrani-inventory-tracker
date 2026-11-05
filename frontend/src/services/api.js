@@ -18,6 +18,12 @@ function normalized(value) {
   return String(value ?? "").trim().toLocaleLowerCase();
 }
 
+function notifyCatalogRequestsChanged() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("catalog-requests-updated"));
+  }
+}
+
 function findNearMatch(value, values) {
   const target = normalized(value).replace(/\s+/g, " ");
   if (!target) return null;
@@ -890,6 +896,7 @@ function createRequest(input) {
     createdAt: new Date().toISOString(),
   };
   requests.unshift(request);
+  notifyCatalogRequestsChanged();
   return request;
 }
 
@@ -1377,6 +1384,7 @@ export const api = {
       request.status = "Approved";
       request.processedBy = activeUser.name;
       request.processedAt = new Date().toISOString();
+      notifyCatalogRequestsChanged();
       return ok(request);
     }
     if (action === "reject") {
@@ -1384,6 +1392,7 @@ export const api = {
       request.reason = String(input.reason ?? "").trim();
       request.processedBy = activeUser.name;
       request.processedAt = new Date().toISOString();
+      notifyCatalogRequestsChanged();
       return ok(request);
     }
     fail(422, "Request action must be approve or reject.");

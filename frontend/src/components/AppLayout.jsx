@@ -25,7 +25,18 @@ import { RoleBadge } from "./ui"
 import ThemeToggle from "./ThemeToggle"
 
 function PendingRequestCount() {
-  const { data, error } = useApi(() => api.getCatalogRequests(), [])
+  const { data, error, reload } = useApi(() => api.getCatalogRequests(), [])
+
+  useEffect(() => {
+    const refreshCount = () => {
+      void reload()
+    }
+
+    window.addEventListener("catalog-requests-updated", refreshCount)
+    return () => {
+      window.removeEventListener("catalog-requests-updated", refreshCount)
+    }
+  }, [reload])
 
   if (error) {
     return (
