@@ -420,6 +420,10 @@
   text-decoration: none;
 }
 
+.login-brand {
+  padding: 24px;
+}
+
 .login-brand-logo {
   display: block;
   width: 150px;
@@ -696,10 +700,10 @@
 
 .sidebar-brand-row {
   display: flex;
-  min-height: 49px;
+  min-height: 98px;
   align-items: center;
   justify-content: space-between;
-  padding: 0 7px;
+  padding: 0 14px;
 }
 
 .app-brand {
@@ -1149,8 +1153,8 @@
   .login-mobile-brand {
     display: flex;
     justify-content: center;
-    margin-bottom: 22px;
-    padding: 0;
+    margin-bottom: 44px;
+    padding: 24px;
     border-radius: 0;
     background: transparent;
   }
