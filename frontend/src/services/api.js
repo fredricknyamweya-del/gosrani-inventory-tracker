@@ -541,6 +541,7 @@ const seedUsers = [
     role: "Admin",
     status: "Active",
     password: "admin123",
+    createdAt: "2025-01-06T09:00:00.000Z",
   },
   {
     id: 2,
@@ -549,6 +550,7 @@ const seedUsers = [
     role: "User",
     status: "Active",
     password: "user123",
+    createdAt: "2025-02-14T08:30:00.000Z",
   },
   {
     id: 3,
@@ -557,6 +559,7 @@ const seedUsers = [
     role: "User",
     status: "Active",
     password: "user123",
+    createdAt: "2025-04-03T10:15:00.000Z",
   },
   {
     id: 4,
@@ -565,6 +568,7 @@ const seedUsers = [
     role: "User",
     status: "Inactive",
     password: "user123",
+    createdAt: "2025-07-21T11:45:00.000Z",
   },
 ];
 
@@ -634,6 +638,14 @@ function requireText(value, label) {
   const text = String(value ?? "").trim();
   if (!text) fail(422, `${label} is required.`);
   return text;
+}
+
+function generateTemporaryPassword() {
+  const characters =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$";
+  const values = new Uint32Array(12);
+  globalThis.crypto.getRandomValues(values);
+  return `Gw-${Array.from(values, (value) => characters[value % characters.length]).join("")}`;
 }
 
 function getCategory(value) {
@@ -911,7 +923,7 @@ export const api = {
         entry.password === password &&
         entry.status === "Active",
     );
-    if (!user) fail(401, "The email or password you entered is incorrect.");
+    if (!user) fail(401, "Invalid email or password.");
 
     activeUser = publicUser(user);
     if (typeof window !== "undefined") {
@@ -1190,10 +1202,14 @@ export const api = {
       email,
       role,
       status: "Active",
-      password: String(input.password ?? "user123"),
+      password: generateTemporaryPassword(),
+      createdAt: new Date().toISOString(),
     };
     users = [...users, user];
-    return ok(publicUser(user));
+    return ok({
+      user: publicUser(user),
+      temporaryPassword: user.password,
+    });
   },
 
   async updateUser(id, input = {}) {
@@ -1231,6 +1247,20 @@ export const api = {
         fail(422, "A user with this email already exists.");
       }
       changes.email = email;
+    }
+
+    const updatedRole = changes.role ?? user.role;
+    const updatedStatus = changes.status ?? user.status;
+    if (user.role === "Admin" && user.status === "Active") {
+      const activeAdmins = users.filter(
+        (entry) => entry.role === "Admin" && entry.status === "Active",
+      );
+      if (
+        activeAdmins.length <= 1 &&
+        (updatedRole !== "Admin" || updatedStatus !== "Active")
+      ) {
+        fail(422, "At least one active administrator must remain.");
+      }
     }
 
     Object.assign(user, changes);
