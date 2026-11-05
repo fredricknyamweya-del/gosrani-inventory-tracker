@@ -13,11 +13,11 @@ import { formatDate } from "../utils/format";
 import { Button } from "./ui";
 
 const suggestions = [
-  "How much Maize Flour 2 kg is in stock?",
-  "Show everything received this week",
-  "What went out yesterday?",
-  "Show everything in Cooking Oils",
-  "Find entries where the details mention supplier",
+  "How much Vivo Mattress (72*60*6) is in stock?",
+  "Show School Shirts (size 32) received this week",
+  "What quantity of Pillowcases (King Size) went out yesterday?",
+  "Show entries for Maasai Shuka",
+  "Find Knitting Yarn (200 g) entries where the details mention supplier",
 ];
 
 export default function AssistantChat({ compact = false }) {
@@ -328,7 +328,7 @@ export default function AssistantChat({ compact = false }) {
               if (validationError) setValidationError("");
             }}
             onKeyDown={handleInputKeyDown}
-            placeholder="Ask a question about inventory…"
+            placeholder="e.g. How much Vivo Mattress (72*60*6) is in stock?"
             ref={inputRef}
             rows={2}
             value={draft}
