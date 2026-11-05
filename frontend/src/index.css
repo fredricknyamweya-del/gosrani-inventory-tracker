@@ -420,27 +420,17 @@
   text-decoration: none;
 }
 
-.login-brand-icon {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 auto;
-  border-radius: 11px;
-  background: var(--red);
-  color: var(--red-contrast);
-  place-items: center;
-}
-
-.login-brand strong,
-.login-mobile-brand strong {
+.login-brand-logo {
   display: block;
-  font-size: 13px;
-  font-weight: 750;
+  width: 150px;
+  height: auto;
+  flex: 0 0 auto;
+  border-radius: 4px;
 }
 
 .login-brand small {
   display: block;
-  margin-top: 3px;
+  margin-left: 2px;
   color: var(--sidebar-muted);
   font-size: 11px;
 }

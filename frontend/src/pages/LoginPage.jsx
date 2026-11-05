@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Boxes, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { Button, Field, Input } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
@@ -70,11 +70,8 @@ export default function LoginPage() {
     <main className="login-page">
       <section aria-label="About Gosrani Wholesalers" className="login-brand-panel">
         <Link aria-label="Gosrani Wholesalers home" className="login-brand" to="/login">
-          <span className="login-brand-icon"><Boxes aria-hidden="true" size={22} /></span>
-          <span>
-            <strong>Gosrani Wholesalers Limited</strong>
-            <small>Eldoret, Kenya</small>
-          </span>
+          <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/GW%20Logo%20Red.jpg" />
+          <small>Eldoret, Kenya</small>
         </Link>
         <div className="login-brand-copy">
           <div className="login-kicker"><span /> INVENTORY MANAGEMENT</div>
@@ -93,8 +90,7 @@ export default function LoginPage() {
       <section aria-labelledby="login-heading" className="login-form-panel">
         <div className="login-form-wrap">
           <div className="login-mobile-brand">
-            <span className="login-brand-icon"><Boxes aria-hidden="true" size={21} /></span>
-            <strong>Gosrani Wholesalers Limited</strong>
+            <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/GW%20Logo%20Red.jpg" />
           </div>
           <div className="login-heading">
             <p className="eyebrow">WELCOME BACK</p>
