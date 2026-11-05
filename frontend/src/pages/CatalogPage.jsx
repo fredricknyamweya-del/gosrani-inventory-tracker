@@ -887,7 +887,11 @@ export default function CatalogPage() {
       </Modal>
 
       <Modal
-        description={`${getRequestName(rejectTarget ?? {}) ?? ""} · ${rejectTarget?.specification ?? ""}`}
+        description={
+          getRequestType(rejectTarget ?? {}) === "category"
+            ? getRequestName(rejectTarget ?? {})
+            : `${getRequestName(rejectTarget ?? {}) ?? ""} · ${rejectTarget?.specification ?? ""}`
+        }
         footer={
           <>
             <Button onClick={closeRejectModal} variant="secondary">

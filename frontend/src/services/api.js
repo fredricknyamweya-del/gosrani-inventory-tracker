@@ -947,7 +947,8 @@ function createRequest(input) {
   const duplicateRequest = requests.find(
     (request) =>
       request.status === "Pending" &&
-      request.requestType === requestType &&
+      (request.requestType ??
+        (request.itemId ? "specification" : "product")) === requestType &&
       request.categoryId === category.id &&
       normalized(request.itemName) === normalized(itemName) &&
       normalized(request.specification) === normalized(specification),

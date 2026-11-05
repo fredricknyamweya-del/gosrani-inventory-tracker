@@ -1,5 +1,5 @@
+import { ArrowLeft, Check, Plus, Save } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Check, Save } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import AddItemModal from "../components/AddItemModal";
 import RequestItemModal from "../components/RequestItemModal";
@@ -14,7 +14,6 @@ import {
   Select,
   Toast,
 } from "../components/ui";
-import { Plus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useApi } from "../hooks/useApi";
 import { api } from "../services/api";
@@ -472,13 +471,15 @@ export default function EntryFormPage() {
                         ? request.categoryName
                         : request.itemName}
                     </strong>
-                    <span>{[
-                      request.requestType,
-                      request.category,
-                      request.specification,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}</span>
+                    <span>
+                      {[
+                        request.requestType,
+                        request.category,
+                        request.specification,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
                     <time dateTime={request.createdAt}>
                       {formatDate(request.createdAt)}
                     </time>

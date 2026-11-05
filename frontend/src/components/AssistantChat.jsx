@@ -6,21 +6,22 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { api } from "../services/api";
 import { formatDate } from "../utils/format";
 import { Button } from "./ui";
 
 const suggestions = [
-  "How many School Shirts are in stock?",
+  "How much Maize Flour 2 kg is in stock?",
   "Show everything received this week",
   "What went out yesterday?",
-  "Show everything in Mattresses",
-  "Show everything in Yarns",
+  "Show everything in Cooking Oils",
+  "Find entries where the details mention supplier",
 ];
 
 export default function AssistantChat({ compact = false }) {
+  const questionId = useId();
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [validationError, setValidationError] = useState("");
@@ -316,11 +317,11 @@ export default function AssistantChat({ compact = false }) {
           </p>
         )}
         <div className="assistant-input-wrap">
-          <label className="sr-only" htmlFor="assistant-question">
+          <label className="sr-only" htmlFor={`assistant-question-${questionId}`}>
             Ask the inventory assistant
           </label>
           <textarea
-            id="assistant-question"
+            id={`assistant-question-${questionId}`}
             maxLength={501}
             onChange={(event) => {
               setDraft(event.target.value);

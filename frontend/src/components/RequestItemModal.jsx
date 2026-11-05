@@ -52,7 +52,9 @@ export default function RequestItemModal({
           ? { categoryName }
           : {
               categoryId,
-              ...(requestType === "specification" ? { itemId: itemName } : { itemName }),
+              ...(requestType === "specification"
+                ? { itemId: itemName }
+                : { itemName }),
               specification,
             }),
         note,
