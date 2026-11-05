@@ -88,12 +88,12 @@ export default function LoginPage() {
       </section>
 
       <section aria-labelledby="login-heading" className="login-form-panel">
+        <div className="login-theme-toggle">
+          <ThemeToggle />
+        </div>
         <div className="login-form-wrap">
-          <div className="login-form-toolbar">
-            <div className="login-mobile-brand">
-              <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/gw-logo-login.png" />
-            </div>
-            <ThemeToggle />
+          <div className="login-mobile-brand">
+            <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/gw-logo-login.png" />
           </div>
           <div className="login-heading">
             <p className="eyebrow">WELCOME BACK</p>
@@ -141,10 +141,11 @@ export default function LoginPage() {
                 value={email}
               />
             </Field>
-            <Field label="Password" required>
+            <Field id="login-password-input" label="Password" required>
               <div className="login-password">
                 <Input
                   autoComplete="current-password"
+                  id="login-password-input"
                   onChange={(event) => {
                     setPassword(event.target.value);
                     setSelectedRole("");

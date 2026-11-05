@@ -477,25 +477,26 @@
 }
 
 .login-form-panel {
+  position: relative;
   display: grid;
   min-height: 100vh;
   padding: 48px 32px;
   place-items: center;
 }
 
+.login-theme-toggle {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+}
+
 .login-form-wrap {
   width: min(100%, 410px);
 }
 
-.login-form-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 38px;
-}
-
 .login-mobile-brand {
   display: none;
+  margin-bottom: 38px;
   color: var(--text);
   border-radius: 8px;
   background: var(--sidebar);
@@ -709,38 +710,12 @@
   text-decoration: none;
 }
 
-.app-brand-mark {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 auto;
-  border-radius: 9px;
-  background: var(--red);
-  color: var(--red-contrast);
-  place-items: center;
-}
-
-.app-brand-name {
-  min-width: 0;
-}
-
-.app-brand-name strong,
-.app-brand-name small {
+.app-brand-logo {
   display: block;
-}
-
-.app-brand-name strong {
-  font-size: 15px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-
-.app-brand-name small {
-  margin-top: 2px;
-  color: var(--sidebar-muted);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  width: 160px;
+  max-width: 100%;
+  height: auto;
+  flex: 0 0 auto;
 }
 
 .sidebar-section-label {

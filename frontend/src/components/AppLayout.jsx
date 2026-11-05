@@ -1,5 +1,4 @@
 import {
-  Boxes,
   ClipboardList,
   LayoutDashboard,
   LogOut,
@@ -113,9 +112,9 @@ export default function AppLayout() {
   const navigation = [
     { to: "/inventory", label: "Inventory", icon: LayoutDashboard, end: true },
     { to: "/inventory/new", label: "Add Entry", icon: PackagePlus },
-    { to: "/assistant", label: "AI Assistant", icon: Sparkles },
     ...(isAdmin
       ? [
+          { to: "/assistant", label: "AI Assistant", icon: Sparkles },
           {
             to: "/catalog",
             label: "Product Catalog",
@@ -146,13 +145,11 @@ export default function AppLayout() {
             onClick={() => setDrawerOpen(false)}
             to="/inventory"
           >
-            <span className="app-brand-mark">
-              <Boxes aria-hidden="true" size={21} />
-            </span>
-            <span className="app-brand-name">
-              <strong>Gosrani</strong>
-              <small>WHOLESALERS LIMITED</small>
-            </span>
+            <img
+              alt="Gosrani Wholesalers Limited"
+              className="app-brand-logo"
+              src="/gw-logo-login.png"
+            />
           </Link>
           <button
             aria-label="Close navigation"

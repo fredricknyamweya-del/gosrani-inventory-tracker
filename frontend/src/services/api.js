@@ -809,7 +809,7 @@ export const api = {
 
   async assistantQuery(question) {
     await wait(140);
-    ensureSignedIn();
+    ensureAdmin();
     const query = String(question ?? "").trim().toLocaleLowerCase();
     if (!query) fail(422, "Ask a question first.");
 
