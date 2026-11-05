@@ -135,8 +135,14 @@ export default function AddItemModal({
             value={name}
           />
         </Field>
-        {nearMatch && !exactMatch && (
-          <p className="catalog-hint">Did you mean {nearMatch}?</p>
+        {exactMatch ? (
+          <p className="catalog-inline-error" role="alert">
+            An item named “{nearMatch}” already exists in this category.
+          </p>
+        ) : (
+          nearMatch && (
+            <p className="catalog-hint">Did you mean {nearMatch}?</p>
+          )
         )}
         <div className="catalog-specification-fields">
           <div className="catalog-specification-heading">

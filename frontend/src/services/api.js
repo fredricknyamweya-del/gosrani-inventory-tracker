@@ -590,7 +590,7 @@ let requests = [
     category: "Yarns",
     itemId: "item-knitting-yarn",
     itemName: "Knitting Yarn",
-    specification: "200 g",
+    specification: "250 g",
     note: "",
     requestedById: 3,
     requestedBy: "Samuel Kiptoo",
