@@ -19,11 +19,11 @@ export default function App() {
                 <Route element={<Navigate replace to="/inventory" />} index />
                 <Route element={<InventoryPage />} path="inventory" />
                 <Route element={<SignedInPlaceholder />} path="inventory/*" />
-                <Route
-                  element={<SignedInPlaceholder title="AI assistant" />}
-                  path="assistant"
-                />
                 <Route element={<AdminRoute />}>
+                  <Route
+                    element={<SignedInPlaceholder title="AI assistant" />}
+                    path="assistant"
+                  />
                   <Route
                     element={<SignedInPlaceholder title="Product catalog" />}
                     path="catalog"
