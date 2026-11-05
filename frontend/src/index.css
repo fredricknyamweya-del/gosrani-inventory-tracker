@@ -604,10 +604,12 @@
 }
 
 .login-switcher legend {
+  width: 100%;
   margin-bottom: 9px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
+  text-align: center;
 }
 
 .login-switcher-options {

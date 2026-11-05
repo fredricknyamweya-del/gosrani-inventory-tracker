@@ -1110,54 +1110,161 @@ export const api = {
     ensureAdmin();
     const query = String(question ?? "").trim().toLocaleLowerCase();
     if (!query) fail(422, "Ask a question first.");
+    if (query.length > 500) {
+      fail(422, "Keep your question to 500 characters or fewer.");
+    }
 
-    const item = catalog.items.find((entry) =>
-      query.includes(normalized(entry.name)),
+    const item = [...catalog.items]
+      .sort((left, right) => right.name.length - left.name.length)
+      .find((entry) => query.includes(normalized(entry.name)));
+    const specification = item
+      ? [...item.specifications]
+          .sort((left, right) => right.length - left.length)
+          .find((value) => query.includes(normalized(value)))
+      : null;
+    const category = [...catalog.categories]
+      .sort((left, right) => right.name.length - left.name.length)
+      .find((entry) => query.includes(normalized(entry.name)));
+    const keywordMatch = query.match(
+      /\bdetails?\s+(?:mention|mentions|contain|contains|say|says)\s+(.+)|\bmention\s+(.+)/,
     );
-    const specification = item?.specifications.find((value) =>
-      query.includes(normalized(value)),
-    );
+    const keyword = (keywordMatch?.[1] ?? keywordMatch?.[2])
+      ?.replace(/[?.!,;:]+$/g, "")
+      .trim();
+    const direction = /\b(received|receive|incoming|inbound)\b/.test(query)
+      ? "in"
+      : /\b(went out|go out|outgoing|outbound|issued|dispatch|dispatched|sold)\b/.test(
+            query,
+          ) || /\bout\b/.test(query)
+        ? "out"
+        : null;
     const wantsStock = /\b(stock|balance|remaining|left)\b/.test(query);
-    let matchingRecords = records.filter((record) => {
-      const recordText = normalized(
-        `${record.category} ${record.item} ${record.size} ${record.details}`,
+    const today = formatToday();
+    const shiftDate = (value, days) => {
+      const date = new Date(`${value}T00:00:00.000Z`);
+      date.setUTCDate(date.getUTCDate() + days);
+      return date.toISOString().slice(0, 10);
+    };
+
+    let from = null;
+    let to = null;
+    const explicitRange =
+      query.match(/\bfrom\s+(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})\b/) ??
+      query.match(
+        /\bbetween\s+(\d{4}-\d{2}-\d{2})\s+and\s+(\d{4}-\d{2}-\d{2})\b/,
       );
+    if (explicitRange) {
+      [, from, to] = explicitRange;
+      const isValidDate = (value) => {
+        const date = new Date(`${value}T00:00:00.000Z`);
+        return (
+          !Number.isNaN(date.getTime()) &&
+          date.toISOString().slice(0, 10) === value
+        );
+      };
+      if (!isValidDate(from) || !isValidDate(to) || from > to) {
+        fail(422, "Enter a valid date range in YYYY-MM-DD format.");
+      }
+    } else if (/\byesterday\b/.test(query)) {
+      from = shiftDate(today, -1);
+      to = from;
+    } else if (/\btoday\b/.test(query)) {
+      from = today;
+      to = today;
+    } else if (/\bthis week\b/.test(query)) {
+      const day = new Date(`${today}T00:00:00.000Z`).getUTCDay();
+      from = shiftDate(today, -((day + 6) % 7));
+      to = today;
+    }
+
+    const hasStructuredFilter = Boolean(
+      item || category || keyword || direction || from || to,
+    );
+    const meaningfulTerms = query
+      .split(/\s+/)
+      .map((term) => term.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, ""))
+      .filter(
+        (term) =>
+          term.length > 2 &&
+          ![
+            "how",
+            "much",
+            "what",
+            "show",
+            "everything",
+            "find",
+            "entries",
+            "where",
+            "the",
+            "details",
+            "mention",
+            "mentions",
+            "received",
+            "receive",
+            "incoming",
+            "inbound",
+            "went",
+            "out",
+            "today",
+            "yesterday",
+            "this",
+            "week",
+            "stock",
+            "balance",
+            "remaining",
+            "left",
+            "from",
+            "between",
+            "and",
+            "with",
+            "for",
+            "in",
+            "on",
+            "of",
+            "is",
+          ].includes(term),
+      );
+
+    let matchingRecords = records.filter((record) => {
       if (item && !itemMatchesRecord(item, record)) return false;
-      if (
-        specification &&
-        normalized(record.size) !== normalized(specification)
-      ) {
+      if (specification && normalized(record.size) !== normalized(specification)) {
         return false;
       }
-      const terms = query.split(/\s+/).filter((term) => term.length > 3);
-      return terms.length === 0 || terms.some((term) => recordText.includes(term));
-    });
-    if (!item && matchingRecords.length === 0) {
-      const terms = query.split(/\s+/).filter((term) => term.length > 3);
-      matchingRecords = records.filter((record) =>
-        terms.some((term) =>
-          normalized(
-            `${record.category} ${record.item} ${record.size} ${record.details}`,
-          ).includes(term),
-        ),
-      );
-    }
-    matchingRecords = matchingRecords.slice(0, 6);
+      if (category && normalized(record.category) !== normalized(category.name)) {
+        return false;
+      }
+      if (keyword && !normalized(record.details).includes(normalized(keyword))) {
+        return false;
+      }
+      if (direction === "in" && (record.quantityIn ?? 0) <= 0) return false;
+      if (direction === "out" && (record.quantityOut ?? 0) <= 0) return false;
+      if (from && record.date < from) return false;
+      if (to && record.date > to) return false;
+      if (!hasStructuredFilter) {
+        const recordText = normalized(
+          `${record.category} ${record.item} ${record.size} ${record.details}`,
+        );
+        if (
+          meaningfulTerms.length > 0 &&
+          !meaningfulTerms.some((term) => recordText.includes(term))
+        ) {
+          return false;
+        }
+      }
+      return true;
+    }).sort((left, right) => right.date.localeCompare(left.date));
 
-    let answer = matchingRecords.length
-      ? `I found ${matchingRecords.length} matching inventory ${
-          matchingRecords.length === 1 ? "record" : "records"
+    const totalMatches = matchingRecords.length;
+    const resultRecords = matchingRecords.slice(0, 5);
+    const searchQuery = keyword || item?.name || category?.name || query;
+    let answer = totalMatches
+      ? `I found ${totalMatches} matching inventory ${
+          totalMatches === 1 ? "record" : "records"
         }.`
-      : "I could not find any records matching that request.";
+      : "I couldn't find any matching records.";
 
     if (wantsStock && item) {
-      const stockRecords = records.filter(
-        (record) =>
-          itemMatchesRecord(item, record) &&
-          (!specification ||
-            normalized(record.size) === normalized(specification)),
-      );
-      const balance = stockRecords.reduce(
+      const balance = matchingRecords.reduce(
         (total, record) =>
           total + (record.quantityIn ?? 0) - (record.quantityOut ?? 0),
         0,
@@ -1165,10 +1272,16 @@ export const api = {
       answer = specification
         ? `Recorded stock for ${item.name} (${specification}) is ${balance}.`
         : `Recorded stock for ${item.name} is ${balance} across its specifications.`;
-      matchingRecords = stockRecords.slice(0, 6);
+    } else if (totalMatches > 5) {
+      answer = `I found ${totalMatches} matching inventory records. Showing the first 5.`;
     }
 
-    return ok({ answer, records: matchingRecords });
+    return ok({
+      answer,
+      records: resultRecords,
+      totalMatches,
+      searchQuery,
+    });
   },
 
   async queryAssistant(question) {
