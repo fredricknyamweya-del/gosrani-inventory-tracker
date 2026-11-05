@@ -52,6 +52,18 @@ function RequestStatus({ request }) {
   );
 }
 
+function getRequestType(request) {
+  return (
+    request.requestType ?? (request.itemId ? "specification" : "product")
+  );
+}
+
+function getRequestName(request) {
+  return getRequestType(request) === "category"
+    ? request.categoryName ?? request.category
+    : request.itemName;
+}
+
 export default function CatalogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
@@ -237,9 +249,14 @@ export default function CatalogPage() {
     setSavingAction(true);
     setRequestError("");
     try {
-      await api.updateCatalogRequest(target.id, action === "approve"
-        ? { action, itemName: approveName }
-        : { action, reason: rejectReason });
+      await api.updateCatalogRequest(
+        target.id,
+        action === "approve"
+          ? getRequestType(target) === "category"
+            ? { action, categoryName: approveName }
+            : { action, itemName: approveName }
+          : { action, reason: rejectReason },
+      );
       await Promise.all([reloadCatalog(), reloadRequests()]);
       if (action === "approve") closeApproveModal();
       else closeRejectModal();
@@ -265,7 +282,7 @@ export default function CatalogPage() {
 
   function openApproval(request) {
     setApproveTarget(request);
-    setApproveName(request.itemName);
+    setApproveName(getRequestName(request));
     setRequestError("");
   }
 
@@ -575,7 +592,10 @@ export default function CatalogPage() {
           role="tabpanel"
         >
           <div className="catalog-toolbar catalog-request-toolbar">
-            <p>Review staff requests to add missing items or specifications.</p>
+            <p>
+              Review staff requests for missing categories, products, or
+              specifications.
+            </p>
             <label className="catalog-status-filter">
               <span>Filter by status</span>
               <Select
@@ -622,6 +642,7 @@ export default function CatalogPage() {
                 <thead>
                   <tr>
                     <th scope="col">Requested by</th>
+                    <th scope="col">Type</th>
                     <th scope="col">Category</th>
                     <th scope="col">Item</th>
                     <th scope="col">Specification</th>
@@ -635,9 +656,19 @@ export default function CatalogPage() {
                   {filteredRequests.map((request) => (
                     <tr key={request.id}>
                       <td>{request.requestedBy}</td>
-                      <td>{request.category}</td>
-                      <td>{request.itemName}</td>
-                      <td>{request.specification}</td>
+                      <td>
+                        {getRequestType(request)[0].toLocaleUpperCase()}
+                        {getRequestType(request).slice(1)}
+                      </td>
+                      <td>
+                        {request.categoryName ?? request.category ?? "–"}
+                      </td>
+                      <td>
+                        {getRequestType(request) === "category"
+                          ? "–"
+                          : request.itemName}
+                      </td>
+                      <td>{request.specification || "–"}</td>
                       <td>{request.note || "–"}</td>
                       <td>{formatDate(request.createdAt)}</td>
                       <td>
@@ -652,7 +683,7 @@ export default function CatalogPage() {
                         {request.status === "Pending" ? (
                           <div className="catalog-request-actions">
                             <Button
-                              aria-label={`Approve ${request.itemName} request`}
+                              aria-label={`Approve ${getRequestName(request)} request`}
                               onClick={() => openApproval(request)}
                               variant="secondary"
                             >
@@ -660,7 +691,7 @@ export default function CatalogPage() {
                               Approve
                             </Button>
                             <Button
-                              aria-label={`Reject ${request.itemName} request`}
+                              aria-label={`Reject ${getRequestName(request)} request`}
                               onClick={() => openRejection(request)}
                               variant="ghost"
                             >
@@ -803,7 +834,11 @@ export default function CatalogPage() {
       </Modal>
 
       <Modal
-        description={`${approveTarget?.category ?? ""} · ${approveTarget?.specification ?? ""}`}
+        description={
+          getRequestType(approveTarget ?? {}) === "category"
+            ? "Add the requested category to the catalog."
+            : `${approveTarget?.category ?? ""} · ${approveTarget?.specification ?? ""}`
+        }
         footer={
           <>
             <Button onClick={closeApproveModal} variant="secondary">
@@ -824,9 +859,20 @@ export default function CatalogPage() {
         title="Approve catalog request"
       >
         <p>
-          Approving adds the requested item and specification to the catalog.
+          {getRequestType(approveTarget ?? {}) === "category"
+            ? "Approving adds this category to the catalog."
+            : getRequestType(approveTarget ?? {}) === "product"
+              ? "Approving adds the requested product and its initial specification."
+              : "Approving adds the requested specification to this product."}
         </p>
-        <Field label="Item name" required>
+        <Field
+          label={
+            getRequestType(approveTarget ?? {}) === "category"
+              ? "Category name"
+              : "Item name"
+          }
+          required
+        >
           <Input
             autoComplete="off"
             onChange={(event) => setApproveName(event.target.value)}
@@ -841,7 +887,7 @@ export default function CatalogPage() {
       </Modal>
 
       <Modal
-        description={`${rejectTarget?.itemName ?? ""} · ${rejectTarget?.specification ?? ""}`}
+        description={`${getRequestName(rejectTarget ?? {}) ?? ""} · ${rejectTarget?.specification ?? ""}`}
         footer={
           <>
             <Button onClick={closeRejectModal} variant="secondary">

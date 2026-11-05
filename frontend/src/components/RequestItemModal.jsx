@@ -6,25 +6,40 @@ export default function RequestItemModal({
   open,
   onClose,
   categories,
+  items = [],
   initialCategoryId = "",
   initialItemName = "",
   onCreated,
 }) {
+  const [requestType, setRequestType] = useState("product");
   const [categoryId, setCategoryId] = useState(initialCategoryId);
   const [itemName, setItemName] = useState(initialItemName);
+  const [categoryName, setCategoryName] = useState("");
   const [specification, setSpecification] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const availableItems = items.filter(
+    (item) => item.categoryId === categoryId && item.active,
+  );
 
   useEffect(() => {
     if (!open) return;
+    setRequestType("product");
     setCategoryId(initialCategoryId);
     setItemName(initialItemName);
+    setCategoryName("");
     setSpecification("");
     setNote("");
     setError("");
   }, [open, initialCategoryId, initialItemName]);
+
+  function updateRequestType(value) {
+    setRequestType(value);
+    setError("");
+    setItemName("");
+    setSpecification("");
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -32,9 +47,14 @@ export default function RequestItemModal({
     setError("");
     try {
       const response = await api.createCatalogRequest({
-        categoryId,
-        itemName,
-        specification,
+        requestType,
+        ...(requestType === "category"
+          ? { categoryName }
+          : {
+              categoryId,
+              ...(requestType === "specification" ? { itemId: itemName } : { itemName }),
+              specification,
+            }),
         note,
       });
       await onCreated?.(response.data);
@@ -48,7 +68,7 @@ export default function RequestItemModal({
 
   return (
     <Modal
-      description="Tell an administrator which item or specification is missing."
+      description="Ask an administrator to add a missing category, product, or specification."
       footer={
         <>
           <Button onClick={onClose} variant="secondary">
@@ -65,53 +85,109 @@ export default function RequestItemModal({
       }
       onClose={onClose}
       open={open}
-      title="Request a catalog item"
+      title="Request a catalog addition"
     >
       <form
         className="request-item-form"
         id="request-catalog-item-form"
         onSubmit={submit}
       >
-        <Field label="Category" required>
+        <Field label="What needs to be added?" required>
           <Select
-            onChange={(event) => {
-              setCategoryId(event.target.value);
-              setError("");
-            }}
-            required
-            value={categoryId}
+            onChange={(event) => updateRequestType(event.target.value)}
+            value={requestType}
           >
-            <option value="">Select category</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
+            <option value="category">Category</option>
+            <option value="product">Product</option>
+            <option value="specification">Specification</option>
           </Select>
         </Field>
-        <Field label="Item name" required>
-          <Input
-            autoComplete="off"
-            onChange={(event) => {
-              setItemName(event.target.value);
-              setError("");
-            }}
-            required
-            value={itemName}
-          />
-        </Field>
-        <Field label="Specification" required>
-          <Input
-            autoComplete="off"
-            onChange={(event) => {
-              setSpecification(event.target.value);
-              setError("");
-            }}
-            placeholder="e.g. 2 kg"
-            required
-            value={specification}
-          />
-        </Field>
+        {requestType === "category" ? (
+          <Field label="Category name" required>
+            <Input
+              autoComplete="off"
+              onChange={(event) => {
+                setCategoryName(event.target.value);
+                setError("");
+              }}
+              required
+              value={categoryName}
+            />
+          </Field>
+        ) : (
+          <>
+            <Field label="Category" required>
+              <Select
+                onChange={(event) => {
+                  setCategoryId(event.target.value);
+                  setItemName("");
+                  setSpecification("");
+                  setError("");
+                }}
+                required
+                value={categoryId}
+              >
+                <option value="">Select category</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {requestType === "product" ? (
+              <Field label="Product name" required>
+                <Input
+                  autoComplete="off"
+                  onChange={(event) => {
+                    setItemName(event.target.value);
+                    setError("");
+                  }}
+                  required
+                  value={itemName}
+                />
+              </Field>
+            ) : (
+              <Field label="Product" required>
+                <Select
+                  disabled={!categoryId}
+                  onChange={(event) => {
+                    setItemName(event.target.value);
+                    setError("");
+                  }}
+                  required
+                  value={itemName}
+                >
+                  <option value="">Select product</option>
+                  {availableItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+            <Field
+              label={
+                requestType === "product"
+                  ? "Initial specification"
+                  : "Missing specification"
+              }
+              required
+            >
+              <Input
+                autoComplete="off"
+                onChange={(event) => {
+                  setSpecification(event.target.value);
+                  setError("");
+                }}
+                placeholder="e.g. 2 kg"
+                required
+                value={specification}
+              />
+            </Field>
+          </>
+        )}
         <Field hint="Optional" label="Note">
           <textarea
             className="input textarea"

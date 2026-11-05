@@ -854,25 +854,86 @@ function inventoryWarnings(row, index) {
 }
 
 function createRequest(input) {
+  const requestType =
+    input.requestType ??
+    (input.categoryName
+      ? "category"
+      : input.itemId
+        ? "specification"
+        : "product");
+  if (!["category", "product", "specification"].includes(requestType)) {
+    fail(422, "Choose a valid catalog request type.");
+  }
+
+  if (requestType === "category") {
+    const categoryName = requireText(input.categoryName, "Category name");
+    if (
+      catalog.categories.some(
+        (entry) => normalized(entry.name) === normalized(categoryName),
+      )
+    ) {
+      fail(422, "A category with this name already exists.");
+    }
+    if (
+      requests.some(
+        (request) =>
+          request.status === "Pending" &&
+          request.requestType === "category" &&
+          normalized(request.categoryName) === normalized(categoryName),
+      )
+    ) {
+      fail(422, "A matching category request is already pending.");
+    }
+
+    const request = {
+      id: createId("REQ", nextRequestId++),
+      requestType,
+      categoryId: null,
+      category: categoryName,
+      categoryName,
+      itemId: null,
+      itemName: "",
+      specification: "",
+      note: String(input.note ?? "").trim(),
+      requestedById: activeUser.id,
+      requestedBy: activeUser.name,
+      status: "Pending",
+      createdAt: new Date().toISOString(),
+    };
+    requests.unshift(request);
+    notifyCatalogRequestsChanged();
+    return request;
+  }
+
   const category = getCategory(input.categoryId ?? input.category);
   if (!category) fail(422, "Choose a valid catalog category.");
 
   const existingItem = input.itemId
     ? getItem(input.itemId, category.id)
-    : getItem(input.itemName, category.id);
+    : requestType === "specification"
+      ? getItem(input.itemName, category.id)
+      : null;
   const itemName = requireText(
     existingItem?.name ?? input.itemName,
-    "Item name",
+    requestType === "product" ? "Product name" : "Item name",
   );
   const specification = String(
     input.specification ?? input.size ?? "",
   ).trim();
 
-  if (!existingItem && !specification) {
-    fail(422, "Provide at least one specification for the new item.");
+  if (requestType === "product" && getItem(itemName, category.id)) {
+    fail(422, "This product already exists; request a missing specification instead.");
   }
   if (!specification) {
-    fail(422, "Provide the missing specification.");
+    fail(
+      422,
+      requestType === "product"
+        ? "Provide an initial specification for the new product."
+        : "Provide the missing specification.",
+    );
+  }
+  if (requestType === "specification" && !existingItem) {
+    fail(422, "Choose a valid existing catalog product.");
   }
   if (
     existingItem &&
@@ -886,6 +947,7 @@ function createRequest(input) {
   const duplicateRequest = requests.find(
     (request) =>
       request.status === "Pending" &&
+      request.requestType === requestType &&
       request.categoryId === category.id &&
       normalized(request.itemName) === normalized(itemName) &&
       normalized(request.specification) === normalized(specification),
@@ -896,6 +958,7 @@ function createRequest(input) {
 
   const request = {
     id: createId("REQ", nextRequestId++),
+    requestType,
     categoryId: category.id,
     category: category.name,
     itemId: existingItem?.id ?? null,
@@ -910,6 +973,23 @@ function createRequest(input) {
   requests.unshift(request);
   notifyCatalogRequestsChanged();
   return request;
+}
+
+function addCatalogCategory(name) {
+  const categoryName = requireText(name, "Category name");
+  if (
+    catalog.categories.some(
+      (category) => normalized(category.name) === normalized(categoryName),
+    )
+  ) {
+    fail(422, "A category with this name already exists.");
+  }
+  const category = {
+    id: createId("cat-new", nextCategoryId++),
+    name: categoryName,
+  };
+  catalog.categories.push(category);
+  return category;
 }
 
 export const api = {
@@ -1444,20 +1524,7 @@ export const api = {
   async createCatalogCategory(input = {}) {
     await wait();
     ensureAdmin();
-    const name = requireText(input.name, "Category name");
-    if (
-      catalog.categories.some(
-        (category) => normalized(category.name) === normalized(name),
-      )
-    ) {
-      fail(422, "A category with this name already exists.");
-    }
-    const category = {
-      id: createId("cat-new", nextCategoryId++),
-      name,
-    };
-    catalog.categories.push(category);
-    return ok(category);
+    return ok(addCatalogCategory(input.name));
   },
 
   async createCatalogRequest(input = {}) {
@@ -1487,6 +1554,22 @@ export const api = {
 
     const action = String(input.action ?? input.status ?? "").toLowerCase();
     if (action === "approve") {
+      const requestType =
+        request.requestType ?? (request.itemId ? "specification" : "product");
+      if (requestType === "category") {
+        const category = addCatalogCategory(
+          input.categoryName ?? request.categoryName ?? request.category,
+        );
+        request.categoryId = category.id;
+        request.category = category.name;
+        request.categoryName = category.name;
+        request.status = "Approved";
+        request.processedBy = activeUser.name;
+        request.processedAt = new Date().toISOString();
+        notifyCatalogRequestsChanged();
+        return ok(request);
+      }
+
       const itemName = String(input.itemName ?? request.itemName).trim();
       if (!itemName) fail(422, "Item name is required for approval.");
 

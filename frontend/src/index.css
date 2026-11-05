@@ -1396,6 +1396,30 @@
   padding: 0 18px;
 }
 
+.entry-catalog-request {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.entry-catalog-request h2,
+.entry-catalog-request p {
+  margin: 0;
+}
+
+.entry-catalog-request h2 {
+  font-size: 14px;
+}
+
+.entry-catalog-request p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .entry-own-requests > summary {
   display: flex;
   min-height: 54px;
@@ -1622,6 +1646,12 @@
 
   .entry-own-requests {
     padding-inline: 14px;
+  }
+
+  .entry-catalog-request {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px;
   }
 
   .entry-description {

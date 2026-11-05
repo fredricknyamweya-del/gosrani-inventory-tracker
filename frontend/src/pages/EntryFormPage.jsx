@@ -14,6 +14,7 @@ import {
   Select,
   Toast,
 } from "../components/ui";
+import { Plus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useApi } from "../hooks/useApi";
 import { api } from "../services/api";
@@ -96,6 +97,7 @@ export default function EntryFormPage() {
   );
   const selectedItem = availableItems.find((item) => item.name === entry.item);
   const ownRequests = myRequests ?? [];
+  const catalogItems = catalog?.items ?? [];
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -355,7 +357,7 @@ export default function EntryFormPage() {
                 onClick={() => setRequestItemOpen(true)}
                 variant="ghost"
               >
-                Can't find it? Request an item
+                Can't find it? Request from admin
               </Button>
             )}
           </div>
@@ -426,9 +428,24 @@ export default function EntryFormPage() {
         </div>
       </form>
       {!isAdmin && (
+        <section className="panel entry-catalog-request">
+          <div>
+            <h2>Missing something from the catalog?</h2>
+            <p>
+              Request a category, product, or specification from an
+              administrator.
+            </p>
+          </div>
+          <Button onClick={() => setRequestItemOpen(true)} variant="secondary">
+            <Plus aria-hidden="true" size={16} />
+            Request catalog addition
+          </Button>
+        </section>
+      )}
+      {!isAdmin && (
         <details className="panel entry-own-requests">
           <summary>
-            <span>My item requests</span>
+            <span>My catalog requests</span>
             <span className="entry-own-request-count">{ownRequests.length}</span>
           </summary>
           {requestsLoading ? (
@@ -450,10 +467,18 @@ export default function EntryFormPage() {
               {ownRequests.map((request) => (
                 <li key={request.id}>
                   <div>
-                    <strong>{request.itemName}</strong>
-                    <span>
-                      {request.category} · {request.specification}
-                    </span>
+                    <strong>
+                      {request.requestType === "category"
+                        ? request.categoryName
+                        : request.itemName}
+                    </strong>
+                    <span>{[
+                      request.requestType,
+                      request.category,
+                      request.specification,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}</span>
                     <time dateTime={request.createdAt}>
                       {formatDate(request.createdAt)}
                     </time>
@@ -485,6 +510,7 @@ export default function EntryFormPage() {
       ) : (
         <RequestItemModal
           categories={categories}
+          items={catalogItems}
           initialCategoryId={selectedCategory?.id ?? ""}
           initialItemName={entry.item}
           onClose={() => setRequestItemOpen(false)}
