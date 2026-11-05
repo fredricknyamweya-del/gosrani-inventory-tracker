@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import LoginPage from "../pages/LoginPage";
+import NotFoundPage from "../pages/NotFoundPage";
+import AppLayout from "../components/AppLayout";
 import { AdminRoute, ProtectedRoute, SignedInPlaceholder } from "./routes";
 import { AuthProvider } from "../context/AuthContext";
 import { ThemeProvider } from "../context/ThemeContext";
@@ -12,31 +14,28 @@ export default function App() {
           <Routes>
             <Route element={<LoginPage />} path="/login" />
             <Route element={<ProtectedRoute />}>
-              <Route element={<Navigate replace to="/inventory" />} path="/" />
-              <Route
-                element={<SignedInPlaceholder />}
-                path="/inventory/*"
-              />
-              <Route
-                element={<AdminRoute />}
-              >
+              <Route element={<AppLayout />}>
+                <Route element={<Navigate replace to="/inventory" />} index />
                 <Route
-                  element={<SignedInPlaceholder title="User management" />}
-                  path="/users"
+                  element={<SignedInPlaceholder />}
+                  path="inventory/*"
                 />
                 <Route
-                  element={<SignedInPlaceholder title="Product catalog" />}
-                  path="/catalog"
+                  element={<SignedInPlaceholder title="AI assistant" />}
+                  path="assistant"
                 />
+                <Route element={<AdminRoute />}>
+                  <Route
+                    element={<SignedInPlaceholder title="Product catalog" />}
+                    path="catalog"
+                  />
+                  <Route
+                    element={<SignedInPlaceholder title="User management" />}
+                    path="users"
+                  />
+                </Route>
+                <Route element={<NotFoundPage />} path="*" />
               </Route>
-              <Route
-                element={<SignedInPlaceholder title="AI assistant" />}
-                path="/assistant"
-              />
-              <Route
-                element={<SignedInPlaceholder title="Page not found" />}
-                path="*"
-              />
             </Route>
           </Routes>
         </BrowserRouter>

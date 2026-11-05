@@ -682,6 +682,9 @@
 
 .table-scroll {
   overflow-x: auto;
+}
+
+@media (max-width: 720px) {
   .login-page {
     grid-template-columns: 1fr;
   }
