@@ -573,12 +573,16 @@ function createRequest(input) {
   if (!existingItem && !specification) {
     fail(422, "Provide at least one specification for the new item.");
   }
+  if (!specification) {
+    fail(422, "Provide the missing specification.");
+  }
   if (
     existingItem &&
-    !specification &&
-    existingItem.specifications.length > 0
+    existingItem.specifications.some(
+      (entry) => normalized(entry) === normalized(specification),
+    )
   ) {
-    fail(422, "Provide the missing specification.");
+    fail(422, "This specification is already available in the catalog.");
   }
 
   const duplicateRequest = requests.find(
@@ -935,33 +939,35 @@ export const api = {
     const item = catalog.items.find((entry) => entry.id === id);
     if (!item) fail(404, "Catalog item not found.");
 
+    const changes = {};
     if (input.name != null) {
       const name = requireText(input.name, "Item name");
       assertUniqueItem(item.categoryId, name, item.id);
-      item.name = name;
+      changes.name = name;
     }
+    let specifications = [...item.specifications];
     if (input.specifications != null) {
-      item.specifications = cleanSpecifications(input.specifications);
+      specifications = cleanSpecifications(input.specifications);
     }
     if (input.addSpecifications != null) {
       const added = cleanSpecifications(input.addSpecifications);
       for (const specification of added) {
         if (
-          item.specifications.some(
+          specifications.some(
             (entry) => normalized(entry) === normalized(specification),
           )
         ) {
           fail(422, `Specification "${specification}" already exists.`);
         }
       }
-      item.specifications.push(...added);
+      specifications.push(...added);
     }
     if (input.removeSpecifications != null) {
       if (!Array.isArray(input.removeSpecifications)) {
         fail(422, "Specifications to remove must be a list.");
       }
       const removed = new Set(input.removeSpecifications.map(normalized));
-      item.specifications = item.specifications.filter(
+      specifications = specifications.filter(
         (specification) => !removed.has(normalized(specification)),
       );
     }
@@ -969,8 +975,9 @@ export const api = {
       if (typeof input.active !== "boolean") {
         fail(422, "Active must be a boolean.");
       }
-      item.active = input.active;
+      changes.active = input.active;
     }
+    Object.assign(item, changes, { specifications });
     return ok(item);
   },
 
@@ -1037,9 +1044,11 @@ export const api = {
         ) {
           fail(422, `Specification "${specification}" already exists.`);
         }
-        item.specifications.push(specification);
         if (input.itemName != null && itemName !== item.name) {
           assertUniqueItem(item.categoryId, itemName, item.id);
+        }
+        item.specifications.push(specification);
+        if (input.itemName != null && itemName !== item.name) {
           item.name = itemName;
         }
       } else {
