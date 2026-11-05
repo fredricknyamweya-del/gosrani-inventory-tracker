@@ -123,25 +123,58 @@ Backend source files are scaffolding and do not yet start a working API.
 ```text
 .
 ├── README.md
+├── .gitignore
 ├── frontend/
-│   ├── .figma/                 # Figma Make tooling
+│   ├── .gitignore
+│   ├── index.html
+│   ├── package.json
 │   ├── public/
+│   │   └── favicon.svg
 │   └── src/
-│       ├── app/                # Application shell and route definitions
-│       ├── components/         # Shared layout, chat, theme, and UI
-│       ├── context/            # Authentication and theme state
+│       ├── app/
+│       │   ├── App.jsx
+│       │   └── routes.jsx
+│       ├── components/
+│       │   ├── AppLayout.jsx
+│       │   ├── AssistantChat.jsx
+│       │   ├── ThemeToggle.jsx
+│       │   └── ui.jsx
+│       ├── context/
+│       │   ├── AuthContext.jsx
+│       │   └── ThemeContext.jsx
 │       ├── hooks/
-│       ├── pages/              # Inventory, entry, assistant, and user screens
+│       │   └── useApi.js
+│       ├── pages/
+│       │   ├── AssistantPage.jsx
+│       │   ├── EntryDetailPage.jsx
+│       │   ├── EntryFormPage.jsx
+│       │   ├── InventoryPage.jsx
+│       │   ├── LoginPage.jsx
+│       │   ├── NotFoundPage.jsx
+│       │   └── UsersPage.jsx
 │       ├── services/
-│       │   └── api.js          # Intended boundary for frontend data access
-│       └── utils/
+│       │   └── api.js
+│       ├── utils/
+│       │   └── format.js
+│       ├── index.css
+│       └── main.jsx
 ├── backend/
-│   ├── app/                    # Planned Flask application modules
-│   ├── instance/
+│   ├── .env.example
+│   ├── .gitignore
 │   ├── Pipfile
 │   ├── requirements.txt
-│   └── run.py
-└── ...
+│   ├── run.py
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── assistant.py
+│   │   ├── auth.py
+│   │   ├── inventory.py
+│   │   ├── models.py
+│   │   ├── permissions.py
+│   │   ├── users.py
+│   │   └── validators.py
+│   └── instance/
+│       └── .gitkeep
 ```
 
 The intended architecture keeps data access behind `frontend/src/services/api.js`.
