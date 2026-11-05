@@ -1348,6 +1348,102 @@
   color: var(--red);
 }
 
+.entry-form-panel {
+  padding: 22px;
+}
+
+.entry-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.entry-description {
+  grid-column: 1 / -1;
+}
+
+.entry-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.entry-form-error {
+  margin: 16px 0 0;
+  color: var(--red);
+  font-size: 13px;
+}
+
+.entry-review-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.entry-review-list > div {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 2fr;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+}
+
+.entry-review-list > div:first-child {
+  padding-top: 0;
+}
+
+.entry-review-list > div:last-child {
+  border-bottom: 0;
+}
+
+.entry-review-list dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.entry-review-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.entry-confirm {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 20px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.entry-success {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 36px 22px;
+  text-align: center;
+}
+
+.entry-success h1,
+.entry-success p {
+  margin: 0;
+}
+
+.entry-success p {
+  color: var(--muted);
+}
+
+.entry-success-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green-soft);
+  color: var(--green);
+}
+
 .inventory-pagination {
   display: flex;
   align-items: center;
@@ -1398,6 +1494,29 @@
   .inventory-pagination .btn {
     flex: 1;
     justify-content: center;
+  }
+
+  .entry-form-panel {
+    padding: 16px;
+  }
+
+  .entry-form-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .entry-description {
+    grid-column: auto;
+  }
+
+  .entry-review-list > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .entry-form-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
   }
 }
 

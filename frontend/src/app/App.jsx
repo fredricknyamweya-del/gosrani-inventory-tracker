@@ -6,6 +6,7 @@ import { AdminRoute, ProtectedRoute, SignedInPlaceholder } from "./routes"
 import { AuthProvider } from "../context/AuthContext"
 import { ThemeProvider } from "../context/ThemeContext"
 import InventoryPage from "../pages/InventoryPage"
+import EntryFormPage from "../pages/EntryFormPage"
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route element={<Navigate replace to="/inventory" />} index />
                 <Route element={<InventoryPage />} path="inventory" />
+                <Route element={<EntryFormPage />} path="inventory/new" />
                 <Route element={<SignedInPlaceholder />} path="inventory/*" />
                 <Route element={<AdminRoute />}>
                   <Route
