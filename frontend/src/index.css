@@ -424,6 +424,18 @@
   padding: 24px;
 }
 
+.login-brand-visual {
+  display: grid;
+  gap: 16px;
+}
+
+.login-brand-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
 .login-brand-logo {
   display: block;
   width: 150px;

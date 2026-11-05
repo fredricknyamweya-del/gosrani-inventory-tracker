@@ -69,9 +69,16 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <section aria-label="About Gosrani Wholesalers" className="login-brand-panel">
-        <Link aria-label="Gosrani Wholesalers home" className="login-brand" to="/login">
-          <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/gw-logo-login.png" />
-        </Link>
+        <div className="login-brand-visual">
+          <Link aria-label="Gosrani Wholesalers home" className="login-brand" to="/login">
+            <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/gw-logo-login.png" />
+          </Link>
+          <img
+            alt="Gosrani Wholesalers storefront"
+            className="login-brand-photo"
+            src="/Gosrani Frontend Shop Image.jpeg"
+          />
+        </div>
         <div className="login-brand-copy">
           <div className="login-kicker"><span /> INVENTORY MANAGEMENT</div>
           <h1>Everything in stock. Everything in sync.</h1>
