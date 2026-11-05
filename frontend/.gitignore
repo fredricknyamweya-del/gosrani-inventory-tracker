@@ -1,5 +1,36 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
-.env
-.env.*
+build/
+
+# Caches
+.cache/
+.vite/
+vite.config.*.timestamp-*
+*.tsbuildinfo
+
+# Environment files (keep the example)
+.env*
 !.env.example
+
+# Logs
+*-debug.log*
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Temporary files
+.tmp-*
+
+# Figma Make generated context
+/.figma/design-context/
+
+# Platform-managed agent state, not project source
+/.plugins/
+/.opencode-skills/
+
+# Test coverage
+coverage/
