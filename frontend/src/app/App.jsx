@@ -1,10 +1,10 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router";
-import LoginPage from "../pages/LoginPage";
-import NotFoundPage from "../pages/NotFoundPage";
-import AppLayout from "../components/AppLayout";
-import { AdminRoute, ProtectedRoute, SignedInPlaceholder } from "./routes";
-import { AuthProvider } from "../context/AuthContext";
-import { ThemeProvider } from "../context/ThemeContext";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router"
+import LoginPage from "../pages/LoginPage"
+import NotFoundPage from "../pages/NotFoundPage"
+import AppLayout from "../components/AppLayout"
+import { AdminRoute, ProtectedRoute, SignedInPlaceholder } from "./routes"
+import { AuthProvider } from "../context/AuthContext"
+import { ThemeProvider } from "../context/ThemeContext"
 
 export default function App() {
   return (
@@ -16,10 +16,7 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
                 <Route element={<Navigate replace to="/inventory" />} index />
-                <Route
-                  element={<SignedInPlaceholder />}
-                  path="inventory/*"
-                />
+                <Route element={<SignedInPlaceholder />} path="inventory/*" />
                 <Route
                   element={<SignedInPlaceholder title="AI assistant" />}
                   path="assistant"
@@ -41,5 +38,5 @@ export default function App() {
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
-  );
+  )
 }

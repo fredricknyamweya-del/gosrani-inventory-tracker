@@ -9,7 +9,7 @@ import {
   Sparkles,
   Users,
   X,
-} from "lucide-react";
+} from "lucide-react"
 import {
   Link,
   NavLink,
@@ -17,16 +17,16 @@ import {
   useLocation,
   useNavigate,
   useSearchParams,
-} from "react-router";
-import { useEffect, useRef, useState } from "react";
-import { useApi } from "../hooks/useApi";
-import { useAuth } from "../context/AuthContext";
-import { api } from "../services/api";
-import { RoleBadge } from "./ui";
-import ThemeToggle from "./ThemeToggle";
+} from "react-router"
+import { useEffect, useRef, useState } from "react"
+import { useApi } from "../hooks/useApi"
+import { useAuth } from "../context/AuthContext"
+import { api } from "../services/api"
+import { RoleBadge } from "./ui"
+import ThemeToggle from "./ThemeToggle"
 
 function PendingRequestCount() {
-  const { data, error } = useApi(() => api.getCatalogRequests(), []);
+  const { data, error } = useApi(() => api.getCatalogRequests(), [])
 
   if (error) {
     return (
@@ -37,16 +37,16 @@ function PendingRequestCount() {
       >
         !
       </span>
-    );
+    )
   }
-  if (!Array.isArray(data)) return null;
+  if (!Array.isArray(data)) return null
 
-  const count = data.filter((request) => request.status === "Pending").length;
+  const count = data.filter((request) => request.status === "Pending").length
   return (
     <span aria-label={`${count} pending requests`} className="nav-count">
       {count}
     </span>
-  );
+  )
 }
 
 function initials(name = "") {
@@ -56,55 +56,57 @@ function initials(name = "") {
     .slice(0, 2)
     .map((part) => part[0])
     .join("")
-    .toUpperCase();
+    .toUpperCase()
 }
 
 export default function AppLayout() {
-  const { user, logout, isAdmin } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get("search") ?? "");
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef(null);
+  const { user, logout, isAdmin } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get("search") ?? "")
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileRef = useRef(null)
 
   useEffect(() => {
-    setDrawerOpen(false);
-    setProfileOpen(false);
-    setSearch(searchParams.get("search") ?? "");
-  }, [location.pathname, searchParams]);
+    setDrawerOpen(false)
+    setProfileOpen(false)
+    setSearch(searchParams.get("search") ?? "")
+  }, [location.pathname, searchParams])
 
   useEffect(() => {
-    if (!profileOpen) return undefined;
+    if (!profileOpen) return undefined
 
     function handlePointerDown(event) {
       if (!profileRef.current?.contains(event.target)) {
-        setProfileOpen(false);
+        setProfileOpen(false)
       }
     }
 
     function handleKeyDown(event) {
-      if (event.key === "Escape") setProfileOpen(false);
+      if (event.key === "Escape") setProfileOpen(false)
     }
 
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("keydown", handleKeyDown)
     return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [profileOpen]);
+      document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [profileOpen])
 
   function handleSearch(event) {
-    event.preventDefault();
-    const query = search.trim();
-    navigate(query ? `/inventory?search=${encodeURIComponent(query)}` : "/inventory");
+    event.preventDefault()
+    const query = search.trim()
+    navigate(
+      query ? `/inventory?search=${encodeURIComponent(query)}` : "/inventory",
+    )
   }
 
   function handleLogout() {
-    logout();
-    navigate("/login", { replace: true });
+    logout()
+    navigate("/login", { replace: true })
   }
 
   const navigation = [
@@ -122,7 +124,7 @@ export default function AppLayout() {
           { to: "/users", label: "User Management", icon: Users },
         ]
       : []),
-  ];
+  ]
 
   return (
     <div className={`app-shell${drawerOpen ? " drawer-open" : ""}`}>
@@ -143,7 +145,9 @@ export default function AppLayout() {
             onClick={() => setDrawerOpen(false)}
             to="/inventory"
           >
-            <span className="app-brand-mark"><Boxes aria-hidden="true" size={21} /></span>
+            <span className="app-brand-mark">
+              <Boxes aria-hidden="true" size={21} />
+            </span>
             <span className="app-brand-name">
               <strong>Gosrani</strong>
               <small>WHOLESALERS LIMITED</small>
@@ -172,7 +176,11 @@ export default function AppLayout() {
               onClick={() => setDrawerOpen(false)}
               to={to}
             >
-              <Icon aria-hidden="true" className="sidebar-link-icon" size={18} />
+              <Icon
+                aria-hidden="true"
+                className="sidebar-link-icon"
+                size={18}
+              />
               <span>{label}</span>
               {badge}
             </NavLink>
@@ -180,7 +188,9 @@ export default function AppLayout() {
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="sidebar-footer-brand">Gosrani Wholesalers Limited</div>
+          <div className="sidebar-footer-brand">
+            Gosrani Wholesalers Limited
+          </div>
           <div>Eldoret, Kenya</div>
         </div>
       </aside>
@@ -194,16 +204,22 @@ export default function AppLayout() {
             onClick={() => setDrawerOpen((open) => !open)}
             type="button"
           >
-            {drawerOpen
-              ? <X aria-hidden="true" size={20} />
-              : <Menu aria-hidden="true" size={20} />}
+            {drawerOpen ? (
+              <X aria-hidden="true" size={20} />
+            ) : (
+              <Menu aria-hidden="true" size={20} />
+            )}
           </button>
           <form
             aria-label="Global inventory search"
             className="global-search"
             onSubmit={handleSearch}
           >
-            <Search aria-hidden="true" className="global-search-icon" size={17} />
+            <Search
+              aria-hidden="true"
+              className="global-search-icon"
+              size={17}
+            />
             <label className="sr-only" htmlFor="global-search-input">
               Search inventory
             </label>
@@ -230,7 +246,9 @@ export default function AppLayout() {
                 onClick={() => setProfileOpen((open) => !open)}
                 type="button"
               >
-                <span aria-hidden="true" className="profile-avatar">{initials(user?.name)}</span>
+                <span aria-hidden="true" className="profile-avatar">
+                  {initials(user?.name)}
+                </span>
                 <span className="profile-trigger-copy">
                   <strong>{user?.name}</strong>
                   <RoleBadge role={user?.role} />
@@ -266,5 +284,5 @@ export default function AppLayout() {
         </footer>
       </div>
     </div>
-  );
+  )
 }
