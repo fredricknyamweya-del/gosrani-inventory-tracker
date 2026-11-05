@@ -30,8 +30,8 @@ export default function App() {
                     path="inventory/:id/edit"
                   />
                 </Route>
-                <Route element={<SignedInPlaceholder />} path="inventory/*" />
                 <Route element={<AdminRoute />}>
+                  <Route element={<SignedInPlaceholder />} path="inventory/*" />
                   <Route
                     element={<SignedInPlaceholder title="AI assistant" />}
                     path="assistant"

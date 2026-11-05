@@ -209,6 +209,32 @@ export default function InventoryPage() {
           </Select>
         </label>
         <label className="inventory-filter">
+          <span>Date from</span>
+          <Input
+            aria-label="Filter from date"
+            max={to || undefined}
+            onChange={(event) => {
+              setFrom(event.target.value);
+              setPage(1);
+            }}
+            type="date"
+            value={from}
+          />
+        </label>
+        <label className="inventory-filter">
+          <span>Date to</span>
+          <Input
+            aria-label="Filter to date"
+            min={from || undefined}
+            onChange={(event) => {
+              setTo(event.target.value);
+              setPage(1);
+            }}
+            type="date"
+            value={to}
+          />
+        </label>
+        <label className="inventory-filter">
           <span>Size / Specifications</span>
           <Select
             aria-label="Filter by size or specification"
@@ -226,32 +252,6 @@ export default function InventoryPage() {
               </option>
             ))}
           </Select>
-        </label>
-        <label className="inventory-filter">
-          <span>From</span>
-          <Input
-            aria-label="Filter from date"
-            max={to || undefined}
-            onChange={(event) => {
-              setFrom(event.target.value);
-              setPage(1);
-            }}
-            type="date"
-            value={from}
-          />
-        </label>
-        <label className="inventory-filter">
-          <span>To</span>
-          <Input
-            aria-label="Filter to date"
-            min={from || undefined}
-            onChange={(event) => {
-              setTo(event.target.value);
-              setPage(1);
-            }}
-            type="date"
-            value={to}
-          />
         </label>
         <label className="inventory-filter">
           <span>Sort by date</span>
