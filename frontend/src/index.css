@@ -467,6 +467,10 @@
   box-shadow: 0 20px 60px rgb(0 0 0 / 24%);
 }
 
+.modal-large {
+  width: min(100%, 760px);
+}
+
 .modal-header,
 .modal-actions {
   display: flex;
@@ -601,6 +605,16 @@
 
 .error-state {
   color: var(--red);
+}
+
+.success-mark {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--green-soft);
+  color: var(--green);
+  place-items: center;
 }
 
 @media (max-width: 600px) {
