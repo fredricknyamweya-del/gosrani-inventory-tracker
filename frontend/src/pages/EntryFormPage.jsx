@@ -1,18 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Check, Save } from "lucide-react";
 import { Link, useNavigate } from "react-router";
+import AddItemModal from "../components/AddItemModal";
+import RequestItemModal from "../components/RequestItemModal";
 import {
   Button,
+  EmptyState,
   ErrorState,
   Field,
   Input,
   LoadingState,
   PageHeader,
   Select,
+  Toast,
 } from "../components/ui";
+import { useAuth } from "../context/AuthContext";
 import { useApi } from "../hooks/useApi";
 import { api } from "../services/api";
-import { todayIso } from "../utils/format";
+import { formatDate, todayIso } from "../utils/format";
 
 function makeEntry() {
   return {
@@ -51,6 +56,7 @@ function validateEntry(entry, item) {
 }
 
 export default function EntryFormPage() {
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [entry, setEntry] = useState(makeEntry);
   const [errors, setErrors] = useState({});
@@ -59,12 +65,27 @@ export default function EntryFormPage() {
   const [submitting, setSubmitting] = useState(false);
   const [pageError, setPageError] = useState(null);
   const [savedEntry, setSavedEntry] = useState(null);
+  const [addItemOpen, setAddItemOpen] = useState(false);
+  const [requestItemOpen, setRequestItemOpen] = useState(false);
+  const [toast, setToast] = useState(null);
   const {
     data: catalog,
     error: catalogError,
     loading: catalogLoading,
     reload: reloadCatalog,
   } = useApi(() => api.getCatalog(), []);
+  const {
+    data: myRequests,
+    error: requestsError,
+    loading: requestsLoading,
+    reload: reloadMyRequests,
+  } = useApi(
+    () =>
+      isAdmin
+        ? Promise.resolve({ data: [] })
+        : api.getCatalogRequests(),
+    [isAdmin],
+  );
 
   const categories = catalog?.categories ?? [];
   const selectedCategory = categories.find(
@@ -74,10 +95,28 @@ export default function EntryFormPage() {
     (item) => item.active && item.categoryId === selectedCategory?.id,
   );
   const selectedItem = availableItems.find((item) => item.name === entry.item);
+  const ownRequests = myRequests ?? [];
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timeout = window.setTimeout(() => setToast(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
 
   function update(key, value) {
     setEntry((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: "", quantity: "" }));
+  }
+
+  async function handleItemCreated(item) {
+    await reloadCatalog();
+    setEntry((current) => ({ ...current, item: item.name, size: "" }));
+    setErrors((current) => ({ ...current, item: "", size: "" }));
+  }
+
+  async function handleRequestCreated() {
+    await reloadMyRequests();
+    setToast({ message: "Request sent to an administrator" });
   }
 
   async function review(event) {
@@ -276,31 +315,50 @@ export default function EntryFormPage() {
               ))}
             </Select>
           </Field>
-          <Field error={errors.item} label="Name of Item" required>
-            <Select
-              disabled={!entry.category}
-              value={entry.item}
-              onChange={(event) => {
-                setEntry((current) => ({
-                  ...current,
-                  item: event.target.value,
-                  size: "",
-                }));
-                setErrors((current) => ({
-                  ...current,
-                  item: "",
-                  size: "",
-                }));
-              }}
-            >
-              <option value="">Select item</option>
-              {availableItems.map((item) => (
-                <option key={item.id} value={item.name}>
-                  {item.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <div className="entry-item-field">
+            <Field error={errors.item} label="Name of Item" required>
+              <Select
+                disabled={!entry.category}
+                value={entry.item}
+                onChange={(event) => {
+                  setEntry((current) => ({
+                    ...current,
+                    item: event.target.value,
+                    size: "",
+                  }));
+                  setErrors((current) => ({
+                    ...current,
+                    item: "",
+                    size: "",
+                  }));
+                }}
+              >
+                <option value="">Select item</option>
+                {availableItems.map((item) => (
+                  <option key={item.id} value={item.name}>
+                    {item.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {isAdmin ? (
+              <Button
+                className="entry-catalog-action"
+                onClick={() => setAddItemOpen(true)}
+                variant="ghost"
+              >
+                Can't find it? Add a new item
+              </Button>
+            ) : (
+              <Button
+                className="entry-catalog-action"
+                onClick={() => setRequestItemOpen(true)}
+                variant="ghost"
+              >
+                Can't find it? Request an item
+              </Button>
+            )}
+          </div>
           <Field
             error={errors.size}
             label="Specifications/Size"
@@ -367,6 +425,78 @@ export default function EntryFormPage() {
           </Button>
         </div>
       </form>
+      {!isAdmin && (
+        <details className="panel entry-own-requests">
+          <summary>
+            <span>My item requests</span>
+            <span className="entry-own-request-count">{ownRequests.length}</span>
+          </summary>
+          {requestsLoading ? (
+            <LoadingState label="Loading your item requests" rows={2} />
+          ) : requestsError ? (
+            <ErrorState
+              message={requestsError.message}
+              onRetry={reloadMyRequests}
+              retrying={requestsLoading}
+              title="Unable to load your item requests"
+            />
+          ) : ownRequests.length === 0 ? (
+            <EmptyState
+              description="Requests you send will be listed here."
+              title="You have no item requests"
+            />
+          ) : (
+            <ul className="entry-own-request-list">
+              {ownRequests.map((request) => (
+                <li key={request.id}>
+                  <div>
+                    <strong>{request.itemName}</strong>
+                    <span>
+                      {request.category} · {request.specification}
+                    </span>
+                    <time dateTime={request.createdAt}>
+                      {formatDate(request.createdAt)}
+                    </time>
+                  </div>
+                  <span
+                    className={`entry-own-request-status is-${request.status.toLocaleLowerCase()}`}
+                  >
+                    {request.status}
+                  </span>
+                  {request.reason && (
+                    <span className="entry-own-request-reason">
+                      {request.reason}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
+      )}
+      {isAdmin ? (
+        <AddItemModal
+          categories={categories}
+          initialCategoryId={selectedCategory?.id ?? ""}
+          onClose={() => setAddItemOpen(false)}
+          onCreated={handleItemCreated}
+          open={addItemOpen}
+        />
+      ) : (
+        <RequestItemModal
+          categories={categories}
+          initialCategoryId={selectedCategory?.id ?? ""}
+          initialItemName={entry.item}
+          onClose={() => setRequestItemOpen(false)}
+          onCreated={handleRequestCreated}
+          open={requestItemOpen}
+        />
+      )}
+      <Toast
+        message={toast?.message}
+        onClose={() => setToast(null)}
+        tone={toast?.tone}
+      />
     </>
   );
 }

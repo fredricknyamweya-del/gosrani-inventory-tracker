@@ -1375,6 +1375,119 @@
   font-size: 13px;
 }
 
+.entry-item-field {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.entry-catalog-action {
+  justify-self: start;
+  min-height: 28px;
+  padding: 4px 0;
+  color: var(--red);
+  font-size: 11px;
+}
+
+.entry-own-requests {
+  margin-top: 16px;
+  padding: 0 18px;
+}
+
+.entry-own-requests > summary {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  list-style: none;
+}
+
+.entry-own-requests > summary::-webkit-details-marker {
+  display: none;
+}
+
+.entry-own-request-count {
+  display: inline-grid;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  padding-inline: 5px;
+  background: var(--surface-3);
+  color: var(--muted);
+  font-size: 10px;
+  place-items: center;
+}
+
+.entry-own-request-list {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--border);
+  padding: 0;
+  list-style: none;
+}
+
+.entry-own-request-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0;
+}
+
+.entry-own-request-list li:last-child {
+  border-bottom: 0;
+}
+
+.entry-own-request-list li > div {
+  display: grid;
+  gap: 3px;
+}
+
+.entry-own-request-list strong {
+  font-size: 12px;
+}
+
+.entry-own-request-list li > div > span,
+.entry-own-request-list time,
+.entry-own-request-reason {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.entry-own-request-status {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.entry-own-request-status.is-approved {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.entry-own-request-status.is-rejected {
+  background: var(--surface-3);
+  color: var(--muted);
+}
+
+.entry-own-request-reason {
+  grid-column: 1 / -1;
+}
+
+.request-item-form {
+  display: grid;
+  gap: 16px;
+}
+
 .entry-review-list {
   display: grid;
   gap: 0;
@@ -1503,6 +1616,10 @@
   .entry-form-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+
+  .entry-own-requests {
+    padding-inline: 14px;
   }
 
   .entry-description {
