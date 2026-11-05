@@ -5,6 +5,7 @@ import AppLayout from "../components/AppLayout"
 import { AdminRoute, ProtectedRoute, SignedInPlaceholder } from "./routes"
 import { AuthProvider } from "../context/AuthContext"
 import { ThemeProvider } from "../context/ThemeContext"
+import AssistantPage from "../pages/AssistantPage"
 import InventoryPage from "../pages/InventoryPage"
 import EntryFormPage from "../pages/EntryFormPage"
 import CatalogPage from "../pages/CatalogPage"
@@ -33,11 +34,8 @@ export default function App() {
                   />
                 </Route>
                 <Route element={<AdminRoute />}>
-                  <Route element={<SignedInPlaceholder />} path="inventory/*" />
-                  <Route
-                    element={<SignedInPlaceholder title="AI assistant" />}
-                    path="assistant"
-                  />
+                  <Route element={<SignedInPlaceholder />} path="inventory/*"                   />
+                  <Route element={<AssistantPage />} path="assistant" />
                   <Route element={<CatalogPage />} path="catalog" />
                   <Route element={<UsersPage />} path="users" />
                 </Route>

@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from "react"
 import { useApi } from "../hooks/useApi"
 import { useAuth } from "../context/AuthContext"
 import { api } from "../services/api"
+import AssistantChat from "./AssistantChat"
 import { RoleBadge } from "./ui"
 import ThemeToggle from "./ThemeToggle"
 
@@ -78,13 +79,63 @@ export default function AppLayout() {
   const [search, setSearch] = useState(searchQuery);
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const profileRef = useRef(null)
+  const assistantTriggerRef = useRef(null)
+  const assistantPanelRef = useRef(null)
+  const assistantCloseRef = useRef(null)
 
   useEffect(() => {
     setDrawerOpen(false)
     setProfileOpen(false)
+    setAssistantOpen(false)
     setSearch(searchQuery);
   }, [location.pathname, searchQuery]);
+
+  useEffect(() => {
+    if (!assistantOpen) return undefined
+
+    const previouslyFocused = document.activeElement
+    const panel = assistantPanelRef.current
+    const focusableSelector =
+      'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+    assistantCloseRef.current?.focus()
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setAssistantOpen(false)
+        return
+      }
+
+      if (event.key !== "Tab" || !panel) return
+      const focusable = [...panel.querySelectorAll(focusableSelector)]
+      const firstFocusable = focusable[0]
+      const lastFocusable = focusable.at(-1)
+
+      if (!firstFocusable || !lastFocusable) {
+        event.preventDefault()
+        panel.focus()
+      } else if (event.shiftKey && document.activeElement === firstFocusable) {
+        event.preventDefault()
+        lastFocusable.focus()
+      } else if (!event.shiftKey && document.activeElement === lastFocusable) {
+        event.preventDefault()
+        firstFocusable.focus()
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown)
+      if (
+        previouslyFocused instanceof HTMLElement &&
+        document.contains(previouslyFocused)
+      ) {
+        previouslyFocused.focus()
+      }
+    }
+  }, [assistantOpen])
 
   useEffect(() => {
     if (!profileOpen) return undefined
@@ -245,6 +296,20 @@ export default function AppLayout() {
           </form>
 
           <div className="topbar-actions">
+            {isAdmin && (
+              <button
+                aria-controls="assistant-panel"
+                aria-expanded={assistantOpen}
+                aria-label={assistantOpen ? "Close AI assistant" : "Open AI assistant"}
+                className="assistant-topbar-trigger"
+                onClick={() => setAssistantOpen((open) => !open)}
+                ref={assistantTriggerRef}
+                type="button"
+              >
+                <Sparkles aria-hidden="true" size={17} />
+                <span>Assistant</span>
+              </button>
+            )}
             <ThemeToggle />
             <div className="profile-menu-wrap" ref={profileRef}>
               <button
@@ -292,6 +357,44 @@ export default function AppLayout() {
           <span>Eldoret, Kenya</span>
         </footer>
       </div>
+      {isAdmin && assistantOpen && (
+        <div
+          className="assistant-panel-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setAssistantOpen(false)
+            }
+          }}
+          role="presentation"
+        >
+          <section
+            aria-labelledby="assistant-panel-title"
+            aria-modal="true"
+            className="assistant-panel"
+            id="assistant-panel"
+            ref={assistantPanelRef}
+            role="dialog"
+            tabIndex={-1}
+          >
+            <header className="assistant-panel-header">
+              <div>
+                <span>ADMIN WORKSPACE</span>
+                <h2 id="assistant-panel-title">AI Assistant</h2>
+              </div>
+              <button
+                aria-label="Close AI assistant"
+                className="icon-btn"
+                onClick={() => setAssistantOpen(false)}
+                ref={assistantCloseRef}
+                type="button"
+              >
+                <X aria-hidden="true" size={18} />
+              </button>
+            </header>
+            <AssistantChat compact />
+          </section>
+        </div>
+      )}
     </div>
   )
 }
