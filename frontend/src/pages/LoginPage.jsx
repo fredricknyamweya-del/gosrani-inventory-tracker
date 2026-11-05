@@ -167,7 +167,7 @@ export default function LoginPage() {
           </form>
 
           <p className="login-copyright">
-            © {new Date().getFullYear()} Gosrani Wholesalers Limited · Eldoret, Kenya
+            © {new Date().getFullYear()} Gosrani Wholesalers Limited
           </p>
         </div>
       </section>
