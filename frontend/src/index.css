@@ -428,13 +428,6 @@
   border-radius: 4px;
 }
 
-.login-brand small {
-  display: block;
-  margin-left: 2px;
-  color: var(--sidebar-muted);
-  font-size: 11px;
-}
-
 .login-brand-copy {
   max-width: 470px;
   margin: 40px 0;
@@ -494,9 +487,15 @@
   width: min(100%, 410px);
 }
 
+.login-form-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 38px;
+}
+
 .login-mobile-brand {
   display: none;
-  margin-bottom: 38px;
   color: var(--text);
   border-radius: 8px;
   background: var(--sidebar);

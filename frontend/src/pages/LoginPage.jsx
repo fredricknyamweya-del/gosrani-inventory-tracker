@@ -3,6 +3,7 @@ import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { Button, Field, Input } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
+import ThemeToggle from "../components/ThemeToggle";
 
 const loginProfiles = [
   {
@@ -88,8 +89,11 @@ export default function LoginPage() {
 
       <section aria-labelledby="login-heading" className="login-form-panel">
         <div className="login-form-wrap">
-          <div className="login-mobile-brand">
-            <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/gw-logo-login.png" />
+          <div className="login-form-toolbar">
+            <div className="login-mobile-brand">
+              <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/gw-logo-login.png" />
+            </div>
+            <ThemeToggle />
           </div>
           <div className="login-heading">
             <p className="eyebrow">WELCOME BACK</p>
