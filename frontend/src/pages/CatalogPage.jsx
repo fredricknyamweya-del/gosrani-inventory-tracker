@@ -757,6 +757,7 @@ export default function CatalogPage() {
 
       <AddItemModal
         categories={categories}
+        items={items}
         initialCategoryId={addItemCategoryId}
         onClose={closeAddItemModal}
         onCreated={handleItemCreated}

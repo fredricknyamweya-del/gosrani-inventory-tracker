@@ -503,6 +503,7 @@ export default function EntryFormPage() {
       {isAdmin ? (
         <AddItemModal
           categories={categories}
+          items={catalogItems}
           initialCategoryId={selectedCategory?.id ?? ""}
           onClose={() => setAddItemOpen(false)}
           onCreated={handleItemCreated}

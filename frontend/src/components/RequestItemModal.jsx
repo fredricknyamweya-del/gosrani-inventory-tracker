@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../services/api";
+import { api, getCatalogSpecificationExample } from "../services/api";
 import { Button, Field, Input, Modal, Select } from "./ui";
 
 export default function RequestItemModal({
@@ -21,6 +21,10 @@ export default function RequestItemModal({
   const [saving, setSaving] = useState(false);
   const availableItems = items.filter(
     (item) => item.categoryId === categoryId && item.active,
+  );
+  const specificationExample = getCatalogSpecificationExample(
+    items,
+    categoryId,
   );
 
   useEffect(() => {
@@ -183,7 +187,11 @@ export default function RequestItemModal({
                   setSpecification(event.target.value);
                   setError("");
                 }}
-                placeholder="e.g. 2 kg"
+                placeholder={
+                  specificationExample
+                    ? `e.g. ${specificationExample}`
+                    : "e.g. Standard"
+                }
                 required
                 value={specification}
               />

@@ -1,6 +1,10 @@
 import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { findCatalogNearMatch, api } from "../services/api";
+import {
+  findCatalogNearMatch,
+  getCatalogSpecificationExample,
+  api,
+} from "../services/api";
 import { Button, Field, Input, Modal, Select } from "./ui";
 
 function normalize(value) {
@@ -11,6 +15,7 @@ export default function AddItemModal({
   open,
   onClose,
   categories,
+  items = [],
   initialCategoryId = "",
   onCreated,
 }) {
@@ -32,6 +37,10 @@ export default function AddItemModal({
     ? findCatalogNearMatch(name, categoryId)
     : null;
   const exactMatch = nearMatch && normalize(nearMatch) === normalize(name);
+  const specificationExample = getCatalogSpecificationExample(
+    items,
+    categoryId,
+  );
 
   function updateSpecification(index, value) {
     setSpecifications((current) =>
@@ -163,7 +172,11 @@ export default function AddItemModal({
                 onChange={(event) =>
                   updateSpecification(index, event.target.value)
                 }
-                placeholder="e.g. 2 kg"
+                placeholder={
+                  specificationExample
+                    ? `e.g. ${specificationExample}`
+                    : "e.g. Standard"
+                }
                 value={specification}
               />
               {specifications.length > 1 && (

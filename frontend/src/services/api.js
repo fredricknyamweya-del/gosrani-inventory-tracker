@@ -63,6 +63,15 @@ export function findCatalogNearMatch(name, categoryId) {
   return findNearMatch(name, candidates);
 }
 
+export function getCatalogSpecificationExample(items, categoryId) {
+  return (
+    items
+      .filter((item) => item.active && item.categoryId === categoryId)
+      .flatMap((item) => item.specifications)
+      .find(Boolean) ?? null
+  );
+}
+
 const categories = [
   { id: "cat-mattresses", name: "Mattresses" },
   { id: "cat-home-boarding", name: "Home & Boarding" },
@@ -1326,7 +1335,7 @@ export const api = {
           `${record.category} ${record.item} ${record.size} ${record.details}`,
         );
         if (
-          meaningfulTerms.length > 0 &&
+          meaningfulTerms.length === 0 ||
           !meaningfulTerms.some((term) => recordText.includes(term))
         ) {
           return false;
@@ -1334,6 +1343,17 @@ export const api = {
       }
       return true;
     }).sort((left, right) => right.date.localeCompare(left.date));
+
+    if (wantsStock && item) {
+      matchingRecords = records
+        .filter(
+          (record) =>
+            itemMatchesRecord(item, record) &&
+            (!specification ||
+              normalized(record.size) === normalized(specification)),
+        )
+        .sort((left, right) => right.date.localeCompare(left.date));
+    }
 
     const totalMatches = matchingRecords.length;
     const resultRecords = matchingRecords.slice(0, 5);
