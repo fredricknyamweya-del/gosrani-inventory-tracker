@@ -57,7 +57,7 @@ themes.
 | Add and review entries | Yes | Yes |
 | Edit or delete saved entries | Yes | No |
 | Manually lock an entry | Yes | No |
-| Use the read-only assistant | Yes | Yes |
+| Use the read-only assistant | Yes | No |
 | Manage users | Yes | No |
 
 Entries created by staff should be locked immediately. Admin-created entries
@@ -191,12 +191,11 @@ requests directly.
 | `/inventory/new` | Add one or more entries and review before saving | Signed in |
 | `/inventory/:id` | Record details and audit information | Signed in |
 | `/inventory/:id/edit` | Edit and review a saved record | Admin |
-| `/assistant` | Full-page assistant | Signed in |
+| `/assistant` | Full-page assistant | Admin |
 | `/users` | User management | Admin |
 | `*` | Not-found page | Signed in |
 
-The assistant should also be available as a slide-over panel from signed-in
-screens.
+The assistant should also be available as a slide-over panel from Admin screens.
 
 ## Entry review and validation
 

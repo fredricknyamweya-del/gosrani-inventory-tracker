@@ -1,3 +1,7 @@
+# Design references
+reference/
+*.zip
+
 # Operating system files
 .DS_Store
 .AppleDouble
