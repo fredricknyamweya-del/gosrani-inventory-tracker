@@ -5,12 +5,12 @@ function parseIsoDate(value) {
   if (!match) return null;
 
   const [, year, month, day] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
 
   if (
-    date.getFullYear() !== Number(year) ||
-    date.getMonth() !== Number(month) - 1 ||
-    date.getDate() !== Number(day)
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day)
   ) {
     return null;
   }
