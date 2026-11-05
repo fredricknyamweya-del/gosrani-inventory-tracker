@@ -7,6 +7,7 @@ import { AuthProvider } from "../context/AuthContext"
 import { ThemeProvider } from "../context/ThemeContext"
 import InventoryPage from "../pages/InventoryPage"
 import EntryFormPage from "../pages/EntryFormPage"
+import CatalogPage from "../pages/CatalogPage"
 
 export default function App() {
   return (
@@ -36,10 +37,7 @@ export default function App() {
                     element={<SignedInPlaceholder title="AI assistant" />}
                     path="assistant"
                   />
-                  <Route
-                    element={<SignedInPlaceholder title="Product catalog" />}
-                    path="catalog"
-                  />
+                  <Route element={<CatalogPage />} path="catalog" />
                   <Route
                     element={<SignedInPlaceholder title="User management" />}
                     path="users"
