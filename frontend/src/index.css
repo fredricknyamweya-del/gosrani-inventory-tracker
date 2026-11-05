@@ -376,6 +376,37 @@
   color: var(--text);
 }
 
+.theme-demo {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+  place-content: center;
+  justify-items: center;
+}
+
+.theme-demo h1 {
+  font-size: clamp(24px, 5vw, 36px);
+  text-align: center;
+}
+
+.theme-toggle {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  place-items: center;
+}
+
+.theme-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 .table-scroll {
   overflow-x: auto;
 }
