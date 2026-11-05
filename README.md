@@ -95,6 +95,9 @@ npm install
 npm run dev
 ```
 
+The frontend uses npm. Running `npm install` creates `package-lock.json`; commit
+that file and use `npm ci` for clean, reproducible installs afterward.
+
 Available npm scripts:
 
 ```bash
