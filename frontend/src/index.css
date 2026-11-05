@@ -498,6 +498,9 @@
   display: none;
   margin-bottom: 38px;
   color: var(--text);
+  border-radius: 8px;
+  background: var(--sidebar);
+  padding: 10px 12px;
 }
 
 .login-heading {

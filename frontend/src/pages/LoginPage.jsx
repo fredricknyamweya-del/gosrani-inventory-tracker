@@ -70,8 +70,7 @@ export default function LoginPage() {
     <main className="login-page">
       <section aria-label="About Gosrani Wholesalers" className="login-brand-panel">
         <Link aria-label="Gosrani Wholesalers home" className="login-brand" to="/login">
-          <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/GW%20Logo%20Red.jpg" />
-          <small>Eldoret, Kenya</small>
+          <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/gw-logo-login.png" />
         </Link>
         <div className="login-brand-copy">
           <div className="login-kicker"><span /> INVENTORY MANAGEMENT</div>
@@ -90,7 +89,7 @@ export default function LoginPage() {
       <section aria-labelledby="login-heading" className="login-form-panel">
         <div className="login-form-wrap">
           <div className="login-mobile-brand">
-            <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/GW%20Logo%20Red.jpg" />
+            <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/gw-logo-login.png" />
           </div>
           <div className="login-heading">
             <p className="eyebrow">WELCOME BACK</p>
