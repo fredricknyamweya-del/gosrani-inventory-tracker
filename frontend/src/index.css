@@ -615,7 +615,7 @@
   text-align: center;
 }
 
-.login-switcher-option:hover:not(:disabled) {
+.login-switcher-option:hover:not(:disabled):not(.is-selected) {
   border-color: var(--border-strong);
   background: var(--surface-2);
 }

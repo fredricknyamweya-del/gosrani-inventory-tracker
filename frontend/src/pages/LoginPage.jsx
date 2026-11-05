@@ -108,7 +108,11 @@ export default function LoginPage() {
               {loginProfiles.map((profile) => (
                 <button
                   aria-pressed={selectedRole === profile.role}
-                  className={`login-switcher-option${selectedRole === profile.role ? " is-selected" : ""}`}
+                  className={
+                    selectedRole === profile.role
+                      ? "login-switcher-option is-selected"
+                      : "login-switcher-option"
+                  }
                   disabled={submitting}
                   key={profile.role}
                   onClick={() => selectProfile(profile)}
