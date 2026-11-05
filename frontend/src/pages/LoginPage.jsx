@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { ArrowRight, Boxes, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
-import { Button, Field, Input, RoleBadge } from "../components/ui";
+import { Button, Field, Input } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 
-const demoAccounts = [
+const loginProfiles = [
   {
-    label: "Administrator",
+    label: "Admin",
+    description: "Administrator",
     email: "admin@gosrani.co.ke",
     password: "admin123",
     role: "Admin",
   },
   {
-    label: "Staff member",
+    label: "User",
+    description: "Staff member",
     email: "grace@gosrani.co.ke",
     password: "user123",
     role: "User",
@@ -25,6 +27,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [selectedRole, setSelectedRole] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -54,6 +57,13 @@ export default function LoginPage() {
       return;
     }
     signIn({ email, password });
+  }
+
+  function selectProfile(profile) {
+    setEmail(profile.email);
+    setPassword(profile.password);
+    setSelectedRole(profile.role);
+    setError("");
   }
 
   return (
@@ -92,13 +102,37 @@ export default function LoginPage() {
             <p>Enter your work email and password to continue.</p>
           </div>
 
+          <fieldset aria-label="Choose account type" className="login-switcher">
+            <legend>Sign in as</legend>
+            <div className="login-switcher-options">
+              {loginProfiles.map((profile) => (
+                <button
+                  aria-pressed={selectedRole === profile.role}
+                  className={`login-switcher-option${selectedRole === profile.role ? " is-selected" : ""}`}
+                  disabled={submitting}
+                  key={profile.role}
+                  onClick={() => selectProfile(profile)}
+                  type="button"
+                >
+                  <span>
+                    <strong>{profile.label}</strong>
+                    <small>{profile.description}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
           <form className="login-form" onSubmit={handleSubmit}>
             {error && <div className="login-error" role="alert">{error}</div>}
             <Field label="Email address" required>
               <Input
                 autoComplete="username"
                 autoFocus
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setSelectedRole("");
+                }}
                 placeholder="name@gosrani.co.ke"
                 type="email"
                 value={email}
@@ -108,7 +142,10 @@ export default function LoginPage() {
               <div className="login-password">
                 <Input
                   autoComplete="current-password"
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setSelectedRole("");
+                  }}
                   placeholder="Enter your password"
                   type={showPassword ? "text" : "password"}
                   value={password}
@@ -129,33 +166,6 @@ export default function LoginPage() {
               Sign in <ArrowRight aria-hidden="true" size={17} />
             </Button>
           </form>
-
-          <div className="login-demo">
-            <div className="login-demo-heading">
-              <span>DEMO ACCOUNTS</span>
-              <span className="login-demo-divider" />
-            </div>
-            <div className="login-demo-list">
-              {demoAccounts.map((account) => (
-                <button
-                  className="login-demo-account"
-                  disabled={submitting}
-                  key={account.role}
-                  onClick={() => signIn(account)}
-                  type="button"
-                >
-                  <span className="login-demo-person">
-                    <strong>{account.label}</strong>
-                    <small>{account.email}</small>
-                  </span>
-                  <RoleBadge role={account.role} />
-                </button>
-              ))}
-            </div>
-            <p className="login-demo-note">
-              Demo only · Passwords: administrator <code>admin123</code>, staff <code>user123</code>
-            </p>
-          </div>
 
           <p className="login-copyright">
             © {new Date().getFullYear()} Gosrani Wholesalers Limited · Eldoret, Kenya
