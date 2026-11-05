@@ -170,47 +170,49 @@ export default function UsersPage() {
             Add user
           </Button>
         }
+        className="users-page-header"
+        details={
+          <section aria-label="User filters" className="panel users-toolbar">
+            <label className="users-search">
+              <span className="sr-only">Search users by name or email</span>
+              <Input
+                autoComplete="off"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search name or email..."
+                type="search"
+                value={search}
+              />
+            </label>
+            <label className="users-filter">
+              <span>Role</span>
+              <Select
+                aria-label="Filter users by role"
+                onChange={(event) => setRoleFilter(event.target.value)}
+                value={roleFilter}
+              >
+                <option>All</option>
+                <option>Admin</option>
+                <option>User</option>
+              </Select>
+            </label>
+            <label className="users-filter">
+              <span>Status</span>
+              <Select
+                aria-label="Filter users by status"
+                onChange={(event) => setStatusFilter(event.target.value)}
+                value={statusFilter}
+              >
+                <option>All</option>
+                <option>Active</option>
+                <option>Inactive</option>
+              </Select>
+            </label>
+          </section>
+        }
         description="Manage staff access to the inventory system."
         eyebrow="Administration"
         title="User management"
       />
-
-      <section aria-label="User filters" className="panel users-toolbar">
-        <label className="users-search">
-          <span className="sr-only">Search users by name or email</span>
-          <Input
-            autoComplete="off"
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name or email..."
-            type="search"
-            value={search}
-          />
-        </label>
-        <label className="users-filter">
-          <span>Role</span>
-          <Select
-            aria-label="Filter users by role"
-            onChange={(event) => setRoleFilter(event.target.value)}
-            value={roleFilter}
-          >
-            <option>All</option>
-            <option>Admin</option>
-            <option>User</option>
-          </Select>
-        </label>
-        <label className="users-filter">
-          <span>Status</span>
-          <Select
-            aria-label="Filter users by status"
-            onChange={(event) => setStatusFilter(event.target.value)}
-            value={statusFilter}
-          >
-            <option>All</option>
-            <option>Active</option>
-            <option>Inactive</option>
-          </Select>
-        </label>
-      </section>
 
       {visibleUsers.length === 0 ? (
         <section className="panel">

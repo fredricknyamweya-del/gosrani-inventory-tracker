@@ -1664,7 +1664,7 @@
 }
 
 .modal-header,
-.modal-actions {
+.modal-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1685,7 +1685,7 @@
   padding: 20px;
 }
 
-.modal-actions {
+.modal-footer {
   justify-content: flex-end;
   border-top: 1px solid var(--border);
 }
@@ -1820,7 +1820,7 @@
 
   .modal-header,
   .modal-body,
-  .modal-actions {
+  .modal-footer {
     padding: 16px;
   }
 
@@ -1845,6 +1845,19 @@
 .users-page {
   display: grid;
   gap: 18px;
+}
+
+.users-page-header > div:first-child {
+  flex: 1;
+}
+
+.users-page-header .users-toolbar {
+  max-width: 720px;
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .users-toolbar {
