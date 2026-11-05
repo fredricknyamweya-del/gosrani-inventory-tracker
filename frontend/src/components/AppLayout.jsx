@@ -136,30 +136,28 @@ export default function AppLayout() {
       )}
 
       <aside aria-label="Application sidebar" className="app-sidebar">
-        <Link
-          aria-label="Gosrani Wholesalers Limited, go to inventory"
-          className="app-brand"
-          onClick={() => setDrawerOpen(false)}
-          to="/inventory"
-        >
-          <span className="app-brand-mark"><Boxes aria-hidden="true" size={21} /></span>
-          <span className="app-brand-name">
-            <strong>Gosrani</strong>
-            <small>WHOLESALERS LIMITED</small>
-          </span>
+        <div className="sidebar-brand-row">
+          <Link
+            aria-label="Gosrani Wholesalers Limited, go to inventory"
+            className="app-brand"
+            onClick={() => setDrawerOpen(false)}
+            to="/inventory"
+          >
+            <span className="app-brand-mark"><Boxes aria-hidden="true" size={21} /></span>
+            <span className="app-brand-name">
+              <strong>Gosrani</strong>
+              <small>WHOLESALERS LIMITED</small>
+            </span>
+          </Link>
           <button
             aria-label="Close navigation"
             className="sidebar-close"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setDrawerOpen(false);
-            }}
+            onClick={() => setDrawerOpen(false)}
             type="button"
           >
             <X aria-hidden="true" size={19} />
           </button>
-        </Link>
+        </div>
 
         <div className="sidebar-section-label">WORKSPACE</div>
         <nav aria-label="Primary navigation" className="sidebar-nav">
@@ -200,7 +198,11 @@ export default function AppLayout() {
               ? <X aria-hidden="true" size={20} />
               : <Menu aria-hidden="true" size={20} />}
           </button>
-          <form aria-label="Global inventory search" className="global-search" onSubmit={handleSearch}>
+          <form
+            aria-label="Global inventory search"
+            className="global-search"
+            onSubmit={handleSearch}
+          >
             <Search aria-hidden="true" className="global-search-icon" size={17} />
             <label className="sr-only" htmlFor="global-search-input">
               Search inventory

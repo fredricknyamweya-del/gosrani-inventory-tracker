@@ -44,7 +44,7 @@ export function SignedInPlaceholder({ title = "Inventory workspace" }) {
   const { user, logout } = useAuth();
 
   return (
-    <main className="auth-placeholder">
+    <section className="auth-placeholder">
       <div className="auth-placeholder-card panel">
         <p className="eyebrow">Gosrani Wholesalers Limited</p>
         <h1>{title}</h1>
@@ -56,6 +56,6 @@ export function SignedInPlaceholder({ title = "Inventory workspace" }) {
           Sign out
         </Button>
       </div>
-    </main>
+    </section>
   );
 }
