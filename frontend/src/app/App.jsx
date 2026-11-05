@@ -8,6 +8,7 @@ import { ThemeProvider } from "../context/ThemeContext"
 import InventoryPage from "../pages/InventoryPage"
 import EntryFormPage from "../pages/EntryFormPage"
 import CatalogPage from "../pages/CatalogPage"
+import UsersPage from "../pages/UsersPage"
 
 export default function App() {
   return (
@@ -38,10 +39,7 @@ export default function App() {
                     path="assistant"
                   />
                   <Route element={<CatalogPage />} path="catalog" />
-                  <Route
-                    element={<SignedInPlaceholder title="User management" />}
-                    path="users"
-                  />
+                  <Route element={<UsersPage />} path="users" />
                 </Route>
                 <Route element={<NotFoundPage />} path="*" />
               </Route>

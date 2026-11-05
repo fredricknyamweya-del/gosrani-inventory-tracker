@@ -1842,6 +1842,158 @@
   }
 }
 
+.users-page {
+  display: grid;
+  gap: 18px;
+}
+
+.users-toolbar {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) repeat(2, minmax(130px, 180px));
+  align-items: end;
+  gap: 14px;
+}
+
+.users-search,
+.users-filter {
+  display: grid;
+  gap: 6px;
+}
+
+.users-filter > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.users-table {
+  min-width: 780px;
+}
+
+.users-name-cell,
+.users-role-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.users-name-cell strong {
+  font-size: 12px;
+}
+
+.users-you-badge,
+.users-status,
+.users-one-time-label {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.users-you-badge {
+  padding: 5px 7px;
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.users-status {
+  padding: 6px 8px;
+}
+
+.users-status.is-active {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.users-status.is-inactive {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.users-role-cell .select {
+  width: 90px;
+  min-height: 32px;
+  padding: 4px 24px 4px 8px;
+  font-size: 11px;
+}
+
+.users-table td:last-child .btn {
+  min-height: 34px;
+  padding: 5px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.users-form,
+.users-credential {
+  display: grid;
+  gap: 16px;
+}
+
+.users-one-time-label {
+  width: fit-content;
+  padding: 7px 10px;
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.users-credential-user {
+  display: grid;
+  gap: 3px;
+}
+
+.users-credential-user span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.users-password-row {
+  display: flex;
+  gap: 8px;
+}
+
+.users-password-row .input {
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.users-inline-error {
+  margin: 0;
+  color: var(--red);
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .users-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .users-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .users-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .users-search {
+    grid-column: auto;
+  }
+
+  .users-page .page-header {
+    align-items: flex-start;
+  }
+
+  .users-password-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .catalog-page {
   min-width: 0;
 }
