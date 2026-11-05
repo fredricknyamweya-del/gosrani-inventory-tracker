@@ -149,13 +149,14 @@ export function RoleBadge({ role }) {
   );
 }
 
-export function PageHeader({ eyebrow, title, description, actions }) {
+export function PageHeader({ eyebrow, title, description, actions, details }) {
   return (
     <header className="page-header">
       <div>
         {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1>{title}</h1>
         {description && <p>{description}</p>}
+        {details}
       </div>
       {actions && <div className="page-actions">{actions}</div>}
     </header>
