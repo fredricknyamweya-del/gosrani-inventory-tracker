@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useApi(request, dependencies = []) {
   const [data, setData] = useState(null);
+  const [meta, setMeta] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const requestSequence = useRef(0);
@@ -14,6 +15,7 @@ export function useApi(request, dependencies = []) {
       const response = await request();
       if (sequence === requestSequence.current) {
         setData(response.data);
+        setMeta(response.meta ?? null);
       }
       return response;
     } catch (requestError) {
@@ -35,5 +37,5 @@ export function useApi(request, dependencies = []) {
     };
   }, [run]);
 
-  return { data, setData, error, loading, reload: run };
+  return { data, setData, meta, error, loading, reload: run };
 }
