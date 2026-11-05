@@ -64,7 +64,8 @@ export default function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [search, setSearch] = useState(searchParams.get("search") ?? "")
+  const searchQuery = searchParams.get("search") ?? "";
+  const [search, setSearch] = useState(searchQuery);
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef(null)
@@ -72,8 +73,8 @@ export default function AppLayout() {
   useEffect(() => {
     setDrawerOpen(false)
     setProfileOpen(false)
-    setSearch(searchParams.get("search") ?? "")
-  }, [location.pathname, searchParams])
+    setSearch(searchQuery);
+  }, [location.pathname, searchQuery]);
 
   useEffect(() => {
     if (!profileOpen) return undefined
