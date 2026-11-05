@@ -112,9 +112,9 @@ export default function AppLayout() {
   const navigation = [
     { to: "/inventory", label: "Inventory", icon: LayoutDashboard, end: true },
     { to: "/inventory/new", label: "Add Entry", icon: PackagePlus },
+    { to: "/assistant", label: "AI Assistant", icon: Sparkles },
     ...(isAdmin
       ? [
-          { to: "/assistant", label: "AI Assistant", icon: Sparkles },
           {
             to: "/catalog",
             label: "Product Catalog",
