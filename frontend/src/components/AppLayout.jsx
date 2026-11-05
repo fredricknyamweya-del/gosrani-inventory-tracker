@@ -296,20 +296,6 @@ export default function AppLayout() {
           </form>
 
           <div className="topbar-actions">
-            {isAdmin && (
-              <button
-                aria-controls="assistant-panel"
-                aria-expanded={assistantOpen}
-                aria-label={assistantOpen ? "Close AI assistant" : "Open AI assistant"}
-                className="assistant-topbar-trigger"
-                onClick={() => setAssistantOpen((open) => !open)}
-                ref={assistantTriggerRef}
-                type="button"
-              >
-                <Sparkles aria-hidden="true" size={17} />
-                <span>Assistant</span>
-              </button>
-            )}
             <ThemeToggle />
             <div className="profile-menu-wrap" ref={profileRef}>
               <button
@@ -357,6 +343,20 @@ export default function AppLayout() {
           <span>Eldoret, Kenya</span>
         </footer>
       </div>
+      {isAdmin && (
+        <button
+          aria-controls="assistant-panel"
+          aria-expanded={assistantOpen}
+          aria-label={assistantOpen ? "Close AI assistant" : "Open AI assistant"}
+          className="assistant-launcher"
+          onClick={() => setAssistantOpen((open) => !open)}
+          ref={assistantTriggerRef}
+          type="button"
+        >
+          <Sparkles aria-hidden="true" size={18} />
+          <span>Assistant</span>
+        </button>
+      )}
       {isAdmin && assistantOpen && (
         <div
           className="assistant-panel-backdrop"

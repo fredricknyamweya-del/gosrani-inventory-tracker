@@ -141,7 +141,7 @@ export default function AssistantChat({ compact = false }) {
             Read-only
           </span>
           <span className="assistant-disclaimer">
-            AI can make mistakes – verify important details in the record.
+            Verify Important details with actual records if need be
           </span>
         </div>
         <Button
