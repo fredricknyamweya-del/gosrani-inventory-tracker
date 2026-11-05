@@ -20,6 +20,16 @@ export default function App() {
                 <Route element={<Navigate replace to="/inventory" />} index />
                 <Route element={<InventoryPage />} path="inventory" />
                 <Route element={<EntryFormPage />} path="inventory/new" />
+                <Route element={<AdminRoute />}>
+                  <Route
+                    element={<SignedInPlaceholder title="Inventory record" />}
+                    path="inventory/:id"
+                  />
+                  <Route
+                    element={<SignedInPlaceholder title="Edit inventory record" />}
+                    path="inventory/:id/edit"
+                  />
+                </Route>
                 <Route element={<SignedInPlaceholder />} path="inventory/*" />
                 <Route element={<AdminRoute />}>
                   <Route
