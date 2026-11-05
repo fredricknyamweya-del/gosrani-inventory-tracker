@@ -13,11 +13,11 @@ import { formatDate } from "../utils/format";
 import { Button } from "./ui";
 
 const suggestions = [
-  "How much Maize Flour 2 kg is in stock?",
+  "How many School Shirts are in stock?",
   "Show everything received this week",
   "What went out yesterday?",
-  "Show everything in Cooking Oils",
-  "Find entries where the details mention supplier",
+  "Show everything in Mattresses",
+  "Show everything in Yarns",
 ];
 
 export default function AssistantChat({ compact = false }) {
