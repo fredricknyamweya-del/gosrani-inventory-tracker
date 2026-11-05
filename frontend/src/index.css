@@ -432,6 +432,10 @@
   border-radius: 4px;
 }
 
+[data-theme="dark"] .login-brand-logo {
+  border-radius: 0;
+}
+
 .login-brand-copy {
   max-width: 470px;
   margin: 40px 0;
@@ -1157,6 +1161,12 @@
     padding: 24px;
     border-radius: 8px;
     background: var(--sidebar);
+  }
+
+  [data-theme="dark"] .login-mobile-brand {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
   }
 
   .login-mobile-brand .login-brand-logo {
