@@ -3,7 +3,7 @@
 from sqlalchemy import func, select
 
 from app.extensions import db
-from app.models import User
+from app.models import User, UserLocation
 
 
 def find_user_by_email(email: str) -> User | None:
@@ -22,11 +22,14 @@ def find_user_by_id(user_id: int) -> User | None:
 
 def public_user(user: User) -> dict[str, object]:
     """Serialize a user without exposing credential or lockout fields."""
+    location_ids = db.session.scalars(
+        select(UserLocation.location_id).where(UserLocation.user_id == user.id)
+    ).all()
     return {
         "id": user.id,
         "name": user.name,
         "email": user.email,
         "role": user.role.value,
         "status": user.status.value,
-        "locationIds": sorted(link.location_id for link in user.location_links),
+        "locationIds": sorted(location_ids),
     }
