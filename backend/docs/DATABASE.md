@@ -49,10 +49,13 @@ PIPENV_VENV_IN_PROJECT=1 pipenv run flask --app app seed
 The command creates the initial active Admin, the configured Eldoret
 location, links the Admin to that location, and adds the starter categories,
 items, and specifications described in `../ARCHITECTURE.md`. Sofa Sets is
-created as an empty category because its items are unconfirmed. Seed data is
-created only when missing; rerunning the command does not reset an existing
-Admin password or reactivate existing accounts. Existing catalog items with
-conflicting units or pack sizes stop the command and roll back all changes.
+created as an empty category because its items are unconfirmed. Items whose
+proposal has no specification receive a `Standard` specification without a
+pack size, because inventory records must reference a specification. Seed
+data is created only when missing; rerunning the command does not reset an
+existing Admin password or reactivate existing accounts. Existing catalog
+items with conflicting units or pack sizes stop the command and roll back all
+changes.
 
 This seeds catalog metadata only, not inventory balances or historical Excel
 entries. Those must be brought in through the separately planned import flow.

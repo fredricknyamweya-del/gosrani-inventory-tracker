@@ -29,7 +29,7 @@ CATALOG: tuple[tuple[str, tuple[tuple[str, StockUnit, tuple[tuple[str, int | Non
             ("Duvet N", StockUnit.PCS, (("4x6", 5), ("5x6", 5), ("6x6", 5))),
             ("Duvet S", StockUnit.PCS, (("4x6", 20),)),
             ("Woolen Duvet", StockUnit.PCS, (("5x6", 20), ("4x6", 20))),
-            ("Duvet Bags", StockUnit.PCS, ()),
+            ("Duvet Bags", StockUnit.PCS, (("Standard", None),)),
         ),
     ),
     ("Pillows", (("Pillow", StockUnit.PCS, (("600g", 10), ("1 Kg", 10), ("Light", 10))),)),
@@ -77,16 +77,20 @@ CATALOG: tuple[tuple[str, tuple[tuple[str, StockUnit, tuple[tuple[str, int | Non
     (
         "Pillow Cases",
         (
-            ("Pillow Kiss Case", StockUnit.PCS, ()),
+            ("Pillow Kiss Case", StockUnit.PCS, (("Standard", None),)),
             ("White Pillow Case", StockUnit.PCS, (("100 pcs", 100),)),
         ),
     ),
-    ("Raw Materials", (("Fibre", StockUnit.KG, ()),)),
+    ("Raw Materials", (("Fibre", StockUnit.KG, (("Standard", None),)),)),
     (
         "Packaging",
         (
-            ("Pillow Individual Packaging Bags", StockUnit.PCS, ()),
-            ("Pillow (10 pc) Packaging Polythene Bags", StockUnit.PCS, ()),
+            ("Pillow Individual Packaging Bags", StockUnit.PCS, (("Standard", None),)),
+            (
+                "Pillow (10 pc) Packaging Polythene Bags",
+                StockUnit.PCS,
+                (("Standard", None),),
+            ),
         ),
     ),
 )
