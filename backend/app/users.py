@@ -2,8 +2,6 @@
 
 import re
 import secrets
-from datetime import UTC, datetime
-
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from sqlalchemy import func, select
@@ -13,7 +11,14 @@ from werkzeug.security import generate_password_hash
 from app.api_utils import ApiValidationError, audit, current_user, iso_datetime, user_location_ids
 from app.errors import error_response, validation_error
 from app.extensions import db
-from app.models import AuditAction, AuditEntity, Location, User, UserLocation, UserRole, UserStatus
+from app.models import (
+    AuditAction,
+    AuditEntity,
+    User,
+    UserLocation,
+    UserRole,
+    UserStatus,
+)
 
 users_bp = Blueprint("users", __name__, url_prefix="/api/users")
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")

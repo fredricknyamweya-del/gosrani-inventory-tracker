@@ -74,8 +74,8 @@ class BaseConfig:
     JWT_COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN") or None
     JWT_ACCESS_COOKIE_PATH = "/api"
     JWT_REFRESH_COOKIE_PATH = "/api/auth"
-    JWT_ACCESS_CSRF_COOKIE_PATH = "/api"
-    JWT_REFRESH_CSRF_COOKIE_PATH = "/api/auth"
+    JWT_ACCESS_CSRF_COOKIE_PATH = "/"
+    JWT_REFRESH_CSRF_COOKIE_PATH = "/"
     JWT_COOKIE_CSRF_HEADER_NAME = "X-CSRF-TOKEN"
     CORS_ORIGINS: ClassVar[list[str]] = [
         origin.strip()
