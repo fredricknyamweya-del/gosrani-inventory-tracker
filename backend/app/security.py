@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from flask import Flask, g, request
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.exceptions import BadRequest
 
 from app.errors import error_response
 
@@ -34,7 +35,14 @@ def configure_security(app: Flask) -> None:
             return None
         if not request.is_json:
             return error_response(415)
-        request.get_json(cache=True)
+        try:
+            request.get_json(cache=True)
+        except BadRequest:
+            return error_response(
+                400,
+                "The request body contains malformed JSON.",
+                "malformed_json",
+            )
         return None
 
     @app.after_request

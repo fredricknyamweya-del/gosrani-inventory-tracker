@@ -3,8 +3,8 @@
 import logging
 from collections.abc import Mapping, Sequence
 
-from flask import Flask, current_app, g, jsonify, request
-from werkzeug.exceptions import BadRequest, HTTPException
+from flask import Flask, current_app, g, jsonify
+from werkzeug.exceptions import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -69,14 +69,6 @@ def validation_error(
 
 def register_error_handlers(app: Flask) -> None:
     """Register consistent API error handlers."""
-
-    @app.errorhandler(BadRequest)
-    def handle_bad_request(_error: BadRequest):
-        return error_response(
-            400,
-            "The request body contains malformed JSON.",
-            "malformed_json",
-        )
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(error: HTTPException):
