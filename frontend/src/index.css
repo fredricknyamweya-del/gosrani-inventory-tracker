@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@700;800&display=swap");
 
 :root {
   font-family: "Inter", sans-serif;
@@ -535,10 +535,39 @@
 .login-heading .login-app-brand h2 {
   margin: 0;
   color: var(--red);
-  font-size: 32px;
+  font-family: "Roboto", sans-serif;
+  font-size: 36px;
   font-weight: 800;
   letter-spacing: -0.045em;
   line-height: 1.15;
+}
+
+.login-app-brand h2 span {
+  display: inline-block;
+  animation: login-brand-wave 1.5s ease-in-out infinite;
+}
+
+.login-app-brand h2 span:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.login-app-brand h2 span:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+@keyframes login-brand-wave {
+  0%,
+  100% {
+    transform: translateY(0) skewY(0);
+  }
+
+  30% {
+    transform: translateY(-3px) skewY(-5deg);
+  }
+
+  60% {
+    transform: translateY(1px) skewY(3deg);
+  }
 }
 
 .login-app-brand p {

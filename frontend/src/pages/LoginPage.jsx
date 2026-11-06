@@ -75,7 +75,11 @@ export default function LoginPage() {
           </div>
           <div className="login-heading">
             <div className="login-app-brand">
-              <h2>GWL</h2>
+              <h2 aria-label="GWL">
+                <span aria-hidden="true">G</span>
+                <span aria-hidden="true">W</span>
+                <span aria-hidden="true">L</span>
+              </h2>
               <p>Internal Business Software</p>
             </div>
             <p className="eyebrow">WELCOME BACK</p>
