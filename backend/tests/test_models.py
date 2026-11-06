@@ -1,6 +1,6 @@
 """Tests for the ERD-backed SQLAlchemy schema."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import inspect, select, text
@@ -8,11 +8,11 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import (
-    Category,
     AssistantQuery,
     AuditAction,
     AuditEntity,
     AuditLog,
+    Category,
     EnteredUnit,
     ImportBatch,
     InventoryRecord,
@@ -261,7 +261,7 @@ def test_remaining_models_accept_valid_rows_and_stock_view_excludes_deleted(app)
         qty_in=100,
         qty_out=0,
         created_by=user.id,
-        deleted_at=datetime(2026, 1, 4, tzinfo=timezone.utc),
+        deleted_at=datetime(2026, 1, 4, tzinfo=UTC),
     )
     request = ItemRequest(
         requested_by=user.id,
@@ -287,7 +287,7 @@ def test_remaining_models_accept_valid_rows_and_stock_view_excludes_deleted(app)
         jti="test-token-id",
         token_type=TokenType.ACCESS,
         user_id=user.id,
-        expires_at=datetime(2030, 1, 1, tzinfo=timezone.utc),
+        expires_at=datetime(2030, 1, 1, tzinfo=UTC),
     )
     db.session.add_all(
         [
@@ -334,21 +334,11 @@ def test_model_foreign_keys_reject_missing_parents(app, model, values):
     db.session.rollback()
 
 
-@pytest.mark.parametrize(
-    ("column", "value"),
-    [
-        ("role", "Owner"),
-        ("status", "Archived"),
-    ],
-)
-
-
-
 def test_inventory_checks_reject_missing_and_negative_quantities(app):
     location, user, _category, _item, specification = _create_catalog()
     common = {
         "location_id": location.id,
-        "record_date": "2026-01-02",
+        "record_date": date(2026, 1, 2),
         "specification_id": specification.id,
         "created_by": user.id,
     }
