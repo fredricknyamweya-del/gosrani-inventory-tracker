@@ -271,6 +271,10 @@ export default function AppLayout() {
               <Menu aria-hidden="true" size={20} />
             )}
           </button>
+          <div className="desktop-brand">
+            <h2>GWL</h2>
+            <p>Internal Business Software</p>
+          </div>
           <form
             aria-label="Global inventory search"
             className="global-search"
