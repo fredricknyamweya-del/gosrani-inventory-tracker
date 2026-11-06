@@ -1,6 +1,12 @@
 import { ArrowLeft, Pencil, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useLocation, useParams, useSearchParams } from "react-router";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 import {
   Button,
   ErrorState,
@@ -32,6 +38,7 @@ function recordForm(record) {
 export default function EntryDetailPage() {
   const { id } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin } = useAuth();
   const {
@@ -93,6 +100,7 @@ export default function EntryDetailPage() {
   );
   const item = categoryItems.find((entry) => entry.name === form.item);
   const specifications = item?.specifications ?? [];
+  const selectedSizeIsAvailable = specifications.includes(form.size);
 
   function update(key, value) {
     setForm((current) => ({
@@ -112,6 +120,10 @@ export default function EntryDetailPage() {
       const response = await api.updateInventory(id, form);
       setRecord(response.data);
       setEditing(false);
+      if (location.pathname.endsWith("/edit")) {
+        navigate(`/inventory/${encodeURIComponent(id)}`, { replace: true });
+        return;
+      }
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete("edit");
       setSearchParams(nextParams, { replace: true });
@@ -126,6 +138,10 @@ export default function EntryDetailPage() {
     setForm(recordForm(record));
     setEditing(false);
     setSaveError("");
+    if (location.pathname.endsWith("/edit")) {
+      navigate(`/inventory/${encodeURIComponent(id)}`, { replace: true });
+      return;
+    }
     if (searchParams.has("edit")) {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete("edit");
@@ -195,10 +211,10 @@ export default function EntryDetailPage() {
             <Field label="Specification / size" required>
               <Select
                 onChange={(event) => update("size", event.target.value)}
-                required
                 value={form.size}
               >
-                {!specifications.includes(record.size) && (
+                <option value="">Select specifications/size</option>
+                {!selectedSizeIsAvailable && (
                   <option value={record.size}>{record.size}</option>
                 )}
                 {specifications.map((specification) => (
@@ -226,6 +242,16 @@ export default function EntryDetailPage() {
                 value={form.quantityOut}
               />
             </Field>
+            <Field label="Entered unit">
+              <Select
+                onChange={(event) => update("enteredUnit", event.target.value)}
+                value={form.enteredUnit}
+              >
+                <option value="PCS">PCS</option>
+                <option value="BALE">BALE</option>
+                <option value="KG">KG</option>
+              </Select>
+            </Field>
             <Field label="Status">
               <Select
                 onChange={(event) => update("status", event.target.value)}
@@ -242,7 +268,11 @@ export default function EntryDetailPage() {
               />
             </Field>
           </div>
-          {saveError && <p className="form-error" role="alert">{saveError}</p>}
+          {saveError && (
+            <p className="entry-form-error" role="alert">
+              {saveError}
+            </p>
+          )}
           <div className="entry-form-actions">
             <Button disabled={saving} onClick={cancelEdit} variant="secondary">
               <X aria-hidden="true" size={16} />

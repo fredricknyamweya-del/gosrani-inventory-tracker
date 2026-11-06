@@ -1371,6 +1371,16 @@
   margin-top: 22px;
 }
 
+.entry-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .entry-form-error {
   margin: 16px 0 0;
   color: var(--red);
