@@ -2,6 +2,7 @@
 
 import os
 import re
+import secrets
 
 import click
 from flask.cli import with_appcontext
@@ -160,7 +161,9 @@ def _seed_catalog() -> tuple[int, int, int]:
     return categories_added, items_added, specifications_added
 
 
-def seed_database() -> dict[str, int]:
+def seed_database(
+    *, user_passwords: list[tuple[str, str]] | None = None
+) -> tuple[dict[str, int], list[tuple[str, str]]]:
     """Create missing first-run data without changing existing credentials."""
     email = os.getenv("SEED_ADMIN_EMAIL", "").strip().lower()
     password = os.getenv("SEED_ADMIN_PASSWORD", "")
@@ -186,6 +189,30 @@ def seed_database() -> dict[str, int]:
         raise click.ClickException(
             "DEFAULT_LOCATION_NAME must be 1 to 100 characters."
         )
+
+    normalized_user_passwords: list[tuple[str, str]] = []
+    user_emails: set[str] = set()
+    for user_email, user_password in user_passwords or []:
+        normalized_email = user_email.strip().lower()
+        if not EMAIL_PATTERN.fullmatch(normalized_email):
+            raise click.ClickException(
+                f"Set a valid email address for each --user-email value; "
+                f"{user_email!r} is invalid."
+            )
+        if len(normalized_email) > 254:
+            raise click.ClickException(
+                f"User email {normalized_email!r} must be no more than 254 characters."
+            )
+        if normalized_email == email or normalized_email in user_emails:
+            raise click.ClickException(
+                "The Admin and seeded User accounts must have unique email addresses."
+            )
+        if len(user_password) < 12:
+            raise click.ClickException(
+                "Generated User passwords must contain at least 12 characters."
+            )
+        user_emails.add(normalized_email)
+        normalized_user_passwords.append((normalized_email, user_password))
 
     try:
         user = _find_ci(User, "email", email)
@@ -223,6 +250,45 @@ def seed_database() -> dict[str, int]:
         if link_exists is None:
             db.session.add(UserLocation(user_id=user.id, location_id=location.id))
 
+        users_added = 0
+        user_location_links_added = 0
+        created_user_credentials = []
+        for index, (user_email, user_password) in enumerate(
+            normalized_user_passwords, start=1
+        ):
+            seeded_user = _find_ci(User, "email", user_email)
+            if seeded_user is not None:
+                if (
+                    seeded_user.role != UserRole.USER
+                    or seeded_user.status != UserStatus.ACTIVE
+                ):
+                    raise click.ClickException(
+                        f"Seed email {user_email!r} belongs to an account that is "
+                        "not an active User; no account was changed."
+                    )
+            else:
+                local_name = re.sub(
+                    r"[^A-Za-z0-9]+", " ", user_email.partition("@")[0]
+                ).strip()
+                seeded_user = User(
+                    name=(local_name.title() or f"Inventory User {index}")[:120],
+                    email=user_email,
+                    password_hash=generate_password_hash(user_password),
+                    role=UserRole.USER,
+                    status=UserStatus.ACTIVE,
+                )
+                db.session.add(seeded_user)
+                db.session.flush()
+                users_added += 1
+                created_user_credentials.append((user_email, user_password))
+
+            user_link = db.session.get(UserLocation, (seeded_user.id, location.id))
+            if user_link is None:
+                db.session.add(
+                    UserLocation(user_id=seeded_user.id, location_id=location.id)
+                )
+                user_location_links_added += 1
+
         categories_added, items_added, specifications_added = _seed_catalog()
         db.session.commit()
     except click.ClickException:
@@ -235,22 +301,38 @@ def seed_database() -> dict[str, int]:
             "migrated and database constraints are satisfied."
         ) from None
 
-    return {
-        "admins_added": int(user_added),
-        "locations_added": int(location_added),
-        "categories_added": categories_added,
-        "items_added": items_added,
-        "specifications_added": specifications_added,
-        "admin_location_links_added": int(link_exists is None),
-    }
+    return (
+        {
+            "admins_added": int(user_added),
+            "users_added": users_added,
+            "locations_added": int(location_added),
+            "categories_added": categories_added,
+            "items_added": items_added,
+            "specifications_added": specifications_added,
+            "admin_location_links_added": int(link_exists is None),
+            "user_location_links_added": user_location_links_added,
+        },
+        created_user_credentials,
+    )
 
 
 @click.command("seed")
 @with_appcontext
-def seed_command() -> None:
-    """Seed initial Admin, location, and starter catalog records."""
-    counts = seed_database()
+@click.option(
+    "--user-email",
+    "user_emails",
+    multiple=True,
+    help="Create an active User account for this email (repeatable).",
+)
+def seed_command(user_emails: tuple[str, ...]) -> None:
+    """Seed initial accounts, location, and starter catalog records."""
+    user_passwords = [
+        (email, secrets.token_urlsafe(24)) for email in user_emails
+    ]
+    counts, created_user_credentials = seed_database(user_passwords=user_passwords)
     click.echo(
         "Seed complete: "
         + ", ".join(f"{key.replace('_', ' ')}={value}" for key, value in counts.items())
     )
+    for email, password in created_user_credentials:
+        click.echo(f"New User login: {email} / {password}")

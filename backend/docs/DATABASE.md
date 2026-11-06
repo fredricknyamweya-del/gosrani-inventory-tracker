@@ -72,6 +72,13 @@ existing Admin password or reactivate existing accounts. Existing catalog
 items with conflicting units or pack sizes stop the command and roll back all
 changes.
 
+To create initial active User accounts as part of the same seed transaction,
+pass `--user-email` once per account. The command generates a random password
+for each newly created User, stores only its password hash, and prints the
+password once after a successful seed. Existing active User accounts are left
+unchanged and their passwords are not displayed. Treat the command output as
+sensitive.
+
 This seeds catalog metadata only, not inventory balances or historical Excel
 entries. Those must be brought in through the separately planned import flow.
 

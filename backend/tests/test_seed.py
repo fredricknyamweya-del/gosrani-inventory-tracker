@@ -142,3 +142,41 @@ def test_seed_requires_strong_admin_password(app, monkeypatch):
     assert "at least 12 characters" in result.output
     with app.app_context():
         assert db.session.scalar(select(func.count(User.id))) == 0
+
+
+def test_seed_creates_users_with_hashed_one_time_passwords(app, monkeypatch):
+    configure_seed_environment(monkeypatch)
+
+    result = app.test_cli_runner().invoke(
+        args=[
+            "seed",
+            "--user-email",
+            "warehouse1@example.com",
+            "--user-email",
+            "warehouse2@example.com",
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "users added=2" in result.output
+    credentials = {}
+    for line in result.output.splitlines():
+        if line.startswith("New User login: "):
+            email, password = line.removeprefix("New User login: ").split(" / ", 1)
+            credentials[email] = password
+
+    assert set(credentials) == {
+        "warehouse1@example.com",
+        "warehouse2@example.com",
+    }
+    with app.app_context():
+        location = db.session.scalar(select(Location).where(Location.code == "ELD"))
+        assert location is not None
+        for email, password in credentials.items():
+            user = db.session.scalar(select(User).where(User.email == email))
+            assert user is not None
+            assert user.role == UserRole.USER
+            assert user.status == UserStatus.ACTIVE
+            assert user.password_hash != password
+            assert check_password_hash(user.password_hash, password)
+            assert db.session.get(UserLocation, (user.id, location.id)) is not None

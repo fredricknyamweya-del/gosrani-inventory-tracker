@@ -124,6 +124,10 @@ pipenv run flask --app app seed
 pipenv run flask --app app run --host 0.0.0.0 --port 5000
 ```
 
+To create additional User accounts during seeding, repeat
+`--user-email user@example.com` for each one. The seed command generates their
+passwords and prints each newly created User's one-time login credentials.
+
 The default local database is `backend/instance/gosrani.db`. Set
 `CORS_ORIGINS` to a comma-separated list of exact frontend origins; the
 development defaults match the Vite port. Production should use PostgreSQL and
