@@ -234,10 +234,7 @@ class ImportBatch(db.Model):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    importer: Mapped["User"] = relationship(back_populates="imported_batches")
-    inventory_records: Mapped[list["InventoryRecord"]] = relationship(
-        back_populates="import_batch"
-    )
+    importer: Mapped["User"] = relationship(lazy="raise")
 
 
 class ItemRequest(db.Model):
@@ -277,14 +274,14 @@ class ItemRequest(db.Model):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     requester: Mapped["User"] = relationship(
-        back_populates="requests_created",
+        lazy="raise",
         foreign_keys=[requested_by],
     )
     reviewer: Mapped["User | None"] = relationship(
-        back_populates="requests_reviewed",
+        lazy="raise",
         foreign_keys=[reviewed_by],
     )
-    category: Mapped["Category | None"] = relationship()
+    category: Mapped["Category | None"] = relationship(lazy="raise")
 
 
 class AuditLog(db.Model):
@@ -313,7 +310,7 @@ class AuditLog(db.Model):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    actor: Mapped["User"] = relationship(back_populates="audit_entries")
+    actor: Mapped["User"] = relationship(lazy="raise")
 
 
 class AssistantQuery(db.Model):
@@ -334,7 +331,7 @@ class AssistantQuery(db.Model):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    user: Mapped["User"] = relationship(back_populates="assistant_queries")
+    user: Mapped["User"] = relationship(lazy="raise")
 
 
 class Specification(db.Model):
@@ -441,21 +438,17 @@ class InventoryRecord(db.Model):
         ID_TYPE, ForeignKey("import_batches.id")
     )
 
-    location: Mapped["Location"] = relationship(back_populates="inventory_records")
-    specification: Mapped["Specification"] = relationship(
-        back_populates="inventory_records"
-    )
+    location: Mapped["Location"] = relationship(lazy="raise")
+    specification: Mapped["Specification"] = relationship(lazy="raise")
     creator: Mapped["User"] = relationship(
-        back_populates="records_created",
+        lazy="raise",
         foreign_keys=[created_by],
     )
     updater: Mapped["User | None"] = relationship(
-        back_populates="records_updated",
+        lazy="raise",
         foreign_keys=[updated_by],
     )
-    import_batch: Mapped["ImportBatch | None"] = relationship(
-        back_populates="inventory_records"
-    )
+    import_batch: Mapped["ImportBatch | None"] = relationship(lazy="raise")
 
 
 class RevokedToken(db.Model):
@@ -474,4 +467,4 @@ class RevokedToken(db.Model):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    user: Mapped["User"] = relationship(back_populates="revoked_tokens")
+    user: Mapped["User"] = relationship(lazy="raise")
