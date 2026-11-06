@@ -6,19 +6,34 @@ from pathlib import Path
 from typing import ClassVar
 
 from dotenv import load_dotenv
+from sqlalchemy.engine import make_url
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(BACKEND_ROOT / ".env")
 
 
-def _database_url(value: str | None) -> str:
+def _database_url(value: str | None, *, require_ssl: bool = False) -> str:
     if not value:
         return f"sqlite:///{BACKEND_ROOT / 'instance' / 'gosrani.db'}"
-    if value.startswith("postgres://"):
-        return value.replace("postgres://", "postgresql+psycopg://", 1)
-    if value.startswith("postgresql://"):
-        return value.replace("postgresql://", "postgresql+psycopg://", 1)
-    return value
+    url = make_url(value)
+    if url.drivername in {"postgres", "postgresql"}:
+        url = url.set(drivername="postgresql+psycopg")
+    if require_ssl and url.get_backend_name() == "postgresql":
+        url = url.update_query_dict({"sslmode": "require"}, append=True)
+    return url.render_as_string(hide_password=False)
+
+
+def _database_engine_options(database_url: str) -> dict[str, object]:
+    """Configure a bounded, health-checked pool for PostgreSQL."""
+    if make_url(database_url).get_backend_name() != "postgresql":
+        return {}
+    return {
+        "pool_size": 5,
+        "max_overflow": 5,
+        "pool_timeout": 30,
+        "pool_pre_ping": True,
+        "pool_recycle": 1800,
+    }
 
 
 class BaseConfig:
@@ -29,16 +44,8 @@ class BaseConfig:
     JWT_ALGORITHM = "HS256"
     SQLALCHEMY_DATABASE_URI = _database_url(os.getenv("DATABASE_URL"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = (
-        {}
-        if SQLALCHEMY_DATABASE_URI.startswith("sqlite:")
-        else {
-            "pool_size": 5,
-            "max_overflow": 5,
-            "pool_pre_ping": True,
-            "pool_recycle": 1800,
-            "connect_args": {"sslmode": "require"},
-        }
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = _database_engine_options(
+        SQLALCHEMY_DATABASE_URI
     )
     JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["cookies"]
     JWT_COOKIE_CSRF_PROTECT = True
@@ -93,6 +100,12 @@ class ProductionConfig(BaseConfig):
     SECRET_KEY = os.getenv("SECRET_KEY")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_COOKIE_SECURE = True
+    SQLALCHEMY_DATABASE_URI = _database_url(
+        os.getenv("DATABASE_URL"), require_ssl=True
+    )
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = _database_engine_options(
+        SQLALCHEMY_DATABASE_URI
+    )
 
 
 CONFIGS = {

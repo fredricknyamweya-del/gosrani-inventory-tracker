@@ -26,9 +26,10 @@ def get_engine():
 def get_engine_url():
     try:
         return get_engine().url.render_as_string(hide_password=True).replace(
-            '%', '%%')
+            "%", "%%"
+        )
     except AttributeError:
-        return str(get_engine().url).replace('%', '%%')
+        return str(get_engine().url).replace("%", "%%")
 
 
 # add your model's MetaData object here
@@ -64,7 +65,10 @@ def run_migrations_offline():
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=get_metadata(), literal_binds=True
+        url=url,
+        target_metadata=get_metadata(),
+        literal_binds=True,
+        compare_type=True,
     )
 
     with context.begin_transaction():
@@ -89,7 +93,8 @@ def run_migrations_online():
                 directives[:] = []
                 logger.info('No changes in schema detected.')
 
-    conf_args = current_app.extensions['migrate'].configure_args
+    conf_args = dict(current_app.extensions["migrate"].configure_args)
+    conf_args.setdefault("compare_type", True)
     if conf_args.get("process_revision_directives") is None:
         conf_args["process_revision_directives"] = process_revision_directives
 
