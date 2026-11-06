@@ -15,7 +15,9 @@ def find_user_by_email(email: str) -> User | None:
 
 def find_user_by_id(user_id: int) -> User | None:
     """Load a user from the current database state."""
-    return db.session.get(User, user_id)
+    return db.session.scalar(
+        select(User).where(User.id == user_id).execution_options(populate_existing=True)
+    )
 
 
 def public_user(user: User) -> dict[str, object]:
