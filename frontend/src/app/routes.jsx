@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router"
-import { Button, ErrorState, LoadingState } from "../components/ui"
+import { ErrorState, LoadingState } from "../components/ui"
 import { useAuth } from "../context/AuthContext"
 
 export function ProtectedRoute() {
@@ -32,24 +32,4 @@ export function AdminRoute() {
   if (user.role !== "Admin") return <Navigate replace to="/inventory" />
 
   return <Outlet />
-}
-
-export function SignedInPlaceholder({ title = "Inventory workspace" }) {
-  const { user, logout } = useAuth()
-
-  return (
-    <section className="auth-placeholder">
-      <div className="auth-placeholder-card panel">
-        <p className="eyebrow">Gosrani Wholesalers Limited</p>
-        <h1>{title}</h1>
-        <p>
-          Signed in as <strong>{user?.name}</strong>. This screen is being
-          prepared.
-        </p>
-        <Button onClick={logout} variant="secondary">
-          Sign out
-        </Button>
-      </div>
-    </section>
-  )
 }

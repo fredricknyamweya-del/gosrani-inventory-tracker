@@ -27,7 +27,6 @@ export function AuthProvider({ children }) {
     } catch (error) {
       if (requestId !== requestIdRef.current) return;
       if (error.status === 401) {
-        api.logout();
         setUser(null);
         setAuthError(null);
       } else {
@@ -51,12 +50,16 @@ export function AuthProvider({ children }) {
     return response.data.user;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     requestIdRef.current += 1;
-    api.logout();
     setUser(null);
     setAuthError(null);
     setLoading(false);
+    try {
+      await api.logout();
+    } catch (error) {
+      if (error.status !== 401) setAuthError(error);
+    }
   }, []);
 
   const value = {

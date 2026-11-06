@@ -34,7 +34,7 @@ export default function AddItemModal({
   }, [open, initialCategoryId]);
 
   const nearMatch = categoryId && name.trim()
-    ? findCatalogNearMatch(name, categoryId)
+    ? findCatalogNearMatch(name, categoryId, items)
     : null;
   const exactMatch = nearMatch && normalize(nearMatch) === normalize(name);
   const specificationExample = getCatalogSpecificationExample(

@@ -7,11 +7,9 @@ before saving, and looking up inventory with a read-only assistant. The planned
 interface uses the company colours (red and black) and supports light and dark
 themes.
 
-> **Project status: scaffold and prototype specification.** The repository has
-> the frontend and backend folder structure, but the source files are currently
-> empty. The workflows and API contract below describe the intended application;
-> they are not yet implemented. The Flask API and database still need to be
-> built.
+> The frontend uses the Flask API for authentication and application data.
+> Inventory, catalog, user, and request changes are stored in the configured
+> database; no sample login or in-memory application records are used.
 
 ## Contents
 
@@ -72,9 +70,9 @@ not a security boundary.
 | Frontend | React with JavaScript and JSX (no TypeScript) |
 | Routing | React Router |
 | Build tool | Vite |
-| Backend | Flask REST API (Python), planned |
+| Backend | Flask REST API (Python) |
 | Dependency management | npm for frontend; Pipenv for backend |
-| Data persistence | Not implemented; database choice is open |
+| Data persistence | SQLAlchemy with SQLite for local development and PostgreSQL for production |
 
 The frontend package manifest currently specifies React 18, React Router 6,
 and Vite 6. The codebase is JavaScript: frontend source uses `.js` and `.jsx`,
@@ -95,6 +93,10 @@ npm install
 npm run dev
 ```
 
+Copy `.env.example` to `.env.local` if the Flask API is not at
+`http://localhost:5000/api`, then set `VITE_API_BASE_URL`. The dev server runs
+at `http://localhost:8443`.
+
 The frontend uses npm. Running `npm install` creates `package-lock.json`; commit
 that file and use `npm ci` for clean, reproducible installs afterward.
 
@@ -111,12 +113,25 @@ npm run preview  # Preview the production build locally
 ```bash
 cd backend
 pipenv install
-pipenv shell
 ```
 
-Backend source files are scaffolding and do not yet start a working API.
-`pipenv install` uses `backend/Pipfile` and creates or updates
-`backend/Pipfile.lock` with resolved dependency versions.
+Create `backend/.env` from `.env.example`, set `SEED_ADMIN_EMAIL` and
+`SEED_ADMIN_PASSWORD` (at least 12 characters), and then run:
+
+```bash
+pipenv run flask --app app db upgrade
+pipenv run flask --app app seed
+pipenv run flask --app app run --host 0.0.0.0 --port 5000
+```
+
+To create additional User accounts during seeding, repeat
+`--user-email user@example.com` for each one. The seed command generates their
+passwords and prints each newly created User's one-time login credentials.
+
+The default local database is `backend/instance/gosrani.db`. Set
+`CORS_ORIGINS` to a comma-separated list of exact frontend origins; the
+development defaults match the Vite port. Production should use PostgreSQL and
+the production cookie/TLS settings described in [backend/docs/DATABASE.md](backend/docs/DATABASE.md).
 
 ## Project structure
 
@@ -337,9 +352,10 @@ are not available yet. Decide the following before completing the backend:
   server to serve `index.html` for client-side routes such as
   `/inventory/<id>`.
 - Serve production frontend files over HTTPS.
-- Hosting the Flask API under the same domain (for example, under `/api`) can
-  avoid cross-origin complexity. Otherwise, restrict CORS to the frontend
-  origin.
+- Browser requests include cookies and CSRF headers. Configure
+  `CORS_ORIGINS` with the exact frontend origin(s); the API enables credentialed
+  CORS for `/api/*`. Set `VITE_API_BASE_URL` to the reachable API base ending
+  in `/api`. Never use `*` for credentialed CORS.
 
 ---
 
