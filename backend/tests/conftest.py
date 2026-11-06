@@ -1,9 +1,9 @@
 """Shared test fixtures."""
 
+import sqlite3
 import sys
 from importlib import import_module
 from pathlib import Path
-import sqlite3
 
 import pytest
 from flask_migrate import downgrade, upgrade
