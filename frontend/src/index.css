@@ -487,13 +487,15 @@
 .login-brand-footer {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   color: var(--sidebar-muted);
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .login-brand-footer svg {
   color: var(--red);
+  flex: 0 0 auto;
 }
 
 .login-form-panel {
@@ -707,8 +709,8 @@
 }
 
 .login-copyright {
-  color: var(--faint);
-  font-size: 10px;
+  color: var(--muted);
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -1082,9 +1084,11 @@
   justify-content: space-between;
   gap: 12px;
   border-top: 1px solid var(--border);
-  padding: 13px 30px;
-  color: var(--faint);
-  font-size: 10px;
+  padding: 16px 30px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .not-found-page {
@@ -1210,7 +1214,7 @@
   }
 
   .app-footer {
-    padding: 12px 16px;
+    padding: 14px 16px;
   }
 }
 
