@@ -1,9 +1,25 @@
-# PostgreSQL setup
+# Database setup
 
 Production uses PostgreSQL through SQLAlchemy and Psycopg 3. Supabase is the
 managed PostgreSQL host; use its **session pooler** connection string, as
 documented in the project architecture. The backend does not use Supabase
 Auth or the Supabase client.
+
+## Local development with SQLite
+
+SQLite is the default for local development. Leave `DATABASE_URL` blank or
+unset in `backend/.env`; the application stores data in
+`backend/instance/gosrani.db`. From `backend/`, apply the schema and start the
+API as usual:
+
+```sh
+PIPENV_VENV_IN_PROJECT=1 pipenv run flask --app app db upgrade
+PIPENV_VENV_IN_PROJECT=1 pipenv run flask --app app run --port 5000
+```
+
+Alembic migrations run against SQLite, and migration autogeneration renders
+SQLite table changes as batch operations. SQLite is intended for local
+development; production startup requires PostgreSQL.
 
 ## Configure a database URL
 
@@ -14,11 +30,10 @@ the first two to Psycopg 3. In production, TLS defaults to `sslmode=require`.
 Explicit secure modes (`require`, `verify-ca`, or `verify-full`) are preserved;
 non-TLS modes are rejected.
 
-For local development, create `backend/.env` from `.env.example` and set
-`DATABASE_URL`. Do not commit `.env` or paste database credentials into source
-files or logs. Local SQLite remains the default when no development URL is set.
-Production startup refuses to run unless its database URL uses PostgreSQL
-with Psycopg.
+For PostgreSQL development or deployment, create `backend/.env` from
+`.env.example` and set `DATABASE_URL`. Do not commit `.env` or paste database
+credentials into source files or logs. Production startup refuses to run unless
+its database URL uses PostgreSQL with Psycopg.
 
 ## Apply the schema
 

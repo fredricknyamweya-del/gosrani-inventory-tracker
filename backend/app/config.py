@@ -53,6 +53,10 @@ def _database_engine_options(database_url: str) -> dict[str, object]:
     }
 
 
+def _testing_database_url(value: str | None) -> str:
+    return value or "sqlite:///:memory:"
+
+
 class BaseConfig:
     """Settings shared by all runtime environments."""
 
@@ -105,7 +109,7 @@ class TestingConfig(BaseConfig):
     """Fast test settings using an in-memory database and no cache."""
 
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
+    SQLALCHEMY_DATABASE_URI = _testing_database_url(os.getenv("TEST_DATABASE_URL"))
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = {}
     JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["cookies", "headers"]
     SECRET_KEY = "testing-only-secret"

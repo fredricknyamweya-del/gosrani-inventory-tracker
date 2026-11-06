@@ -93,12 +93,12 @@ def run_migrations_online():
                 directives[:] = []
                 logger.info('No changes in schema detected.')
 
+    connectable = get_engine()
     conf_args = dict(current_app.extensions["migrate"].configure_args)
     conf_args.setdefault("compare_type", True)
+    conf_args.setdefault("render_as_batch", connectable.dialect.name == "sqlite")
     if conf_args.get("process_revision_directives") is None:
         conf_args["process_revision_directives"] = process_revision_directives
-
-    connectable = get_engine()
 
     with connectable.connect() as connection:
         context.configure(

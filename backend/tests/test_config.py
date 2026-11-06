@@ -3,7 +3,21 @@
 import pytest
 from sqlalchemy.engine import make_url
 
-from app.config import ProductionConfig, _database_engine_options, _database_url
+from app.config import (
+    ProductionConfig,
+    _database_engine_options,
+    _database_url,
+    _testing_database_url,
+)
+
+
+@pytest.mark.parametrize("database_url", [None, ""])
+def test_empty_test_database_url_uses_in_memory_sqlite(database_url):
+    assert _testing_database_url(database_url) == "sqlite:///:memory:"
+
+
+def test_test_database_url_preserves_configured_database():
+    assert _testing_database_url("sqlite:///test.db") == "sqlite:///test.db"
 
 
 @pytest.mark.parametrize(
