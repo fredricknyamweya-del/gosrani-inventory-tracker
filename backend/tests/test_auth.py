@@ -1,6 +1,6 @@
 """Authentication and JWT lifecycle tests."""
 
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
 from app.models import User, UserRole, UserStatus

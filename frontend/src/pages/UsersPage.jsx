@@ -1,5 +1,5 @@
 import { Check, Copy, Plus, RotateCcw, UserRoundX } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Button,
   EmptyState,
@@ -105,13 +105,13 @@ export default function UsersPage() {
     setCopied(false);
   }
 
-  function closeAdd() {
+  const closeAdd = useCallback(() => {
     setAddOpen(false);
     setAddError("");
     setName("");
     setEmail("");
     setRole("User");
-  }
+  }, []);
 
   function requestChange(entry, changes) {
     setChangeTarget({ user: entry, changes });
