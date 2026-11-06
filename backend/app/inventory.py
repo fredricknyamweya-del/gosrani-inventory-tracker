@@ -28,6 +28,7 @@ from app.models import (
     Location,
     RecordStatus,
     Specification,
+    User,
     UserRole,
 )
 
@@ -122,9 +123,9 @@ def _serialize(record: InventoryRecord) -> dict[str, object]:
     specification = db.session.get(Specification, record.specification_id)
     item = db.session.get(Item, specification.item_id) if specification else None
     category = db.session.get(Category, item.category_id) if item else None
-    creator = db.session.get(__import__("app.models", fromlist=["User"]).User, record.created_by)
+    creator = db.session.get(User, record.created_by)
     updater = (
-        db.session.get(__import__("app.models", fromlist=["User"]).User, record.updated_by)
+        db.session.get(User, record.updated_by)
         if record.updated_by
         else None
     )
@@ -283,7 +284,7 @@ def list_inventory():
                 Item.name.ilike(pattern),
                 Specification.label.ilike(pattern),
                 InventoryRecord.details.ilike(pattern),
-                __import__("app.models", fromlist=["User"]).User.name.ilike(pattern),
+                User.name.ilike(pattern),
             )
         )
     for key, value in (("from", date_from), ("to", date_to)):

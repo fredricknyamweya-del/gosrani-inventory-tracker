@@ -336,12 +336,12 @@ def create_request():
             category = _find_category(payload.get("categoryId"))
             if category is None or not category.active:
                 raise ApiValidationError("categoryId", "Choose a valid active category.")
-            item_name = _required_text(payload, "itemName", "Item name", 120)
             if request_type == "product":
+                item_name = _required_text(payload, "itemName", "Product name", 120)
                 if _find_item(item_name, category.id) is not None:
                     raise ApiValidationError("itemName", "This product already exists; request a missing specification instead.")
             else:
-                item = _find_item(payload.get("itemId", item_name), category.id)
+                item = _find_item(payload.get("itemId"), category.id)
                 if item is None:
                     raise ApiValidationError("itemId", "Choose a valid existing catalog product.")
                 item_name = item.name

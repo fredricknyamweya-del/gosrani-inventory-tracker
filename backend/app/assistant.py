@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from sqlalchemy import func, or_, select
 
-from app.api_utils import current_user, json_number
+from app.api_utils import current_user, json_number, user_location_ids
 from app.errors import error_response, validation_error
 from app.extensions import db
 from app.inventory import _serialize
@@ -19,8 +19,6 @@ from app.models import (
     Specification,
     UserRole,
 )
-from app.users import users_bp  # noqa: F401
-from app.api_utils import user_location_ids
 
 assistant_bp = Blueprint("assistant", __name__, url_prefix="/api/assistant")
 
