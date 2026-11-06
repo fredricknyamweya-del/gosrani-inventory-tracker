@@ -55,7 +55,7 @@ def test_seed_creates_admin_location_and_catalog(app, monkeypatch):
         assert db.session.get(UserLocation, (admin.id, location.id)) is not None
         assert db.session.scalar(select(func.count(Category.id))) == 10
         assert db.session.scalar(select(func.count(Item.id))) == 16
-        assert db.session.scalar(select(func.count(Specification.id))) == 28
+        assert db.session.scalar(select(func.count(Specification.id))) == 29
 
         fibre = db.session.scalar(select(Item).where(Item.name == "Fibre"))
         assert fibre is not None
@@ -98,7 +98,7 @@ def test_seed_is_idempotent_and_does_not_reset_admin_credentials(app, monkeypatc
         assert admin.name == "Initial Admin"
         assert db.session.scalar(select(func.count(Category.id))) == 10
         assert db.session.scalar(select(func.count(Item.id))) == 16
-        assert db.session.scalar(select(func.count(Specification.id))) == 28
+        assert db.session.scalar(select(func.count(Specification.id))) == 29
 
 
 def test_seed_refuses_to_promote_existing_non_admin_and_rolls_back(app, monkeypatch):
