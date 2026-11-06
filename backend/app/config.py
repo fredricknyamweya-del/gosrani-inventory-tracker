@@ -91,6 +91,7 @@ class BaseConfig:
     MAX_CONTENT_LENGTH = 2 * 1024 * 1024
     LOGIN_MAX_FAILURES = int(os.getenv("LOGIN_MAX_FAILURES", "5"))
     LOGIN_LOCK_MINUTES = int(os.getenv("LOGIN_LOCK_MINUTES", "15"))
+    ASSISTANT_HOURLY_LIMIT = int(os.getenv("ASSISTANT_HOURLY_LIMIT", "30"))
     JSON_SORT_KEYS = True
 
 
@@ -120,9 +121,7 @@ class ProductionConfig(BaseConfig):
     SECRET_KEY = os.getenv("SECRET_KEY")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_COOKIE_SECURE = True
-    SQLALCHEMY_DATABASE_URI = _database_url(
-        os.getenv("DATABASE_URL"), require_ssl=True
-    )
+    SQLALCHEMY_DATABASE_URI = _database_url(os.getenv("DATABASE_URL"), require_ssl=True)
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = _database_engine_options(
         SQLALCHEMY_DATABASE_URI
     )
