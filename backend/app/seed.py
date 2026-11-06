@@ -2,10 +2,8 @@
 
 import os
 import re
-from collections.abc import Sequence
 
 import click
-from flask import current_app
 from flask.cli import with_appcontext
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -226,7 +224,6 @@ def seed_database() -> dict[str, int]:
         raise
     except SQLAlchemyError:
         db.session.rollback()
-        current_app.logger.exception("Initial database seeding failed.")
         raise click.ClickException(
             "Database seeding failed and was rolled back. Confirm the schema is "
             "migrated and database constraints are satisfied."

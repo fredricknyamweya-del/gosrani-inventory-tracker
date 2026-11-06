@@ -12,6 +12,7 @@ from app.config import CONFIGS
 from app.errors import register_error_handlers
 from app.extensions import cache, db, jwt, migrate
 from app.security import configure_security
+from app.seed import seed_command
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -45,6 +46,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     db.init_app(app)
     migrate.init_app(app, db)
+    app.cli.add_command(seed_command)
     jwt.init_app(app)
     register_jwt_callbacks()
     cache.init_app(app)
