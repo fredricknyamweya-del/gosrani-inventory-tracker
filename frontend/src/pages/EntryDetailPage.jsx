@@ -15,6 +15,7 @@ import {
   LoadingState,
   PageHeader,
   Select,
+  StatusBadge,
 } from "../components/ui"
 import { useAuth } from "../context/AuthContext"
 import { useApi } from "../hooks/useApi"
@@ -287,39 +288,39 @@ export default function EntryDetailPage() {
           </div>
         </form>
       ) : (
-        <section className="panel entry-review-list">
-          <dl>
+        <section aria-label="Inventory record details" className="panel entry-record-card">
+          <header className="entry-record-hero">
+            <div className="entry-record-hero-meta">
+              <span className="entry-record-category">{record.category}</span>
+              <StatusBadge status={record.status} />
+            </div>
+            <h2>{record.item}</h2>
+            <p>{record.size || "No specification or size recorded"}</p>
+          </header>
+          <dl aria-label="Quantity movement" className="entry-record-quantities">
+            <div className="entry-record-quantity-in">
+              <dt>Quantity In</dt>
+              <dd>
+                <span>{record.quantityIn ?? "–"}</span>
+                <small>{record.enteredUnit}</small>
+              </dd>
+            </div>
+            <div className="entry-record-quantity-out">
+              <dt>Quantity Out</dt>
+              <dd>
+                <span>{record.quantityOut ?? "–"}</span>
+                <small>{record.enteredUnit}</small>
+              </dd>
+            </div>
+          </dl>
+          <dl className="entry-record-fields">
             <div>
               <dt>Date</dt>
               <dd>{formatDate(record.date)}</dd>
             </div>
             <div>
-              <dt>Category</dt>
-              <dd>{record.category}</dd>
-            </div>
-            <div>
-              <dt>Item</dt>
-              <dd>{record.item}</dd>
-            </div>
-            <div>
-              <dt>Specification / size</dt>
-              <dd>{record.size || "–"}</dd>
-            </div>
-            <div>
-              <dt>Quantity In</dt>
-              <dd>{record.quantityIn ?? "–"}</dd>
-            </div>
-            <div>
-              <dt>Quantity Out</dt>
-              <dd>{record.quantityOut ?? "–"}</dd>
-            </div>
-            <div>
               <dt>Entered unit</dt>
               <dd>{record.enteredUnit}</dd>
-            </div>
-            <div>
-              <dt>Details</dt>
-              <dd>{record.details || "–"}</dd>
             </div>
             <div>
               <dt>Added by</dt>
@@ -329,9 +330,9 @@ export default function EntryDetailPage() {
               <dt>Last modified by</dt>
               <dd>{record.modifiedBy}</dd>
             </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{record.status}</dd>
+            <div className="entry-record-details">
+              <dt>Details</dt>
+              <dd>{record.details || "–"}</dd>
             </div>
           </dl>
         </section>
