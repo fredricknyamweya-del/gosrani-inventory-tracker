@@ -135,6 +135,9 @@ class User(db.Model):
         nullable=False,
         server_default=text("'Active'"),
     )
+    auth_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
     failed_logins: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("0")
     )

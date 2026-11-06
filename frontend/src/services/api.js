@@ -121,6 +121,10 @@ export const api = {
     return request("/auth/me");
   },
 
+  changePassword(input = {}) {
+    return request("/auth/change-password", { method: "POST", body: input });
+  },
+
   logout() {
     return request("/auth/logout", { method: "POST", body: {} });
   },
