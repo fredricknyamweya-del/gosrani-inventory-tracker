@@ -79,7 +79,10 @@ class BaseConfig:
     JWT_COOKIE_CSRF_HEADER_NAME = "X-CSRF-TOKEN"
     CORS_ORIGINS: ClassVar[list[str]] = [
         origin.strip()
-        for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:8443,http://127.0.0.1:8443",
+        ).split(",")
         if origin.strip()
     ]
     CACHE_DEFAULT_TIMEOUT = int(os.getenv("CACHE_DEFAULT_TIMEOUT", "60"))

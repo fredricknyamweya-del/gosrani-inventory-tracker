@@ -7,12 +7,16 @@ from flask_cors import CORS
 from sqlalchemy.engine import make_url
 
 from app import models as _models  # noqa: F401
+from app.assistant import assistant_bp
 from app.auth import auth_bp, register_jwt_callbacks
+from app.catalog import catalog_bp
 from app.config import CONFIGS
 from app.errors import register_error_handlers
 from app.extensions import cache, db, jwt, migrate
+from app.inventory import inventory_bp
 from app.security import configure_security
 from app.seed import seed_command
+from app.users import users_bp
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -64,6 +68,10 @@ def create_app(config_name: str | None = None) -> Flask:
         expose_headers=["ETag", "Location", "Retry-After"],
     )
     app.register_blueprint(auth_bp)
+    app.register_blueprint(inventory_bp)
+    app.register_blueprint(catalog_bp)
+    app.register_blueprint(users_bp)
+    app.register_blueprint(assistant_bp)
 
     @app.get("/api/health", strict_slashes=False)
     def health():

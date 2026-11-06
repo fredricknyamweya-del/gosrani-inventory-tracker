@@ -258,6 +258,9 @@ class ItemRequest(db.Model):
     category_id: Mapped[int | None] = mapped_column(
         ID_TYPE, ForeignKey("categories.id", ondelete="RESTRICT")
     )
+    item_id: Mapped[int | None] = mapped_column(
+        ID_TYPE, ForeignKey("items.id", ondelete="RESTRICT")
+    )
     new_category_name: Mapped[str | None] = mapped_column(String(100))
     item_name: Mapped[str] = mapped_column(String(120), nullable=False)
     specification: Mapped[str | None] = mapped_column(String(120))
@@ -285,6 +288,7 @@ class ItemRequest(db.Model):
         foreign_keys=[reviewed_by],
     )
     category: Mapped["Category | None"] = relationship(lazy="raise")
+    item: Mapped["Item | None"] = relationship(lazy="raise")
 
 
 class AuditLog(db.Model):
