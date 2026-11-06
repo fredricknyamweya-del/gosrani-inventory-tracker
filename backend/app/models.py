@@ -9,13 +9,16 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Column,
     Date,
     DateTime,
     ForeignKey,
     Index,
     Integer,
+    MetaData,
     Numeric,
     String,
+    Table,
     Text,
     func,
     text,
@@ -226,7 +229,7 @@ class ImportBatch(db.Model):
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     source_file: Mapped[str] = mapped_column(String(255), nullable=False)
     imported_by: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("users.id"), nullable=False
+        ID_TYPE, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     row_count: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
@@ -250,10 +253,10 @@ class ItemRequest(db.Model):
 
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     requested_by: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("users.id"), nullable=False
+        ID_TYPE, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     category_id: Mapped[int | None] = mapped_column(
-        ID_TYPE, ForeignKey("categories.id")
+        ID_TYPE, ForeignKey("categories.id", ondelete="RESTRICT")
     )
     new_category_name: Mapped[str | None] = mapped_column(String(100))
     item_name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -265,7 +268,7 @@ class ItemRequest(db.Model):
         server_default=text("'Pending'"),
     )
     reviewed_by: Mapped[int | None] = mapped_column(
-        ID_TYPE, ForeignKey("users.id")
+        ID_TYPE, ForeignKey("users.id", ondelete="RESTRICT")
     )
     reject_reason: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
@@ -302,7 +305,7 @@ class AuditLog(db.Model):
         _enum(AuditAction, "audit_action"), nullable=False
     )
     actor_id: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("users.id"), nullable=False
+        ID_TYPE, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     before: Mapped[dict[str, object] | list[object] | None] = mapped_column(JSON_TYPE)
     after: Mapped[dict[str, object] | list[object] | None] = mapped_column(JSON_TYPE)
@@ -320,7 +323,7 @@ class AssistantQuery(db.Model):
 
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("users.id"), nullable=False
+        ID_TYPE, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     tools_called: Mapped[dict[str, object] | list[object] | None] = mapped_column(
@@ -406,11 +409,11 @@ class InventoryRecord(db.Model):
 
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     location_id: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("locations.id"), nullable=False
+        ID_TYPE, ForeignKey("locations.id", ondelete="RESTRICT"), nullable=False
     )
     record_date: Mapped[date] = mapped_column(Date, nullable=False)
     specification_id: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("specifications.id"), nullable=False
+        ID_TYPE, ForeignKey("specifications.id", ondelete="RESTRICT"), nullable=False
     )
     qty_in: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
     qty_out: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
@@ -426,16 +429,18 @@ class InventoryRecord(db.Model):
         server_default=text("'Locked'"),
     )
     created_by: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("users.id"), nullable=False
+        ID_TYPE, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    updated_by: Mapped[int | None] = mapped_column(ID_TYPE, ForeignKey("users.id"))
+    updated_by: Mapped[int | None] = mapped_column(
+        ID_TYPE, ForeignKey("users.id", ondelete="RESTRICT")
+    )
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     import_batch_id: Mapped[int | None] = mapped_column(
-        ID_TYPE, ForeignKey("import_batches.id")
+        ID_TYPE, ForeignKey("import_batches.id", ondelete="RESTRICT")
     )
 
     location: Mapped["Location"] = relationship(lazy="raise")
@@ -458,9 +463,11 @@ class RevokedToken(db.Model):
     __table_args__ = (Index("ix_revoked_tokens_expires_at", "expires_at"),)
 
     jti: Mapped[str] = mapped_column(String(36), primary_key=True)
-    token_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    token_type: Mapped[TokenType] = mapped_column(
+        _enum(TokenType, "token_type"), nullable=False
+    )
     user_id: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("users.id"), nullable=False
+        ID_TYPE, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime] = mapped_column(
@@ -468,3 +475,12 @@ class RevokedToken(db.Model):
     )
 
     user: Mapped["User"] = relationship(lazy="raise")
+
+
+v_stock = Table(
+    "v_stock",
+    MetaData(),
+    Column("location_id", ID_TYPE, nullable=False),
+    Column("specification_id", ID_TYPE, nullable=False),
+    Column("stock", Numeric(12, 3), nullable=True),
+)
