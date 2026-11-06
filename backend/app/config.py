@@ -50,6 +50,8 @@ class BaseConfig:
     JWT_COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN") or None
     JWT_ACCESS_COOKIE_PATH = "/api"
     JWT_REFRESH_COOKIE_PATH = "/api/auth"
+    JWT_ACCESS_CSRF_COOKIE_PATH = "/api"
+    JWT_REFRESH_CSRF_COOKIE_PATH = "/api/auth"
     JWT_COOKIE_CSRF_HEADER_NAME = "X-CSRF-TOKEN"
     CORS_ORIGINS: ClassVar[list[str]] = [
         origin.strip()
@@ -79,7 +81,7 @@ class TestingConfig(BaseConfig):
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = {}
     JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["cookies", "headers"]
     SECRET_KEY = "testing-only-secret"
-    JWT_SECRET_KEY = "testing-only-jwt-secret"
+    JWT_SECRET_KEY = "testing-only-jwt-secret-with-at-least-32-bytes"
     JWT_COOKIE_SECURE = False
     CACHE_TYPE = "NullCache"
 
