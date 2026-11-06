@@ -1,9 +1,17 @@
 """Shared test fixtures."""
 
+import sys
+from importlib import import_module
+from pathlib import Path
+
 import pytest
 
-from app import create_app
-from app.extensions import cache, db
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+create_app = import_module("app").create_app
+extensions = import_module("app.extensions")
+cache = extensions.cache
+db = extensions.db
 
 
 @pytest.fixture()

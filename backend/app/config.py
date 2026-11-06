@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import ClassVar
 
 from dotenv import load_dotenv
 
@@ -26,7 +27,7 @@ class BaseConfig:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "development-only-jwt-secret")
     SQLALCHEMY_DATABASE_URI = _database_url(os.getenv("DATABASE_URL"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = (
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = (
         {}
         if SQLALCHEMY_DATABASE_URI.startswith("sqlite:")
         else {
@@ -37,7 +38,7 @@ class BaseConfig:
             "connect_args": {"sslmode": "require"},
         }
     )
-    JWT_TOKEN_LOCATION = ["cookies"]
+    JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["cookies"]
     JWT_COOKIE_CSRF_PROTECT = True
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_MINUTES", "15")) * 60
     JWT_REFRESH_TOKEN_EXPIRES = int(os.getenv("JWT_REFRESH_HOURS", "12")) * 60 * 60
@@ -47,7 +48,7 @@ class BaseConfig:
     JWT_ACCESS_COOKIE_PATH = "/api"
     JWT_REFRESH_COOKIE_PATH = "/api/auth/refresh"
     JWT_COOKIE_CSRF_HEADER_NAME = "X-CSRF-TOKEN"
-    CORS_ORIGINS = [
+    CORS_ORIGINS: ClassVar[list[str]] = [
         origin.strip()
         for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
         if origin.strip()
@@ -70,8 +71,8 @@ class TestingConfig(BaseConfig):
 
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
-    SQLALCHEMY_ENGINE_OPTIONS = {}
-    JWT_TOKEN_LOCATION = ["cookies", "headers"]
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = {}
+    JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["cookies", "headers"]
     JWT_COOKIE_SECURE = False
     CACHE_TYPE = "NullCache"
 
