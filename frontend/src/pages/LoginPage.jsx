@@ -74,6 +74,10 @@ export default function LoginPage() {
             <img alt="Gosrani Wholesalers Limited" className="login-brand-logo" src="/gw-logo-login.png" />
           </div>
           <div className="login-heading">
+            <div className="login-app-brand">
+              <h2>GWL</h2>
+              <p>Internal Business Software</p>
+            </div>
             <p className="eyebrow">WELCOME BACK</p>
             <h2 id="login-heading">Sign in to your account</h2>
             <p>Enter your work email and password to continue.</p>
