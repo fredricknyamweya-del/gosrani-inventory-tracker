@@ -1,23 +1,27 @@
 """SQLAlchemy models matching the inventory ERD."""
 
+from datetime import date, datetime
+from decimal import Decimal
 from enum import Enum
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
     Date,
     DateTime,
-    Enum as SqlEnum,
     ForeignKey,
     Index,
     Integer,
-    JSON,
     Numeric,
     String,
     Text,
     func,
     text,
+)
+from sqlalchemy import (
+    Enum as SqlEnum,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -134,9 +138,9 @@ class User(db.Model):
     failed_logins: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("0")
     )
-    locked_until: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
-    last_login_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[DateTime] = mapped_column(
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
@@ -248,7 +252,7 @@ class ImportBatch(db.Model):
     )
     row_count: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
-    imported_at: Mapped[DateTime] = mapped_column(
+    imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
@@ -289,10 +293,10 @@ class ItemRequest(db.Model):
         ID_TYPE, ForeignKey("users.id")
     )
     reject_reason: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    reviewed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     requester: Mapped["User"] = relationship(
         back_populates="requests_created",
@@ -325,9 +329,9 @@ class AuditLog(db.Model):
     actor_id: Mapped[int] = mapped_column(
         ID_TYPE, ForeignKey("users.id"), nullable=False
     )
-    before: Mapped[dict | list | None] = mapped_column(JSON_TYPE)
-    after: Mapped[dict | list | None] = mapped_column(JSON_TYPE)
-    at: Mapped[DateTime] = mapped_column(
+    before: Mapped[dict[str, object] | list[object] | None] = mapped_column(JSON_TYPE)
+    after: Mapped[dict[str, object] | list[object] | None] = mapped_column(JSON_TYPE)
+    at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
@@ -344,9 +348,11 @@ class AssistantQuery(db.Model):
         ID_TYPE, ForeignKey("users.id"), nullable=False
     )
     question: Mapped[str] = mapped_column(Text, nullable=False)
-    tools_called: Mapped[dict | list | None] = mapped_column(JSON_TYPE)
+    tools_called: Mapped[dict[str, object] | list[object] | None] = mapped_column(
+        JSON_TYPE
+    )
     result_count: Mapped[int | None] = mapped_column(Integer)
-    at: Mapped[DateTime] = mapped_column(
+    at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
@@ -430,12 +436,12 @@ class InventoryRecord(db.Model):
     location_id: Mapped[int] = mapped_column(
         ID_TYPE, ForeignKey("locations.id"), nullable=False
     )
-    record_date: Mapped[Date] = mapped_column(Date, nullable=False)
+    record_date: Mapped[date] = mapped_column(Date, nullable=False)
     specification_id: Mapped[int] = mapped_column(
         ID_TYPE, ForeignKey("specifications.id"), nullable=False
     )
-    qty_in: Mapped[float | None] = mapped_column(Numeric(12, 3))
-    qty_out: Mapped[float | None] = mapped_column(Numeric(12, 3))
+    qty_in: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    qty_out: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
     entered_unit: Mapped[EnteredUnit] = mapped_column(
         _enum(EnteredUnit, "entered_unit"),
         nullable=False,
@@ -450,12 +456,12 @@ class InventoryRecord(db.Model):
     created_by: Mapped[int] = mapped_column(
         ID_TYPE, ForeignKey("users.id"), nullable=False
     )
-    created_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     updated_by: Mapped[int | None] = mapped_column(ID_TYPE, ForeignKey("users.id"))
-    updated_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
-    deleted_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     import_batch_id: Mapped[int | None] = mapped_column(
         ID_TYPE, ForeignKey("import_batches.id")
     )
@@ -488,8 +494,8 @@ class RevokedToken(db.Model):
     user_id: Mapped[int] = mapped_column(
         ID_TYPE, ForeignKey("users.id"), nullable=False
     )
-    expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
-    revoked_at: Mapped[DateTime] = mapped_column(
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 

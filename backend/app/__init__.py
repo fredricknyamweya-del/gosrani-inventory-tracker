@@ -5,10 +5,10 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 
+from app import models as _models  # noqa: F401
 from app.config import CONFIGS
 from app.errors import register_error_handlers
 from app.extensions import cache, db, jwt, migrate
-from app import models as _models  # noqa: F401
 from app.security import configure_security
 
 
