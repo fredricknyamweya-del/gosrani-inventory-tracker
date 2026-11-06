@@ -3,8 +3,8 @@
 from uuid import uuid4
 
 from flask import Flask, g, request
-from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.exceptions import BadRequest
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.errors import error_response
 
