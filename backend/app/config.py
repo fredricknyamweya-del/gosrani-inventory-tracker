@@ -7,6 +7,7 @@ from typing import ClassVar
 
 from dotenv import load_dotenv
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(BACKEND_ROOT / ".env")
@@ -15,15 +16,25 @@ load_dotenv(BACKEND_ROOT / ".env")
 def _database_url(value: str | None, *, require_ssl: bool = False) -> str:
     if not value:
         return f"sqlite:///{BACKEND_ROOT / 'instance' / 'gosrani.db'}"
-    url = make_url(value)
+    try:
+        url = make_url(value)
+    except ArgumentError:
+        raise ValueError("DATABASE_URL must be a valid database URL.") from None
     if url.drivername in {"postgres", "postgresql"}:
         url = url.set(drivername="postgresql+psycopg")
+    if url.get_backend_name() not in {"postgresql", "sqlite"}:
+        raise ValueError("DATABASE_URL must use PostgreSQL or SQLite.")
     if (
-        require_ssl
-        and url.get_backend_name() == "postgresql"
-        and "sslmode" not in url.query
+        url.get_backend_name() == "postgresql"
+        and url.drivername != "postgresql+psycopg"
     ):
-        url = url.update_query_dict({"sslmode": "require"}, append=True)
+        raise ValueError("PostgreSQL DATABASE_URL must use Psycopg 3.")
+    if require_ssl and url.get_backend_name() == "postgresql":
+        sslmode = url.query.get("sslmode")
+        if sslmode is None:
+            url = url.update_query_dict({"sslmode": "require"})
+        elif sslmode not in {"require", "verify-ca", "verify-full"}:
+            raise ValueError("Production PostgreSQL connections must use TLS.")
     return url.render_as_string(hide_password=False)
 
 

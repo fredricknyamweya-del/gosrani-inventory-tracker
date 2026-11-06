@@ -46,6 +46,24 @@ def test_production_postgres_url_preserves_explicit_tls_mode():
     assert normalized.query["sslmode"] == "verify-full"
 
 
+def test_production_postgres_url_rejects_disabled_tls():
+    with pytest.raises(ValueError, match="must use TLS"):
+        _database_url(
+            "postgresql://user:secret@db.example.test/inventory?sslmode=disable",
+            require_ssl=True,
+        )
+
+
+def test_unsupported_database_url_has_a_safe_error():
+    with pytest.raises(ValueError, match="must use PostgreSQL or SQLite"):
+        _database_url("not a database URL")
+
+
+def test_postgres_rejects_non_psycopg_drivers():
+    with pytest.raises(ValueError, match="must use Psycopg 3"):
+        _database_url("postgresql+psycopg2://user:secret@db.example.test/inventory")
+
+
 def test_pool_settings_are_bounded_and_only_applied_to_postgres():
     options = _database_engine_options(
         "postgresql+psycopg://user:secret@db.example.test/inventory"

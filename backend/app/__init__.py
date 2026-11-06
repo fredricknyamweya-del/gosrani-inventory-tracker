@@ -34,6 +34,12 @@ def create_app(config_name: str | None = None) -> Flask:
             raise RuntimeError(
                 "Production requires DATABASE_URL to use PostgreSQL with psycopg."
             )
+        if database_url.query.get("sslmode") not in {
+            "require",
+            "verify-ca",
+            "verify-full",
+        }:
+            raise RuntimeError("Production PostgreSQL connections must use TLS.")
     configure_security(app)
     register_error_handlers(app)
 

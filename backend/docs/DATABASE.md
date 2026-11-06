@@ -10,8 +10,9 @@ Auth or the Supabase client.
 Set `DATABASE_URL` in the backend environment to the connection string supplied
 by Supabase (or another PostgreSQL provider). The application accepts
 `postgres://`, `postgresql://`, and `postgresql+psycopg://` URLs, and normalizes
-the first two to Psycopg 3. In production, TLS defaults to `sslmode=require`;
-an explicit `sslmode` in the URL is preserved.
+the first two to Psycopg 3. In production, TLS defaults to `sslmode=require`.
+Explicit secure modes (`require`, `verify-ca`, or `verify-full`) are preserved;
+non-TLS modes are rejected.
 
 For local development, create `backend/.env` from `.env.example` and set
 `DATABASE_URL`. Do not commit `.env` or paste database credentials into source
