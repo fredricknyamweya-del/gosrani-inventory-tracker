@@ -379,6 +379,7 @@ class InventoryRecord(db.Model):
 
     __tablename__ = "inventory_records"
     __table_args__ = (
+        {"sqlite_autoincrement": True},
         Index(
             "ix_inventory_records_location_record_date",
             "location_id",
