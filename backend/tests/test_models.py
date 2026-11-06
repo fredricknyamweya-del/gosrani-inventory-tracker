@@ -1,20 +1,35 @@
 """Tests for the ERD-backed SQLAlchemy schema."""
 
+from datetime import date, datetime, timezone
+
 import pytest
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import (
     Category,
+    AssistantQuery,
+    AuditAction,
+    AuditEntity,
+    AuditLog,
+    EnteredUnit,
+    ImportBatch,
     InventoryRecord,
     Item,
+    ItemRequest,
     Location,
+    RecordStatus,
+    RequestStatus,
+    RevokedToken,
     Specification,
+    StockUnit,
+    TokenType,
     User,
     UserLocation,
     UserRole,
     UserStatus,
+    v_stock,
 )
 
 EXPECTED_TABLES = {
@@ -217,3 +232,161 @@ def test_catalog_foreign_keys_are_restrict():
         ("category_id", "RESTRICT"),
         ("item_id", "RESTRICT"),
     }
+
+
+def test_remaining_models_accept_valid_rows_and_stock_view_excludes_deleted(app):
+    location, user, category, item, specification = _create_catalog()
+    batch = ImportBatch(
+        source_file="opening.xlsx",
+        imported_by=user.id,
+        row_count=2,
+    )
+    db.session.add(batch)
+    db.session.flush()
+    live_record = InventoryRecord(
+        location_id=location.id,
+        record_date=date(2026, 1, 2),
+        specification_id=specification.id,
+        qty_in=10,
+        qty_out=2,
+        entered_unit=EnteredUnit.PCS,
+        status=RecordStatus.SAVED,
+        created_by=user.id,
+        import_batch_id=batch.id,
+    )
+    deleted_record = InventoryRecord(
+        location_id=location.id,
+        record_date=date(2026, 1, 3),
+        specification_id=specification.id,
+        qty_in=100,
+        qty_out=0,
+        created_by=user.id,
+        deleted_at=datetime(2026, 1, 4, tzinfo=timezone.utc),
+    )
+    request = ItemRequest(
+        requested_by=user.id,
+        category_id=category.id,
+        item_name="Mattress",
+        status=RequestStatus.PENDING,
+    )
+    audit = AuditLog(
+        entity_type=AuditEntity.ITEM,
+        entity_id=item.id,
+        action=AuditAction.CREATE,
+        actor_id=user.id,
+        before=None,
+        after={"name": item.name},
+    )
+    assistant_query = AssistantQuery(
+        user_id=user.id,
+        question="What is the stock?",
+        tools_called=["stock_by_item"],
+        result_count=1,
+    )
+    revoked_token = RevokedToken(
+        jti="test-token-id",
+        token_type=TokenType.ACCESS,
+        user_id=user.id,
+        expires_at=datetime(2030, 1, 1, tzinfo=timezone.utc),
+    )
+    db.session.add_all(
+        [
+            live_record,
+            deleted_record,
+            request,
+            audit,
+            assistant_query,
+            revoked_token,
+        ]
+    )
+    db.session.commit()
+
+    stock_row = db.session.execute(
+        select(v_stock).where(
+            v_stock.c.location_id == location.id,
+            v_stock.c.specification_id == specification.id,
+        )
+    ).one()
+    assert stock_row.stock == 8
+    assert request.id is not None
+    assert audit.id is not None
+    assert assistant_query.id is not None
+    assert revoked_token.jti == "test-token-id"
+    assert item.unit is StockUnit.PCS
+
+
+@pytest.mark.parametrize(
+    ("model", "values"),
+    [
+        (ImportBatch, {"source_file": "file.xlsx", "imported_by": 999, "row_count": 0}),
+        (ItemRequest, {"requested_by": 999, "new_category_name": "New", "item_name": "X"}),
+        (AuditLog, {"entity_type": AuditEntity.ITEM, "entity_id": 1, "action": AuditAction.CREATE, "actor_id": 999}),
+        (AssistantQuery, {"user_id": 999, "question": "Q"}),
+        (Specification, {"item_id": 999, "label": "X"}),
+        (RevokedToken, {"jti": "missing-user", "token_type": TokenType.ACCESS, "user_id": 999, "expires_at": "2030-01-01 00:00:00"}),
+    ],
+)
+def test_model_foreign_keys_reject_missing_parents(app, model, values):
+    db.session.add(model(**values))
+
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+    db.session.rollback()
+
+
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("role", "Owner"),
+        ("status", "Archived"),
+    ],
+)
+
+
+
+def test_inventory_checks_reject_missing_and_negative_quantities(app):
+    location, user, _category, _item, specification = _create_catalog()
+    common = {
+        "location_id": location.id,
+        "record_date": "2026-01-02",
+        "specification_id": specification.id,
+        "created_by": user.id,
+    }
+
+    db.session.add(InventoryRecord(**common))
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+    db.session.rollback()
+
+    db.session.add(InventoryRecord(**common, qty_in=-1, qty_out=0))
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+    db.session.rollback()
+
+
+def test_inventory_record_identifiers_are_not_reused_after_delete(app):
+    location, user, _category, _item, specification = _create_catalog()
+    record = InventoryRecord(
+        location_id=location.id,
+        record_date=date(2026, 1, 2),
+        specification_id=specification.id,
+        qty_in=1,
+        created_by=user.id,
+    )
+    db.session.add(record)
+    db.session.commit()
+    deleted_id = record.id
+    db.session.delete(record)
+    db.session.commit()
+
+    next_record = InventoryRecord(
+        location_id=location.id,
+        record_date=date(2026, 1, 3),
+        specification_id=specification.id,
+        qty_in=1,
+        created_by=user.id,
+    )
+    db.session.add(next_record)
+    db.session.commit()
+
+    assert next_record.id > deleted_id
