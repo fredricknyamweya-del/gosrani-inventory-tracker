@@ -82,6 +82,11 @@ class AuditEntity(str, Enum):
     ITEM_REQUEST = "item_request"
 
 
+class TokenType(str, Enum):
+    ACCESS = "access"
+    REFRESH = "refresh"
+
+
 def _enum(enum_class: type[Enum], name: str) -> SqlEnum:
     return SqlEnum(
         enum_class,
@@ -104,14 +109,6 @@ class Location(db.Model):
     active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true")
     )
-
-    user_links: Mapped[list["UserLocation"]] = relationship(
-        back_populates="location"
-    )
-    inventory_records: Mapped[list["InventoryRecord"]] = relationship(
-        back_populates="location"
-    )
-
 
 class User(db.Model):
     """An authenticated staff or administrator account."""
@@ -144,31 +141,11 @@ class User(db.Model):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    location_links: Mapped[list["UserLocation"]] = relationship(back_populates="user")
-    records_created: Mapped[list["InventoryRecord"]] = relationship(
-        back_populates="creator",
-        foreign_keys="InventoryRecord.created_by",
+    locations: Mapped[list[Location]] = relationship(
+        secondary="user_locations",
+        lazy="raise",
+        viewonly=True,
     )
-    records_updated: Mapped[list["InventoryRecord"]] = relationship(
-        back_populates="updater",
-        foreign_keys="InventoryRecord.updated_by",
-    )
-    imported_batches: Mapped[list["ImportBatch"]] = relationship(
-        back_populates="importer"
-    )
-    requests_created: Mapped[list["ItemRequest"]] = relationship(
-        back_populates="requester",
-        foreign_keys="ItemRequest.requested_by",
-    )
-    requests_reviewed: Mapped[list["ItemRequest"]] = relationship(
-        back_populates="reviewer",
-        foreign_keys="ItemRequest.reviewed_by",
-    )
-    audit_entries: Mapped[list["AuditLog"]] = relationship(back_populates="actor")
-    assistant_queries: Mapped[list["AssistantQuery"]] = relationship(
-        back_populates="user"
-    )
-    revoked_tokens: Mapped[list["RevokedToken"]] = relationship(back_populates="user")
 
 
 class Category(db.Model):
@@ -188,7 +165,7 @@ class Category(db.Model):
         Boolean, nullable=False, server_default=text("true")
     )
 
-    items: Mapped[list["Item"]] = relationship(back_populates="category")
+    items: Mapped[list["Item"]] = relationship(lazy="raise", viewonly=True)
 
 
 class UserLocation(db.Model):
@@ -197,14 +174,14 @@ class UserLocation(db.Model):
     __tablename__ = "user_locations"
 
     user_id: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("users.id"), primary_key=True
+        ID_TYPE, ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True
     )
     location_id: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("locations.id"), primary_key=True
+        ID_TYPE, ForeignKey("locations.id", ondelete="RESTRICT"), primary_key=True
     )
 
-    user: Mapped["User"] = relationship(back_populates="location_links")
-    location: Mapped["Location"] = relationship(back_populates="user_links")
+    user: Mapped["User"] = relationship(lazy="raise")
+    location: Mapped["Location"] = relationship(lazy="raise")
 
 
 class Item(db.Model):
@@ -222,7 +199,7 @@ class Item(db.Model):
 
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     category_id: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("categories.id"), nullable=False
+        ID_TYPE, ForeignKey("categories.id", ondelete="RESTRICT"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     unit: Mapped[StockUnit] = mapped_column(
@@ -234,9 +211,10 @@ class Item(db.Model):
         Boolean, nullable=False, server_default=text("true")
     )
 
-    category: Mapped["Category"] = relationship(back_populates="items")
+    category: Mapped["Category"] = relationship(lazy="raise")
     specifications: Mapped[list["Specification"]] = relationship(
-        back_populates="item"
+        lazy="raise",
+        viewonly=True,
     )
 
 
@@ -382,7 +360,7 @@ class Specification(db.Model):
 
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
     item_id: Mapped[int] = mapped_column(
-        ID_TYPE, ForeignKey("items.id"), nullable=False
+        ID_TYPE, ForeignKey("items.id", ondelete="RESTRICT"), nullable=False
     )
     label: Mapped[str] = mapped_column(String(120), nullable=False)
     pack_size: Mapped[int | None] = mapped_column(Integer)
@@ -393,10 +371,7 @@ class Specification(db.Model):
         Boolean, nullable=False, server_default=text("true")
     )
 
-    item: Mapped["Item"] = relationship(back_populates="specifications")
-    inventory_records: Mapped[list["InventoryRecord"]] = relationship(
-        back_populates="specification"
-    )
+    item: Mapped["Item"] = relationship(lazy="raise")
 
 
 class InventoryRecord(db.Model):
