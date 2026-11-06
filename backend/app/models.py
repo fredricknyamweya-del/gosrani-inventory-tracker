@@ -379,7 +379,6 @@ class InventoryRecord(db.Model):
 
     __tablename__ = "inventory_records"
     __table_args__ = (
-        {"sqlite_autoincrement": True},
         Index(
             "ix_inventory_records_location_record_date",
             "location_id",
@@ -406,6 +405,7 @@ class InventoryRecord(db.Model):
             "qty_in >= 0 AND qty_out >= 0",
             name="quantities_non_negative",
         ),
+        {"sqlite_autoincrement": True},
     )
 
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
