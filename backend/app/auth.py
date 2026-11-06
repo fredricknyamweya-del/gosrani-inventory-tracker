@@ -147,7 +147,7 @@ def logout():
     refresh_cookie = request.cookies.get(current_app.config["JWT_REFRESH_COOKIE_NAME"])
     if refresh_cookie:
         try:
-            refresh_payload = decode_token(refresh_cookie)
+            refresh_payload = decode_token(refresh_cookie, allow_expired=True)
         except JWTExtendedException:
             refresh_payload = None
         if refresh_payload and refresh_payload.get("type") == "refresh":

@@ -135,6 +135,30 @@ def test_refresh_rotates_tokens_and_logout_revokes_them(client):
     assert unauthenticated.status_code == 401
 
 
+def test_refresh_rejects_a_rotated_token(client):
+    create_user()
+    client.post(
+        "/api/auth/login",
+        json={"email": "staff@example.com", "password": "correct-horse"},
+    )
+    old_refresh = client.get_cookie("refresh_token_cookie", path="/api/auth").value
+    old_csrf = client.get_cookie("csrf_refresh_token", path="/api/auth").value
+    client.post(
+        "/api/auth/refresh",
+        headers={"X-CSRF-TOKEN": old_csrf},
+    )
+
+    client.set_cookie("refresh_token_cookie", old_refresh, path="/api/auth")
+    client.set_cookie("csrf_refresh_token", old_csrf, path="/api/auth")
+    replay = client.post(
+        "/api/auth/refresh",
+        headers={"X-CSRF-TOKEN": old_csrf},
+    )
+
+    assert replay.status_code == 401
+    assert replay.json["code"] == "token_revoked"
+
+
 def test_user_deactivation_invalidates_existing_access_cookie(client, app):
     user = create_user()
     client.post(
