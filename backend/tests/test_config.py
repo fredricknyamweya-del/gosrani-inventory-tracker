@@ -3,8 +3,7 @@
 import pytest
 from sqlalchemy.engine import make_url
 
-from app.config import _database_engine_options, _database_url
-from app.config import ProductionConfig
+from app.config import ProductionConfig, _database_engine_options, _database_url
 
 
 @pytest.mark.parametrize(
