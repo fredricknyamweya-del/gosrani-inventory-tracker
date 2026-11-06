@@ -19,7 +19,9 @@ def _database_url(value: str | None, *, require_ssl: bool = False) -> str:
     try:
         url = make_url(value)
     except ArgumentError:
-        raise ValueError("DATABASE_URL must be a valid database URL.") from None
+        raise ValueError(
+            "DATABASE_URL must be a valid PostgreSQL or SQLite database URL."
+        ) from None
     if url.drivername in {"postgres", "postgresql"}:
         url = url.set(drivername="postgresql+psycopg")
     if url.get_backend_name() not in {"postgresql", "sqlite"}:

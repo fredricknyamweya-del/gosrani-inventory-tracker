@@ -3,8 +3,11 @@
 import sys
 from importlib import import_module
 from pathlib import Path
+import sqlite3
 
 import pytest
+from flask_migrate import downgrade, upgrade
+from sqlalchemy import event
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -18,10 +21,21 @@ db = extensions.db
 def app():
     application = create_app("testing")
     with application.app_context():
-        db.create_all()
+        engine = db.engine
+        if engine.dialect.name == "sqlite":
+
+            @event.listens_for(engine, "connect")
+            def enable_sqlite_foreign_keys(
+                connection: sqlite3.Connection, _record: object
+            ) -> None:
+                cursor = connection.cursor()
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.close()
+
+        upgrade()
         yield application
         db.session.remove()
-        db.drop_all()
+        downgrade(revision="base")
         cache.clear()
 
 
