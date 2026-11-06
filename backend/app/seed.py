@@ -78,7 +78,7 @@ CATALOG: tuple[tuple[str, tuple[tuple[str, StockUnit, tuple[tuple[str, int | Non
         "Pillow Cases",
         (
             ("Pillow Kiss Case", StockUnit.PCS, ()),
-            ("White Pillow Case", StockUnit.PCS, ()),
+            ("White Pillow Case", StockUnit.PCS, (("100 pcs", 100),)),
         ),
     ),
     ("Raw Materials", (("Fibre", StockUnit.KG, ()),)),
@@ -166,6 +166,8 @@ def seed_database() -> dict[str, int]:
 
     if not EMAIL_PATTERN.fullmatch(email):
         raise click.ClickException("Set a valid SEED_ADMIN_EMAIL before seeding.")
+    if len(email) > 254:
+        raise click.ClickException("SEED_ADMIN_EMAIL must be no more than 254 characters.")
     if len(password) < 12:
         raise click.ClickException(
             "SEED_ADMIN_PASSWORD must contain at least 12 characters."
