@@ -323,7 +323,15 @@ def test_remaining_models_accept_valid_rows_and_stock_view_excludes_deleted(app)
         (AuditLog, {"entity_type": AuditEntity.ITEM, "entity_id": 1, "action": AuditAction.CREATE, "actor_id": 999}),
         (AssistantQuery, {"user_id": 999, "question": "Q"}),
         (Specification, {"item_id": 999, "label": "X"}),
-        (RevokedToken, {"jti": "missing-user", "token_type": TokenType.ACCESS, "user_id": 999, "expires_at": "2030-01-01 00:00:00"}),
+        (
+            RevokedToken,
+            {
+                "jti": "missing-user",
+                "token_type": TokenType.ACCESS,
+                "user_id": 999,
+                "expires_at": datetime(2030, 1, 1, tzinfo=UTC),
+            },
+        ),
     ],
 )
 def test_model_foreign_keys_reject_missing_parents(app, model, values):

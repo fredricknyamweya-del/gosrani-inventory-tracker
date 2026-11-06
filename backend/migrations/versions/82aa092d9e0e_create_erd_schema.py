@@ -65,7 +65,7 @@ def upgrade() -> None:
     sa.Column('tools_called', sa.JSON().with_variant(postgresql.JSONB(), 'postgresql'), nullable=True),
     sa.Column('result_count', sa.Integer(), nullable=True),
     sa.Column('at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('audit_log',
@@ -77,7 +77,7 @@ def upgrade() -> None:
     sa.Column('before', sa.JSON().with_variant(postgresql.JSONB(), 'postgresql'), nullable=True),
     sa.Column('after', sa.JSON().with_variant(postgresql.JSONB(), 'postgresql'), nullable=True),
     sa.Column('at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['actor_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['actor_id'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('audit_log', schema=None) as batch_op:
@@ -91,7 +91,7 @@ def upgrade() -> None:
     sa.Column('row_count', sa.Integer(), nullable=False),
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('imported_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['imported_by'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['imported_by'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('item_requests',
@@ -108,9 +108,9 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('reviewed_at', sa.DateTime(timezone=True), nullable=True),
     sa.CheckConstraint('(category_id IS NOT NULL) <> (new_category_name IS NOT NULL)', name='request_has_one_category'),
-    sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ),
-    sa.ForeignKeyConstraint(['requested_by'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['reviewed_by'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['requested_by'], ['users.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['reviewed_by'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('items',
@@ -119,7 +119,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=120), nullable=False),
     sa.Column('unit', sa.Enum('PCS', 'KG', name='stock_unit', native_enum=False, create_constraint=True), server_default=sa.text("'PCS'"), nullable=False),
     sa.Column('active', sa.Boolean(), server_default=sa.text('(true)'), nullable=False),
-    sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ),
+    sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(
@@ -129,12 +129,12 @@ def upgrade() -> None:
         unique=True,
     )
     op.create_table('revoked_tokens',
-    sa.Column('jti', sa.String(length=36), nullable=False),
-    sa.Column('token_type', sa.String(length=10), nullable=False),
+    sa.Column('jti', sa.String(length=64), nullable=False),
+    sa.Column('token_type', sa.Enum('access', 'refresh', name='token_type', native_enum=False, create_constraint=True), nullable=False),
     sa.Column('user_id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('revoked_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('jti')
     )
     with op.batch_alter_table('revoked_tokens', schema=None) as batch_op:
@@ -143,8 +143,8 @@ def upgrade() -> None:
     op.create_table('user_locations',
     sa.Column('user_id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), nullable=False),
     sa.Column('location_id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), nullable=False),
-    sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('user_id', 'location_id')
     )
     op.create_table('specifications',
@@ -155,7 +155,7 @@ def upgrade() -> None:
     sa.Column('is_default', sa.Boolean(), server_default=sa.text('(false)'), nullable=False),
     sa.Column('active', sa.Boolean(), server_default=sa.text('(true)'), nullable=False),
     sa.CheckConstraint('pack_size IS NULL OR pack_size > 0', name='pack_size_positive'),
-    sa.ForeignKeyConstraint(['item_id'], ['items.id'], ),
+    sa.ForeignKeyConstraint(['item_id'], ['items.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(
@@ -185,12 +185,13 @@ def upgrade() -> None:
     sa.Column('import_batch_id', sa.BigInteger().with_variant(sa.Integer(), 'sqlite'), nullable=True),
     sa.CheckConstraint('qty_in >= 0 AND qty_out >= 0', name='quantities_non_negative'),
     sa.CheckConstraint('qty_in IS NOT NULL OR qty_out IS NOT NULL', name='has_a_quantity'),
-    sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['import_batch_id'], ['import_batches.id'], ),
-    sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ),
-    sa.ForeignKeyConstraint(['specification_id'], ['specifications.id'], ),
-    sa.ForeignKeyConstraint(['updated_by'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['created_by'], ['users.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['import_batch_id'], ['import_batches.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['specification_id'], ['specifications.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['updated_by'], ['users.id'], ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id'),
+    sqlite_autoincrement=True
     )
     with op.batch_alter_table('inventory_records', schema=None) as batch_op:
         batch_op.create_index('ix_inventory_records_location_record_date', ['location_id', 'record_date'], unique=False)
