@@ -3,7 +3,6 @@
 import re
 from collections.abc import Mapping
 
-
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 

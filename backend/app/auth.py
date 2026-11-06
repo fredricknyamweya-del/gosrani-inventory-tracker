@@ -1,6 +1,6 @@
 """Authentication routes and JWT lifecycle handlers."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import (
@@ -12,15 +12,15 @@ from flask_jwt_extended import (
     jwt_required,
     set_access_cookies,
     set_refresh_cookies,
+    unset_jwt_cookies,
 )
 from flask_jwt_extended.exceptions import JWTExtendedException
-from sqlalchemy import select
-from werkzeug.security import check_password_hash
 
+from app.auth_service import authenticate
 from app.errors import error_response, validation_error
 from app.extensions import db, jwt
 from app.models import RevokedToken, User, UserStatus
-from app.users import find_user_by_id, find_user_by_email, public_user
+from app.users import find_user_by_id, public_user
 from app.validators import validate_login_payload
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
@@ -92,50 +92,23 @@ def login():
     if errors:
         return validation_error(errors)
 
-    email = payload["email"].strip().lower()
-    user = find_user_by_email(email)
-    now = datetime.now(UTC)
+    lock_seconds = current_app.config["LOGIN_LOCK_MINUTES"] * 60
+    status, user, retry_after = authenticate(
+        payload["email"].strip().lower(),
+        payload["password"],
+        current_app.config["LOGIN_MAX_FAILURES"],
+        lock_seconds,
+    )
+    if status == "locked":
+        return error_response(
+            429,
+            "The account is temporarily locked. Try again later.",
+            "account_locked",
+            headers={"Retry-After": str(retry_after)},
+        )
     if user is None:
         return error_response(401, "Invalid email or password.", "invalid_credentials")
 
-    locked_until = user.locked_until
-    if locked_until is not None:
-        if locked_until.tzinfo is None:
-            locked_until = locked_until.replace(tzinfo=UTC)
-        if locked_until > now:
-            retry_after = max(1, int((locked_until - now).total_seconds()))
-            return error_response(
-                429,
-                "The account is temporarily locked. Try again later.",
-                "account_locked",
-                headers={"Retry-After": str(retry_after)},
-            )
-
-    if user.status != UserStatus.ACTIVE or not check_password_hash(
-        user.password_hash, payload["password"]
-    ):
-        user.failed_logins += 1
-        max_failures = current_app.config["LOGIN_MAX_FAILURES"]
-        if user.failed_logins >= max_failures:
-            user.locked_until = now + timedelta(
-                minutes=current_app.config["LOGIN_LOCK_MINUTES"]
-            )
-        db.session.commit()
-        if user.locked_until is not None and user.failed_logins >= max_failures:
-            return error_response(
-                429,
-                "The account is temporarily locked. Try again later.",
-                "account_locked",
-                headers={
-                    "Retry-After": str(current_app.config["LOGIN_LOCK_MINUTES"] * 60)
-                },
-            )
-        return error_response(401, "Invalid email or password.", "invalid_credentials")
-
-    user.failed_logins = 0
-    user.locked_until = None
-    user.last_login_at = now
-    db.session.commit()
     response = jsonify({"data": {"user": public_user(user)}})
     response.status_code = 200
     return _set_auth_cookies(response, user)
@@ -181,7 +154,5 @@ def logout():
             _revoke_token(refresh_payload)
     db.session.commit()
     response = jsonify({"data": {"message": "Signed out successfully."}})
-    from flask_jwt_extended import unset_jwt_cookies
-
     unset_jwt_cookies(response)
     return response
