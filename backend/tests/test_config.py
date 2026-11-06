@@ -55,7 +55,7 @@ def test_production_postgres_url_rejects_disabled_tls():
 
 
 def test_unsupported_database_url_has_a_safe_error():
-    with pytest.raises(ValueError, match="valid database URL"):
+    with pytest.raises(ValueError, match="valid PostgreSQL or SQLite database URL"):
         _database_url("not a database URL")
 
 
