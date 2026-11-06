@@ -65,7 +65,9 @@ def test_seed_creates_admin_location_and_catalog(app, monkeypatch):
             select(Category).where(Category.name == "Sofa Sets")
         )
         assert sofa is not None
-        assert sofa.items == []
+        assert db.session.scalar(
+            select(Item.id).where(Item.category_id == sofa.id)
+        ) is None
 
 
 def test_seed_is_idempotent_and_does_not_reset_admin_credentials(app, monkeypatch):

@@ -196,12 +196,12 @@ def test_user_enum_checks_reject_values_outside_the_dbml(app, column, value):
 
 def test_catalog_relationships_prevent_implicit_lazy_queries():
     assert inspect(User).relationships.locations.lazy == "raise"
-    assert inspect(Category).relationships.items.lazy == "raise"
-    assert inspect(Item).relationships.category.lazy == "raise"
-    assert inspect(Item).relationships.specifications.lazy == "raise"
-    assert inspect(UserLocation).relationships.user.lazy == "raise"
-    assert inspect(UserLocation).relationships.location.lazy == "raise"
-    assert inspect(Specification).relationships.item.lazy == "raise"
+    assert inspect(Category).relationships["items"].lazy == "raise"
+    assert inspect(Item).relationships["category"].lazy == "raise"
+    assert inspect(Item).relationships["specifications"].lazy == "raise"
+    assert inspect(UserLocation).relationships["user"].lazy == "raise"
+    assert inspect(UserLocation).relationships["location"].lazy == "raise"
+    assert inspect(Specification).relationships["item"].lazy == "raise"
 
 
 def test_catalog_foreign_keys_are_restrict():
