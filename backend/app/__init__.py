@@ -6,6 +6,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 from app import models as _models  # noqa: F401
+from app.auth import auth_bp, register_jwt_callbacks
 from app.config import CONFIGS
 from app.errors import register_error_handlers
 from app.extensions import cache, db, jwt, migrate
@@ -19,12 +20,17 @@ def create_app(config_name: str | None = None) -> Flask:
     app.config.from_object(CONFIGS.get(selected_config, CONFIGS["development"]))
     app.config["APP_ENV"] = selected_config
     app.config.from_pyfile("config.py", silent=True)
+    if selected_config == "production" and not all(
+        app.config.get(key) for key in ("SECRET_KEY", "JWT_SECRET_KEY")
+    ):
+        raise RuntimeError("SECRET_KEY and JWT_SECRET_KEY must be configured.")
     configure_security(app)
     register_error_handlers(app)
 
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    register_jwt_callbacks()
     cache.init_app(app)
     CORS(
         app,
@@ -39,6 +45,7 @@ def create_app(config_name: str | None = None) -> Flask:
         ],
         expose_headers=["ETag", "Location", "Retry-After"],
     )
+    app.register_blueprint(auth_bp)
 
     @app.get("/api/health", strict_slashes=False)
     def health():
