@@ -11,6 +11,7 @@ import EntryFormPage from "../pages/EntryFormPage"
 import CatalogPage from "../pages/CatalogPage"
 import UsersPage from "../pages/UsersPage"
 import EntryDetailPage from "../pages/EntryDetailPage"
+import PasswordChangePage from "../pages/PasswordChangePage"
 
 export default function App() {
   return (
@@ -25,6 +26,10 @@ export default function App() {
                 <Route element={<InventoryPage />} path="inventory" />
                 <Route element={<EntryFormPage />} path="inventory/new" />
                 <Route element={<EntryDetailPage />} path="inventory/:id" />
+                <Route
+                  element={<PasswordChangePage />}
+                  path="account/password"
+                />
                 <Route element={<AdminRoute />}>
                   <Route
                     element={<EntryDetailPage />}

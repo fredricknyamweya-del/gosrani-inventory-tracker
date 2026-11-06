@@ -1,5 +1,6 @@
 import {
   ClipboardList,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -270,6 +271,10 @@ export default function AppLayout() {
               <Menu aria-hidden="true" size={20} />
             )}
           </button>
+          <div className="desktop-brand">
+            <h2>GWL</h2>
+            <p>Internal Business Software</p>
+          </div>
           <form
             aria-label="Global inventory search"
             className="global-search"
@@ -320,6 +325,15 @@ export default function AppLayout() {
                     <strong>{user?.name}</strong>
                     <span>{user?.email}</span>
                   </div>
+                  <Link
+                    className="profile-menu-action"
+                    onClick={() => setProfileOpen(false)}
+                    role="menuitem"
+                    to="/account/password"
+                  >
+                    <KeyRound aria-hidden="true" size={16} />
+                    Change password
+                  </Link>
                   <button
                     className="profile-menu-action"
                     onClick={handleLogout}

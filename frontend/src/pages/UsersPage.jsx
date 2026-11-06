@@ -1,5 +1,12 @@
-import { Check, Copy, Plus, RotateCcw, UserRoundX } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+  Check,
+  Copy,
+  Plus,
+  RotateCcw,
+  Trash2,
+  UserRoundX,
+} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Button,
   EmptyState,
@@ -43,6 +50,9 @@ export default function UsersPage() {
   const [changeTarget, setChangeTarget] = useState(null);
   const [changeError, setChangeError] = useState("");
   const [changing, setChanging] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState(null);
   const { data: users, error, loading, reload } = useApi(
     () => api.getUsers(),
@@ -105,13 +115,13 @@ export default function UsersPage() {
     setCopied(false);
   }
 
-  function closeAdd() {
+  const closeAdd = useCallback(() => {
     setAddOpen(false);
     setAddError("");
     setName("");
     setEmail("");
     setRole("User");
-  }
+  }, []);
 
   function requestChange(entry, changes) {
     setChangeTarget({ user: entry, changes });
@@ -136,6 +146,33 @@ export default function UsersPage() {
       setChangeError(requestError.message);
     } finally {
       setChanging(false);
+    }
+  }
+
+  function requestDelete(entry) {
+    setDeleteTarget(entry);
+    setDeleteError("");
+  }
+
+  function closeDelete() {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setDeleteError("");
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await api.deleteUser(deleteTarget.id);
+      setDeleteTarget(null);
+      setToast({ message: "User deleted." });
+      await reload();
+    } catch (requestError) {
+      setDeleteError(requestError.message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -283,30 +320,41 @@ export default function UsersPage() {
                     </td>
                     <td>{formatDate(entry.createdAt)}</td>
                     <td>
-                      {entry.status === "Active" ? (
+                      <div className="users-actions">
+                        {entry.status === "Active" ? (
+                          <Button
+                            aria-label={`Deactivate ${entry.name}`}
+                            disabled={isLastActiveAdmin}
+                            onClick={() =>
+                              requestChange(entry, { status: "Inactive" })
+                            }
+                            variant="ghost"
+                          >
+                            <UserRoundX aria-hidden="true" size={15} />
+                            Deactivate
+                          </Button>
+                        ) : (
+                          <Button
+                            aria-label={`Reactivate ${entry.name}`}
+                            onClick={() =>
+                              requestChange(entry, { status: "Active" })
+                            }
+                            variant="ghost"
+                          >
+                            <RotateCcw aria-hidden="true" size={15} />
+                            Reactivate
+                          </Button>
+                        )}
                         <Button
-                          aria-label={`Deactivate ${entry.name}`}
-                          disabled={isLastActiveAdmin}
-                          onClick={() =>
-                            requestChange(entry, { status: "Inactive" })
-                          }
+                          aria-label={`Delete ${entry.name}`}
+                          disabled={isSelf || isLastActiveAdmin}
+                          onClick={() => requestDelete(entry)}
                           variant="ghost"
                         >
-                          <UserRoundX aria-hidden="true" size={15} />
-                          Deactivate
+                          <Trash2 aria-hidden="true" size={15} />
+                          Delete
                         </Button>
-                      ) : (
-                        <Button
-                          aria-label={`Reactivate ${entry.name}`}
-                          onClick={() =>
-                            requestChange(entry, { status: "Active" })
-                          }
-                          variant="ghost"
-                        >
-                          <RotateCcw aria-hidden="true" size={15} />
-                          Reactivate
-                        </Button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -411,6 +459,41 @@ export default function UsersPage() {
             {copyError && (
               <p className="users-inline-error" role="alert">
                 {copyError}
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        description="This permanently removes the account. Users linked to historical records must be deactivated instead."
+        footer={
+          <>
+            <Button disabled={deleting} onClick={closeDelete} variant="secondary">
+              Cancel
+            </Button>
+            <Button
+              loading={deleting}
+              onClick={confirmDelete}
+              variant="destructive"
+            >
+              Delete user
+            </Button>
+          </>
+        }
+        onClose={closeDelete}
+        open={Boolean(deleteTarget)}
+        title="Delete user?"
+      >
+        {deleteTarget && (
+          <div className="users-delete-confirmation">
+            <p>
+              Permanently delete <strong>{deleteTarget.name}</strong> (
+              {deleteTarget.email})?
+            </p>
+            {deleteError && (
+              <p className="users-inline-error" role="alert">
+                {deleteError}
               </p>
             )}
           </div>
