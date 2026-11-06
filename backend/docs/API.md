@@ -64,7 +64,7 @@ values are provided in the non-HttpOnly `csrf_access_token` and
 ### `POST /api/auth/refresh`
 
 - Auth: Refresh cookie and refresh CSRF token in `X-CSRF-TOKEN`
-- Request: Empty JSON object `{}`.
+- Request: Empty JSON object `{}` with `Content-Type: application/json`.
 - `200`: Rotates both cookies and returns the current user:
   `{"data":{"user":{"id":12,"name":"Staff Member","email":"staff@example.com","role":"User","status":"Active","locationIds":[]}}}`
 - `401`: Missing, expired, revoked, or inactive-user token.
@@ -74,7 +74,7 @@ values are provided in the non-HttpOnly `csrf_access_token` and
 ### `POST /api/auth/logout`
 
 - Auth: Access cookie and access CSRF token in `X-CSRF-TOKEN`
-- Request: Empty JSON object `{}`.
+- Request: Empty JSON object `{}` with `Content-Type: application/json`.
 - `200`: Revokes the active access and refresh tokens, clears auth cookies,
   and returns `{"data":{"message":"Signed out successfully."}}`.
 - `401`: Missing, expired, revoked, or inactive-user token.

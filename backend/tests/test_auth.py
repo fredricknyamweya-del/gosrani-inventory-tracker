@@ -113,6 +113,7 @@ def test_refresh_rotates_tokens_and_logout_revokes_them(client):
     refresh_csrf = client.get_cookie("csrf_refresh_token", path="/api/auth").value
     refreshed = client.post(
         "/api/auth/refresh",
+        json={},
         headers={"X-CSRF-TOKEN": refresh_csrf},
     )
 
@@ -125,6 +126,7 @@ def test_refresh_rotates_tokens_and_logout_revokes_them(client):
     access_csrf = client.get_cookie("csrf_access_token", path="/api").value
     logout_response = client.post(
         "/api/auth/logout",
+        json={},
         headers={"X-CSRF-TOKEN": access_csrf},
     )
     assert logout_response.status_code == 200
@@ -145,6 +147,7 @@ def test_refresh_rejects_a_rotated_token(client):
     old_csrf = client.get_cookie("csrf_refresh_token", path="/api/auth").value
     client.post(
         "/api/auth/refresh",
+        json={},
         headers={"X-CSRF-TOKEN": old_csrf},
     )
 
@@ -152,6 +155,7 @@ def test_refresh_rejects_a_rotated_token(client):
     client.set_cookie("csrf_refresh_token", old_csrf, path="/api/auth")
     replay = client.post(
         "/api/auth/refresh",
+        json={},
         headers={"X-CSRF-TOKEN": old_csrf},
     )
 
