@@ -178,3 +178,99 @@ def test_user_deactivation_invalidates_existing_access_cookie(client, app):
     response = client.get("/api/auth/me")
 
     assert response.status_code == 401
+
+
+def test_change_password_updates_hash_and_invalidates_other_sessions(
+    client, app
+):
+    user = create_user()
+    assert client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "correct-horse"},
+    ).status_code == 200
+    old_access_token = client.get_cookie(
+        "access_token_cookie", path="/api"
+    ).value
+    csrf_token = client.get_cookie("csrf_access_token", path="/").value
+
+    response = client.post(
+        "/api/auth/change-password",
+        json={
+            "currentPassword": "correct-horse",
+            "newPassword": "a-new-strong-password",
+        },
+        headers={"X-CSRF-TOKEN": csrf_token},
+    )
+
+    assert response.status_code == 200
+    assert response.json["data"]["message"] == "Password changed successfully."
+    assert client.get_cookie("access_token_cookie", path="/api").value != old_access_token
+    assert client.get("/api/auth/me").status_code == 200
+
+    stale_client = app.test_client()
+    stale_client.set_cookie("access_token_cookie", old_access_token, path="/api")
+    stale_response = stale_client.get("/api/auth/me")
+    assert stale_response.status_code == 401
+    assert stale_response.json["code"] == "token_revoked"
+
+    with app.app_context():
+        persisted = db.session.get(User, user.id)
+        assert persisted is not None
+        assert persisted.auth_version == 1
+        assert persisted.password_hash != "a-new-strong-password"
+        assert check_password_hash(
+            persisted.password_hash, "a-new-strong-password"
+        )
+
+    assert client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "correct-horse"},
+    ).status_code == 401
+    assert client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "a-new-strong-password"},
+    ).status_code == 200
+
+
+def test_change_password_rejects_wrong_current_password(client, app):
+    user = create_user()
+    client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "correct-horse"},
+    )
+    csrf_token = client.get_cookie("csrf_access_token", path="/").value
+
+    response = client.post(
+        "/api/auth/change-password",
+        json={
+            "currentPassword": "incorrect",
+            "newPassword": "a-new-strong-password",
+        },
+        headers={"X-CSRF-TOKEN": csrf_token},
+    )
+
+    assert response.status_code == 401
+    assert response.json["code"] == "invalid_credentials"
+    assert client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "correct-horse"},
+    ).status_code == 200
+
+
+def test_change_password_requires_minimum_length(client):
+    create_user()
+    client.post(
+        "/api/auth/login",
+        json={"email": "staff@example.com", "password": "correct-horse"},
+    )
+    csrf_token = client.get_cookie("csrf_access_token", path="/").value
+
+    response = client.post(
+        "/api/auth/change-password",
+        json={"currentPassword": "correct-horse", "newPassword": "too-short"},
+        headers={"X-CSRF-TOKEN": csrf_token},
+    )
+
+    assert response.status_code == 422
+    assert response.json["code"] == "validation_error"
+    assert response.json["errors"][0]["field"] == "newPassword"
