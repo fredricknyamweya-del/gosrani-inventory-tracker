@@ -4,10 +4,11 @@ import os
 
 from flask import Flask, jsonify
 from flask_cors import CORS
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.config import CONFIGS
+from app.errors import register_error_handlers
 from app.extensions import cache, db, jwt, migrate
+from app.security import configure_security
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -15,15 +16,10 @@ def create_app(config_name: str | None = None) -> Flask:
     app = Flask(__name__, instance_relative_config=True)
     selected_config = config_name or os.getenv("APP_ENV", "development")
     app.config.from_object(CONFIGS.get(selected_config, CONFIGS["development"]))
+    app.config["APP_ENV"] = selected_config
     app.config.from_pyfile("config.py", silent=True)
-    app.wsgi_app = ProxyFix(
-        app.wsgi_app,
-        x_for=1,
-        x_proto=1,
-        x_host=1,
-        x_port=1,
-        x_prefix=1,
-    )
+    configure_security(app)
+    register_error_handlers(app)
 
     db.init_app(app)
     migrate.init_app(app, db)
