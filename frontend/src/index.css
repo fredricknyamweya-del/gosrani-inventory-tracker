@@ -3102,7 +3102,7 @@
   position: fixed;
   z-index: 45;
   right: 24px;
-  bottom: 24px;
+  bottom: 64px;
   display: inline-flex;
   min-height: 48px;
   align-items: center;
@@ -3249,7 +3249,7 @@
 
   .assistant-launcher {
     right: 16px;
-    bottom: 16px;
+    bottom: 56px;
   }
 
   .assistant-panel-backdrop {
