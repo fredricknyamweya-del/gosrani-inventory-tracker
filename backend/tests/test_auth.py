@@ -35,10 +35,10 @@ def test_login_sets_jwt_cookies_and_me_reads_current_user(client, app):
     assert response.json["data"]["user"]["id"] == user.id
     assert "password" not in response.json["data"]["user"]
     assert "passwordHash" not in response.json["data"]["user"]
-    assert client.get_cookie("access_token_cookie")
-    assert client.get_cookie("refresh_token_cookie")
-    assert client.get_cookie("csrf_access_token")
-    assert client.get_cookie("csrf_refresh_token")
+    assert client.get_cookie("access_token_cookie", path="/api")
+    assert client.get_cookie("refresh_token_cookie", path="/api/auth")
+    assert client.get_cookie("csrf_access_token", path="/api")
+    assert client.get_cookie("csrf_refresh_token", path="/api/auth")
 
     me_response = client.get("/api/auth/me")
     assert me_response.status_code == 200
@@ -109,24 +109,27 @@ def test_refresh_rotates_tokens_and_logout_revokes_them(client):
     )
     assert login_response.status_code == 200
 
-    old_refresh = client.get_cookie("refresh_token_cookie").value
-    refresh_csrf = client.get_cookie("csrf_refresh_token").value
+    old_refresh = client.get_cookie("refresh_token_cookie", path="/api/auth").value
+    refresh_csrf = client.get_cookie("csrf_refresh_token", path="/api/auth").value
     refreshed = client.post(
         "/api/auth/refresh",
         headers={"X-CSRF-TOKEN": refresh_csrf},
     )
 
     assert refreshed.status_code == 200
-    assert client.get_cookie("refresh_token_cookie").value != old_refresh
+    assert (
+        client.get_cookie("refresh_token_cookie", path="/api/auth").value
+        != old_refresh
+    )
 
-    access_csrf = client.get_cookie("csrf_access_token").value
+    access_csrf = client.get_cookie("csrf_access_token", path="/api").value
     logout_response = client.post(
         "/api/auth/logout",
         headers={"X-CSRF-TOKEN": access_csrf},
     )
     assert logout_response.status_code == 200
-    assert client.get_cookie("access_token_cookie") is None
-    assert client.get_cookie("refresh_token_cookie") is None
+    assert client.get_cookie("access_token_cookie", path="/api") is None
+    assert client.get_cookie("refresh_token_cookie", path="/api/auth") is None
 
     unauthenticated = client.get("/api/auth/me")
     assert unauthenticated.status_code == 401
