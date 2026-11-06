@@ -60,7 +60,11 @@ def test_seed_creates_admin_location_and_catalog(app, monkeypatch):
         fibre = db.session.scalar(select(Item).where(Item.name == "Fibre"))
         assert fibre is not None
         assert fibre.unit.value == "KG"
-        assert [spec.label for spec in fibre.specifications] == ["Standard"]
+        fibre_spec = db.session.scalar(
+            select(Specification).where(Specification.item_id == fibre.id)
+        )
+        assert fibre_spec is not None
+        assert fibre_spec.label == "Standard"
 
         sofa = db.session.scalar(
             select(Category).where(Category.name == "Sofa Sets")
