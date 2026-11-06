@@ -529,13 +529,13 @@
 }
 
 .login-app-brand {
-  margin-bottom: 26px;
+  margin-bottom: 42px;
 }
 
 .login-heading .login-app-brand h2 {
   margin: 0;
   color: var(--red);
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 800;
   letter-spacing: -0.045em;
   line-height: 1.15;
