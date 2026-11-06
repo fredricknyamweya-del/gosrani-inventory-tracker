@@ -199,13 +199,23 @@ export default function EntryFormPage() {
 
   if (stage === "review") {
     return (
-      <>
+      <section className="entry-review-page">
         <PageHeader
+          className="entry-review-header"
           description="Confirm the entry details before saving."
           eyebrow="Final check"
           title="Review your entry"
         />
-        <section className="panel entry-form-panel">
+        <section className="panel entry-form-panel entry-review-panel">
+          <div className="entry-review-banner">
+            <span aria-hidden="true" className="entry-review-banner-icon">
+              <Check size={18} />
+            </span>
+            <div>
+              <h2>Check everything before saving</h2>
+              <p>Review the information below, then confirm it is correct.</p>
+            </div>
+          </div>
           <dl className="entry-review-list">
             <div>
               <dt>Entry date of the inventory</dt>
@@ -266,7 +276,7 @@ export default function EntryFormPage() {
             </Button>
           </div>
         </section>
-      </>
+      </section>
     );
   }
 

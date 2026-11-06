@@ -1550,46 +1550,127 @@
   gap: 16px;
 }
 
+.entry-review-page {
+  max-width: 900px;
+}
+
+.entry-review-panel {
+  padding: 26px;
+}
+
+.entry-review-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-bottom: 22px;
+  border: 1px solid color-mix(in srgb, var(--green) 24%, var(--border));
+  border-radius: 10px;
+  padding: 15px 16px;
+  background: var(--green-soft);
+}
+
+.entry-review-banner-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--green);
+}
+
+.entry-review-banner h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.entry-review-banner p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .entry-review-list {
   display: grid;
-  gap: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   margin: 0;
 }
 
 .entry-review-list > div {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 2fr;
-  gap: 16px;
-  border-bottom: 1px solid var(--border);
-  padding: 12px 0;
-}
-
-.entry-review-list > div:first-child {
-  padding-top: 0;
-}
-
-.entry-review-list > div:last-child {
-  border-bottom: 0;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 13px 15px;
+  background: var(--surface-2);
 }
 
 .entry-review-list dt {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.015em;
 }
 
 .entry-review-list dd {
   margin: 0;
   overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.entry-review-list > div:nth-child(5) {
+  border-color: color-mix(in srgb, var(--green) 30%, var(--border));
+  background: var(--green-soft);
+}
+
+.entry-review-list > div:nth-child(6) {
+  border-color: color-mix(in srgb, var(--red) 24%, var(--border));
+  background: var(--red-soft);
+}
+
+.entry-review-list > div:nth-child(5) dd,
+.entry-review-list > div:nth-child(6) dd {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.entry-review-list > div:nth-child(5) dd {
+  color: var(--green);
+}
+
+.entry-review-list > div:nth-child(6) dd {
+  color: var(--red);
+}
+
+.entry-review-list > div:last-child {
+  grid-column: 1 / -1;
 }
 
 .entry-confirm {
   display: flex;
   align-items: center;
   gap: 9px;
-  margin-top: 20px;
+  margin-top: 22px;
   color: var(--text);
   font-size: 13px;
+}
+
+.entry-confirm input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--red);
+}
+
+.entry-review-panel .entry-form-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
 }
 
 .entry-success {
