@@ -1626,13 +1626,13 @@
   padding: 15px 17px;
 }
 
-.entry-record-quantity-in {
-  border-color: color-mix(in srgb, var(--green) 28%, var(--border)) !important;
+.entry-record-quantities > .entry-record-quantity-in {
+  border-color: color-mix(in srgb, var(--green) 28%, var(--border));
   background: var(--green-soft);
 }
 
-.entry-record-quantity-out {
-  border-color: color-mix(in srgb, var(--red) 24%, var(--border)) !important;
+.entry-record-quantities > .entry-record-quantity-out {
+  border-color: color-mix(in srgb, var(--red) 24%, var(--border));
   background: var(--red-soft);
 }
 
