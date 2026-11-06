@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router"
 import LoginPage from "../pages/LoginPage"
 import NotFoundPage from "../pages/NotFoundPage"
 import AppLayout from "../components/AppLayout"
-import { AdminRoute, ProtectedRoute, SignedInPlaceholder } from "./routes"
+import { AdminRoute, ProtectedRoute } from "./routes"
 import { AuthProvider } from "../context/AuthContext"
 import { ThemeProvider } from "../context/ThemeContext"
 import AssistantPage from "../pages/AssistantPage"
@@ -10,6 +10,7 @@ import InventoryPage from "../pages/InventoryPage"
 import EntryFormPage from "../pages/EntryFormPage"
 import CatalogPage from "../pages/CatalogPage"
 import UsersPage from "../pages/UsersPage"
+import EntryDetailPage from "../pages/EntryDetailPage"
 
 export default function App() {
   return (
@@ -23,18 +24,14 @@ export default function App() {
                 <Route element={<Navigate replace to="/inventory" />} index />
                 <Route element={<InventoryPage />} path="inventory" />
                 <Route element={<EntryFormPage />} path="inventory/new" />
+                <Route element={<EntryDetailPage />} path="inventory/:id" />
                 <Route element={<AdminRoute />}>
                   <Route
-                    element={<SignedInPlaceholder title="Inventory record" />}
-                    path="inventory/:id"
-                  />
-                  <Route
-                    element={<SignedInPlaceholder title="Edit inventory record" />}
+                    element={<EntryDetailPage />}
                     path="inventory/:id/edit"
                   />
                 </Route>
                 <Route element={<AdminRoute />}>
-                  <Route element={<SignedInPlaceholder />} path="inventory/*"                   />
                   <Route element={<AssistantPage />} path="assistant" />
                   <Route element={<CatalogPage />} path="catalog" />
                   <Route element={<UsersPage />} path="users" />
