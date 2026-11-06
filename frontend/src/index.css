@@ -2245,7 +2245,13 @@
   font-size: 11px;
 }
 
-.users-table td:last-child .btn {
+.users-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.users-actions .btn {
   min-height: 34px;
   padding: 5px 8px;
   font-size: 11px;
@@ -2289,6 +2295,15 @@
   margin: 0;
   color: var(--red);
   font-size: 12px;
+}
+
+.users-delete-confirmation {
+  display: grid;
+  gap: 12px;
+}
+
+.users-delete-confirmation p {
+  margin: 0;
 }
 
 @media (max-width: 760px) {

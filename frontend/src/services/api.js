@@ -182,6 +182,10 @@ export const api = {
     });
   },
 
+  deleteUser(id) {
+    return request(`/users/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+
   getCatalog() {
     return request("/catalog");
   },

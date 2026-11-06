@@ -98,3 +98,15 @@ values are provided in the non-HttpOnly `csrf_access_token` and
 - `401`: Missing, expired, revoked, or inactive-user token.
 - `400`, `415`: Malformed JSON or non-JSON request body.
 - Other applicable statuses: `500`, `503`.
+
+## User management
+
+### `DELETE /api/users/{id}`
+
+- Auth: Active administrator and access CSRF token in `X-CSRF-TOKEN`
+- Request: None
+- `200`: Deletes the user and returns `{"data":{"id":12}}`.
+- `404`: User does not exist.
+- `409`: The signed-in administrator or last active administrator cannot be
+  deleted; users linked to historical records must be deactivated instead.
+- Other applicable statuses: `401`, `403`, `500`, `503`.

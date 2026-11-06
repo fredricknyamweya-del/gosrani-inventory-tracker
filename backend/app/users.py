@@ -5,7 +5,7 @@ import secrets
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 
@@ -21,6 +21,7 @@ from app.extensions import db
 from app.models import (
     AuditAction,
     AuditEntity,
+    RevokedToken,
     User,
     UserLocation,
     UserRole,
@@ -141,6 +142,58 @@ def create_user():
             "temporaryPassword": temporary_password,
         }
     }), 201
+
+
+@users_bp.delete("/<int:user_id>")
+@jwt_required()
+def delete_user(user_id: int):
+    actor, denied = _require_admin()
+    if denied:
+        return denied
+    target = db.session.get(User, user_id)
+    if target is None:
+        return error_response(404, "User not found.", "not_found")
+    if target.id == actor.id:
+        return error_response(409, "You cannot delete your own account.", "user_self_delete")
+    if target.role == UserRole.ADMIN and target.status == UserStatus.ACTIVE:
+        active_admin_count = db.session.scalar(
+            select(func.count()).select_from(User).where(
+                User.role == UserRole.ADMIN,
+                User.status == UserStatus.ACTIVE,
+            )
+        ) or 0
+        if active_admin_count <= 1:
+            return error_response(
+                409,
+                "At least one active administrator must remain.",
+                "last_active_admin",
+            )
+
+    before = public_user(target)
+    try:
+        db.session.execute(
+            delete(UserLocation).where(UserLocation.user_id == target.id)
+        )
+        db.session.execute(
+            delete(RevokedToken).where(RevokedToken.user_id == target.id)
+        )
+        audit(
+            AuditEntity.USER,
+            target.id,
+            AuditAction.DELETE,
+            actor.id,
+            before=before,
+        )
+        db.session.delete(target)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return error_response(
+            409,
+            "This user is linked to historical records and cannot be deleted. Deactivate the account instead.",
+            "user_has_records",
+        )
+    return jsonify({"data": {"id": user_id}})
 
 
 @users_bp.patch("/<int:user_id>")
