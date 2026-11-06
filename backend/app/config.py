@@ -18,7 +18,11 @@ def _database_url(value: str | None, *, require_ssl: bool = False) -> str:
     url = make_url(value)
     if url.drivername in {"postgres", "postgresql"}:
         url = url.set(drivername="postgresql+psycopg")
-    if require_ssl and url.get_backend_name() == "postgresql":
+    if (
+        require_ssl
+        and url.get_backend_name() == "postgresql"
+        and "sslmode" not in url.query
+    ):
         url = url.update_query_dict({"sslmode": "require"}, append=True)
     return url.render_as_string(hide_password=False)
 
