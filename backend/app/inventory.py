@@ -25,7 +25,6 @@ from app.models import (
     EnteredUnit,
     InventoryRecord,
     Item,
-    Location,
     RecordStatus,
     Specification,
     User,
@@ -249,7 +248,7 @@ def _create_one(payload: dict[str, object], user, location_id: int) -> Inventory
 @inventory_bp.get("")
 @jwt_required()
 def list_inventory():
-    user = current_user()
+    current_user()
     location_ids = _accessible_location_ids()
     statement = (
         select(InventoryRecord)
@@ -374,7 +373,11 @@ def create_inventory():
             db.session.rollback()
             return validation_error([{"field": f"rows.{index}", "message": "A JSON object is required."}])
         try:
-            records.append(_create_one(row, user, _location_for_create(row, user.id) or location_id))
+            row_location_id = _location_for_create(row, user.id)
+            if row.get("locationId") is not None and row_location_id is None:
+                db.session.rollback()
+                return error_response(403, "You do not have access to the selected stock location.", "location_forbidden")
+            records.append(_create_one(row, user, row_location_id or location_id))
         except ApiValidationError as error:
             db.session.rollback()
             return validation_error([{"field": f"rows.{index}.{error.field}", "message": str(error)}])
@@ -434,7 +437,10 @@ def update_inventory(record_id: int):
     values, errors = _resolve_record(merged)
     if errors:
         return validation_error(errors)
-    if "status" in payload and payload["status"] not in {status.value for status in RecordStatus}:
+    if "status" in payload and (
+        not isinstance(payload["status"], str)
+        or payload["status"] not in {status.value for status in RecordStatus}
+    ):
         return validation_error([{"field": "status", "message": "Status must be Saved or Locked."}])
     if "enteredUnit" in payload:
         try:

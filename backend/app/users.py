@@ -2,13 +2,20 @@
 
 import re
 import secrets
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 
-from app.api_utils import ApiValidationError, audit, current_user, iso_datetime, user_location_ids
+from app.api_utils import (
+    ApiValidationError,
+    audit,
+    current_user,
+    iso_datetime,
+    user_location_ids,
+)
 from app.errors import error_response, validation_error
 from app.extensions import db
 from app.models import (

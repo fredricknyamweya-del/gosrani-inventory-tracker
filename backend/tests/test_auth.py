@@ -37,8 +37,8 @@ def test_login_sets_jwt_cookies_and_me_reads_current_user(client, app):
     assert "passwordHash" not in response.json["data"]["user"]
     assert client.get_cookie("access_token_cookie", path="/api")
     assert client.get_cookie("refresh_token_cookie", path="/api/auth")
-    assert client.get_cookie("csrf_access_token", path="/api")
-    assert client.get_cookie("csrf_refresh_token", path="/api/auth")
+    assert client.get_cookie("csrf_access_token", path="/")
+    assert client.get_cookie("csrf_refresh_token", path="/")
 
     me_response = client.get("/api/auth/me")
     assert me_response.status_code == 200
@@ -110,7 +110,7 @@ def test_refresh_rotates_tokens_and_logout_revokes_them(client):
     assert login_response.status_code == 200
 
     old_refresh = client.get_cookie("refresh_token_cookie", path="/api/auth").value
-    refresh_csrf = client.get_cookie("csrf_refresh_token", path="/api/auth").value
+    refresh_csrf = client.get_cookie("csrf_refresh_token", path="/").value
     refreshed = client.post(
         "/api/auth/refresh",
         json={},
@@ -123,7 +123,7 @@ def test_refresh_rotates_tokens_and_logout_revokes_them(client):
         != old_refresh
     )
 
-    access_csrf = client.get_cookie("csrf_access_token", path="/api").value
+    access_csrf = client.get_cookie("csrf_access_token", path="/").value
     logout_response = client.post(
         "/api/auth/logout",
         json={},
@@ -144,7 +144,7 @@ def test_refresh_rejects_a_rotated_token(client):
         json={"email": "staff@example.com", "password": "correct-horse"},
     )
     old_refresh = client.get_cookie("refresh_token_cookie", path="/api/auth").value
-    old_csrf = client.get_cookie("csrf_refresh_token", path="/api/auth").value
+    old_csrf = client.get_cookie("csrf_refresh_token", path="/").value
     client.post(
         "/api/auth/refresh",
         json={},
@@ -152,7 +152,7 @@ def test_refresh_rejects_a_rotated_token(client):
     )
 
     client.set_cookie("refresh_token_cookie", old_refresh, path="/api/auth")
-    client.set_cookie("csrf_refresh_token", old_csrf, path="/api/auth")
+    client.set_cookie("csrf_refresh_token", old_csrf, path="/")
     replay = client.post(
         "/api/auth/refresh",
         json={},
