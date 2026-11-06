@@ -532,7 +532,7 @@
   margin-bottom: 26px;
 }
 
-.login-app-brand h2 {
+.login-heading .login-app-brand h2 {
   margin: 0;
   color: var(--red);
   font-size: 24px;
