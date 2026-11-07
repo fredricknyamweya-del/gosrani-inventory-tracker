@@ -35,10 +35,14 @@ def test_login_sets_jwt_cookies_and_me_reads_current_user(client, app):
     assert response.json["data"]["user"]["id"] == user.id
     assert "password" not in response.json["data"]["user"]
     assert "passwordHash" not in response.json["data"]["user"]
-    assert client.get_cookie("access_token_cookie", path="/api")
-    assert client.get_cookie("refresh_token_cookie", path="/api/auth")
-    assert client.get_cookie("csrf_access_token", path="/")
-    assert client.get_cookie("csrf_refresh_token", path="/")
+    access_cookie = client.get_cookie("access_token_cookie", path="/api")
+    refresh_cookie = client.get_cookie("refresh_token_cookie", path="/api/auth")
+    access_csrf_cookie = client.get_cookie("csrf_access_token", path="/")
+    refresh_csrf_cookie = client.get_cookie("csrf_refresh_token", path="/")
+    assert access_cookie and access_cookie.http_only
+    assert refresh_cookie and refresh_cookie.http_only
+    assert access_csrf_cookie and not access_csrf_cookie.http_only
+    assert refresh_csrf_cookie and not refresh_csrf_cookie.http_only
 
     me_response = client.get("/api/auth/me")
     assert me_response.status_code == 200
