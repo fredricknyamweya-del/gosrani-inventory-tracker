@@ -116,7 +116,10 @@ def create_user():
             if (
                 not isinstance(requested_location_ids, list)
                 or not requested_location_ids
-                or any(type(location_id) is not int or location_id < 1 for location_id in requested_location_ids)
+                or any(
+                    type(location_id) is not int or location_id < 1
+                    for location_id in requested_location_ids
+                )
                 or len(set(requested_location_ids)) != len(requested_location_ids)
             ):
                 raise ApiValidationError(

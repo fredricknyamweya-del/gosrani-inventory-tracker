@@ -20,9 +20,11 @@ def list_locations():
     if user.role != UserRole.ADMIN:
         query = query.where(Location.id.in_(user_location_ids(user.id)))
     locations = db.session.scalars(query.order_by(Location.name, Location.id)).all()
-    return jsonify({
-        "data": [
-            {"id": location.id, "code": location.code, "name": location.name}
-            for location in locations
-        ]
-    })
+    return jsonify(
+        {
+            "data": [
+                {"id": location.id, "code": location.code, "name": location.name}
+                for location in locations
+            ]
+        }
+    )
