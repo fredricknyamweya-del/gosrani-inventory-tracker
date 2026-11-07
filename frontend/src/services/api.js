@@ -171,6 +171,10 @@ export const api = {
     return request("/users");
   },
 
+  getLocations() {
+    return request("/locations");
+  },
+
   createUser(input = {}) {
     return request("/users", { method: "POST", body: input });
   },

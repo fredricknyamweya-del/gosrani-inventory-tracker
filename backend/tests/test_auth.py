@@ -197,7 +197,7 @@ def test_change_password_updates_hash_and_invalidates_other_sessions(
         "/api/auth/change-password",
         json={
             "currentPassword": "correct-horse",
-            "newPassword": "a-new-strong-password",
+            "newPassword": "newpwd",
         },
         headers={"X-CSRF-TOKEN": csrf_token},
     )
@@ -217,9 +217,9 @@ def test_change_password_updates_hash_and_invalidates_other_sessions(
         persisted = db.session.get(User, user.id)
         assert persisted is not None
         assert persisted.auth_version == 1
-        assert persisted.password_hash != "a-new-strong-password"
+        assert persisted.password_hash != "newpwd"
         assert check_password_hash(
-            persisted.password_hash, "a-new-strong-password"
+            persisted.password_hash, "newpwd"
         )
 
     assert client.post(
@@ -228,7 +228,7 @@ def test_change_password_updates_hash_and_invalidates_other_sessions(
     ).status_code == 401
     assert client.post(
         "/api/auth/login",
-        json={"email": user.email, "password": "a-new-strong-password"},
+        json={"email": user.email, "password": "newpwd"},
     ).status_code == 200
 
 
@@ -267,7 +267,7 @@ def test_change_password_requires_minimum_length(client):
 
     response = client.post(
         "/api/auth/change-password",
-        json={"currentPassword": "correct-horse", "newPassword": "too-short"},
+        json={"currentPassword": "correct-horse", "newPassword": "short"},
         headers={"X-CSRF-TOKEN": csrf_token},
     )
 

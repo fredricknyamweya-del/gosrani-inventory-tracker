@@ -69,14 +69,14 @@ values are provided in the non-HttpOnly `csrf_access_token` and
   ```json
   {
     "currentPassword": "<current-password>",
-    "newPassword": "<new-password-at-least-12-characters>"
+    "newPassword": "<new-password-at-least-6-characters>"
   }
   ```
 
 - `200`: Changes the password hash, invalidates the user's other sessions, and
   issues fresh access and refresh cookies for this session.
 - `401`: Missing or invalid session, or incorrect current password.
-- `422`: Missing password fields or new password shorter than 12 characters.
+- `422`: Missing password fields or new password shorter than 6 characters.
 - Other applicable statuses: `400`, `415`, `500`, `503`.
 
 ### `POST /api/auth/refresh`
@@ -100,6 +100,34 @@ values are provided in the non-HttpOnly `csrf_access_token` and
 - Other applicable statuses: `500`, `503`.
 
 ## User management
+
+### `GET /api/locations`
+
+- Auth: Signed-in user
+- `200`: Returns active locations available to the user as
+  `{"data":[{"id":1,"code":"ELD","name":"Eldoret Godown"}]}`. Administrators
+  can see all active locations; other users see only their assigned locations.
+- Other applicable statuses: `401`, `500`, `503`.
+
+### `POST /api/users`
+
+- Auth: Active administrator and access CSRF token in `X-CSRF-TOKEN`
+- Request:
+
+  ```json
+  {
+    "name": "Staff Member",
+    "email": "staff@example.com",
+    "role": "User",
+    "locationIds": [1]
+  }
+  ```
+
+- `201`: Creates the user, assigns the requested active locations, and returns
+  the user and a one-time temporary password.
+- `422`: Missing or invalid fields, including location IDs that are empty,
+  duplicated, unknown, or inactive.
+- Other applicable statuses: `401`, `403`, `409`, `500`, `503`.
 
 ### `DELETE /api/users/{id}`
 

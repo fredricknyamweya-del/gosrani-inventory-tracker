@@ -21,6 +21,7 @@ from app.extensions import db
 from app.models import (
     AuditAction,
     AuditEntity,
+    Location,
     RevokedToken,
     User,
     UserLocation,
@@ -110,6 +111,31 @@ def create_user():
         except (TypeError, ValueError):
             raise ApiValidationError("role", "Role must be Admin or User.") from None
 
+        if "locationIds" in payload:
+            requested_location_ids = payload["locationIds"]
+            if (
+                not isinstance(requested_location_ids, list)
+                or not requested_location_ids
+                or any(type(location_id) is not int or location_id < 1 for location_id in requested_location_ids)
+                or len(set(requested_location_ids)) != len(requested_location_ids)
+            ):
+                raise ApiValidationError(
+                    "locationIds", "Select one or more active locations."
+                )
+            locations = db.session.scalars(
+                select(Location.id).where(
+                    Location.id.in_(requested_location_ids),
+                    Location.active.is_(True),
+                )
+            ).all()
+            if set(locations) != set(requested_location_ids):
+                raise ApiValidationError(
+                    "locationIds", "Select one or more active locations."
+                )
+            location_ids = requested_location_ids
+        else:
+            location_ids = user_location_ids(actor.id)
+
         temporary_password = secrets.token_urlsafe(15)
         new_user = User(
             name=name,
@@ -120,14 +146,20 @@ def create_user():
         )
         db.session.add(new_user)
         db.session.flush()
-        for location_id in user_location_ids(actor.id):
+        for location_id in location_ids:
             db.session.add(UserLocation(user_id=new_user.id, location_id=location_id))
         audit(
             AuditEntity.USER,
             new_user.id,
             AuditAction.CREATE,
             actor.id,
-            after={"name": name, "email": email, "role": role.value, "status": "Active"},
+            after={
+                "name": name,
+                "email": email,
+                "role": role.value,
+                "status": "Active",
+                "locationIds": sorted(location_ids),
+            },
         )
         db.session.commit()
     except ApiValidationError as error:

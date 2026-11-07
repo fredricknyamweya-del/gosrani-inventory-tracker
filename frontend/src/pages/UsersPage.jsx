@@ -42,6 +42,7 @@ export default function UsersPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("User");
+  const [locationId, setLocationId] = useState("");
   const [addError, setAddError] = useState("");
   const [saving, setSaving] = useState(false);
   const [credential, setCredential] = useState(null);
@@ -58,6 +59,12 @@ export default function UsersPage() {
     () => api.getUsers(),
     [],
   );
+  const {
+    data: locations,
+    error: locationsError,
+    loading: locationsLoading,
+    reload: reloadLocations,
+  } = useApi(() => api.getLocations(), []);
 
   const visibleUsers = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -81,11 +88,17 @@ export default function UsersPage() {
     setSaving(true);
     setAddError("");
     try {
-      const response = await api.createUser({ name, email, role });
+      const response = await api.createUser({
+        name,
+        email,
+        role,
+        locationIds: [Number(locationId)],
+      });
       setAddOpen(false);
       setName("");
       setEmail("");
       setRole("User");
+      setLocationId("");
       setCredential(response.data);
       setCopyError("");
       setCopied(false);
@@ -121,6 +134,7 @@ export default function UsersPage() {
     setName("");
     setEmail("");
     setRole("User");
+    setLocationId("");
   }, []);
 
   function requestChange(entry, changes) {
@@ -371,7 +385,14 @@ export default function UsersPage() {
             <Button onClick={closeAdd} variant="secondary">
               Cancel
             </Button>
-            <Button form="add-user-form" loading={saving} type="submit">
+            <Button
+              disabled={
+                locationsLoading || Boolean(locationsError) || !locations?.length
+              }
+              form="add-user-form"
+              loading={saving}
+              type="submit"
+            >
               Add user
             </Button>
           </>
@@ -413,6 +434,46 @@ export default function UsersPage() {
               <option>Admin</option>
             </Select>
           </Field>
+          <Field label="Location" required>
+            <Select
+              disabled={
+                locationsLoading || Boolean(locationsError) || !locations?.length
+              }
+              onChange={(event) => {
+                setLocationId(event.target.value);
+                setAddError("");
+              }}
+              required
+              value={locationId}
+            >
+              <option value="">
+                {locationsLoading ? "Loading locations..." : "Select a location"}
+              </option>
+              {(locations ?? []).map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name} ({location.code})
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {locationsError && (
+            <div className="users-location-error" role="alert">
+              <span>{locationsError.message}</span>
+              <Button
+                onClick={() => void reloadLocations()}
+                type="button"
+                variant="secondary"
+              >
+                Try again
+              </Button>
+            </div>
+          )}
+          {!locationsLoading && !locationsError && !locations?.length && (
+            <p className="users-inline-error" role="status">
+              No active locations are available. Add or activate a location
+              before creating a user.
+            </p>
+          )}
           {addError && (
             <p className="users-inline-error" role="alert">
               {addError}

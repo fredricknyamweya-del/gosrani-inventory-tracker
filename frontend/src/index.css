@@ -2381,6 +2381,15 @@
   font-size: 12px;
 }
 
+.users-location-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--red);
+  font-size: 12px;
+}
+
 .users-delete-confirmation {
   display: grid;
   gap: 12px;

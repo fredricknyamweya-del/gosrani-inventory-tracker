@@ -14,6 +14,7 @@ from app.config import CONFIGS
 from app.errors import register_error_handlers
 from app.extensions import cache, db, jwt, migrate
 from app.inventory import inventory_bp
+from app.locations import locations_bp
 from app.security import configure_security
 from app.seed import seed_command
 from app.users import users_bp
@@ -69,6 +70,7 @@ def create_app(config_name: str | None = None) -> Flask:
     )
     app.register_blueprint(auth_bp)
     app.register_blueprint(inventory_bp)
+    app.register_blueprint(locations_bp)
     app.register_blueprint(catalog_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(assistant_bp)

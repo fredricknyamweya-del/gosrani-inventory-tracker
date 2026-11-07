@@ -152,11 +152,11 @@ def change_password():
         errors.append(
             {"field": "newPassword", "message": "New password is required."}
         )
-    elif len(new_password) < 12:
+    elif len(new_password) < 6:
         errors.append(
             {
                 "field": "newPassword",
-                "message": "New password must contain at least 12 characters.",
+                "message": "New password must contain at least 6 characters.",
             }
         )
     if errors:

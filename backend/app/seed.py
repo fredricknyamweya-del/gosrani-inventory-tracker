@@ -175,9 +175,9 @@ def seed_database(
         raise click.ClickException("Set a valid SEED_ADMIN_EMAIL before seeding.")
     if len(email) > 254:
         raise click.ClickException("SEED_ADMIN_EMAIL must be no more than 254 characters.")
-    if len(password) < 12:
+    if len(password) < 6:
         raise click.ClickException(
-            "SEED_ADMIN_PASSWORD must contain at least 12 characters."
+            "SEED_ADMIN_PASSWORD must contain at least 6 characters."
         )
     if not name or len(name) > 120:
         raise click.ClickException("SEED_ADMIN_NAME must be 1 to 120 characters.")
@@ -207,9 +207,9 @@ def seed_database(
             raise click.ClickException(
                 "The Admin and seeded User accounts must have unique email addresses."
             )
-        if len(user_password) < 12:
+        if len(user_password) < 6:
             raise click.ClickException(
-                "Generated User passwords must contain at least 12 characters."
+                "Generated User passwords must contain at least 6 characters."
             )
         user_emails.add(normalized_email)
         normalized_user_passwords.append((normalized_email, user_password))

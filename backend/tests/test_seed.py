@@ -19,7 +19,7 @@ from app.models import (
 def configure_seed_environment(monkeypatch, *, email="admin@example.com"):
     monkeypatch.setenv("SEED_ADMIN_EMAIL", email)
     monkeypatch.setenv("SEED_ADMIN_NAME", "Initial Admin")
-    monkeypatch.setenv("SEED_ADMIN_PASSWORD", "long-enough-seed-password")
+    monkeypatch.setenv("SEED_ADMIN_PASSWORD", "seedpw")
     monkeypatch.setenv("DEFAULT_LOCATION_CODE", "ELD")
     monkeypatch.setenv("DEFAULT_LOCATION_NAME", "Eldoret Godown")
 
@@ -45,7 +45,7 @@ def test_seed_creates_admin_location_and_catalog(app, monkeypatch):
         assert admin.status == UserStatus.ACTIVE
         assert admin.name == "Initial Admin"
         assert check_password_hash(
-            admin.password_hash, "long-enough-seed-password"
+            admin.password_hash, "seedpw"
         )
         location = db.session.scalar(
             select(Location).where(Location.code == "ELD")
@@ -139,7 +139,7 @@ def test_seed_requires_strong_admin_password(app, monkeypatch):
     result = invoke_seed(app)
 
     assert result.exit_code != 0
-    assert "at least 12 characters" in result.output
+    assert "at least 6 characters" in result.output
     with app.app_context():
         assert db.session.scalar(select(func.count(User.id))) == 0
 

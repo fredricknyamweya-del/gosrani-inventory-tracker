@@ -116,7 +116,7 @@ pipenv install
 ```
 
 Create `backend/.env` from `.env.example`, set `SEED_ADMIN_EMAIL` and
-`SEED_ADMIN_PASSWORD` (at least 12 characters), and then run:
+`SEED_ADMIN_PASSWORD` (at least 6 characters), and then run:
 
 ```bash
 pipenv run flask --app app db upgrade

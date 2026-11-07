@@ -16,8 +16,8 @@ export default function PasswordChangePage() {
     setError("");
     setSuccess("");
 
-    if (newPassword.length < 12) {
-      setError("New password must contain at least 12 characters.");
+    if (newPassword.length < 6) {
+      setError("New password must contain at least 6 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -72,13 +72,13 @@ export default function PasswordChangePage() {
           />
         </Field>
         <Field
-          hint="Use at least 12 characters."
+          hint="Use at least 6 characters."
           label="New password"
           required
         >
           <Input
             autoComplete="new-password"
-            minLength={12}
+            minLength={6}
             onChange={(event) => setNewPassword(event.target.value)}
             required
             type="password"

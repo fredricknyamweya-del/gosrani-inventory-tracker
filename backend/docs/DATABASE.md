@@ -51,7 +51,7 @@ the destructive test suite against a production database.
 
 After migrating the target database, set `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` in `backend/.env` or the deployment environment. The
-password must contain at least 12 characters. Optionally set
+password must contain at least 6 characters. Optionally set
 `SEED_ADMIN_NAME`, `DEFAULT_LOCATION_CODE`, and `DEFAULT_LOCATION_NAME`.
 Keep these values private; especially do not commit the password.
 

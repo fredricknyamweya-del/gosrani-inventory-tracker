@@ -66,6 +66,74 @@ def test_admin_can_delete_user_and_their_location_assignments(client, app):
         assert deletion_audit.actor_id == admin.id
 
 
+def test_admin_can_list_active_locations(client):
+    admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
+    active_location = Location(code="MAIN", name="Main warehouse")
+    inactive_location = Location(
+        code="OLD", name="Old warehouse", active=False
+    )
+    db.session.add_all([active_location, inactive_location])
+    db.session.commit()
+    authenticate(client, admin)
+
+    response = client.get("/api/locations")
+
+    assert response.status_code == 200
+    assert response.json["data"] == [
+        {
+            "id": active_location.id,
+            "code": active_location.code,
+            "name": active_location.name,
+        }
+    ]
+
+
+def test_admin_can_create_user_with_selected_location(client, app):
+    admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
+    location = Location(code="MAIN", name="Main warehouse")
+    db.session.add(location)
+    db.session.commit()
+    csrf_token = authenticate(client, admin)
+
+    response = client.post(
+        "/api/users",
+        headers={"X-CSRF-TOKEN": csrf_token},
+        json={
+            "name": "Staff",
+            "email": "staff@example.com",
+            "role": "User",
+            "locationIds": [location.id],
+        },
+    )
+
+    assert response.status_code == 201
+    user_id = response.json["data"]["user"]["id"]
+    assert response.json["data"]["user"]["locationIds"] == [location.id]
+    with app.app_context():
+        assert db.session.get(UserLocation, (user_id, location.id)) is not None
+
+
+def test_create_user_rejects_inactive_location(client):
+    admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
+    location = Location(code="OLD", name="Old warehouse", active=False)
+    db.session.add(location)
+    db.session.commit()
+    csrf_token = authenticate(client, admin)
+
+    response = client.post(
+        "/api/users",
+        headers={"X-CSRF-TOKEN": csrf_token},
+        json={
+            "name": "Staff",
+            "email": "staff@example.com",
+            "locationIds": [location.id],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json["errors"][0]["field"] == "locationIds"
+
+
 def test_admin_cannot_delete_self(client):
     admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
     csrf_token = authenticate(client, admin)
