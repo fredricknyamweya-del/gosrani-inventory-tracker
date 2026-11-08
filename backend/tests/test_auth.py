@@ -44,6 +44,14 @@ def test_login_sets_jwt_cookies_and_me_reads_current_user(client, app):
     assert access_csrf_cookie and not access_csrf_cookie.http_only
     assert refresh_csrf_cookie and not refresh_csrf_cookie.http_only
 
+    csrf_response = client.get("/api/auth/csrf")
+    assert csrf_response.status_code == 200
+    assert csrf_response.headers["Cache-Control"] == "no-store"
+    assert csrf_response.json["data"] == {
+        "accessToken": access_csrf_cookie.value,
+        "refreshToken": refresh_csrf_cookie.value,
+    }
+
     me_response = client.get("/api/auth/me")
     assert me_response.status_code == 200
     assert me_response.json["data"]["email"] == "staff@example.com"
@@ -53,6 +61,17 @@ def test_login_sets_jwt_cookies_and_me_reads_current_user(client, app):
         assert persisted is not None
         assert persisted.failed_logins == 0
         assert persisted.last_login_at is not None
+
+
+def test_csrf_endpoint_returns_null_without_auth_cookies(client):
+    response = client.get("/api/auth/csrf")
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.json["data"] == {
+        "accessToken": None,
+        "refreshToken": None,
+    }
 
 
 def test_login_validation_ignores_unknown_fields(client):

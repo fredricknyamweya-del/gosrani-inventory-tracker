@@ -61,6 +61,16 @@ values are provided in the non-HttpOnly `csrf_access_token` and
 - `401`: Missing, expired, revoked, or inactive-user token.
 - Other applicable statuses: `500`, `503`.
 
+### `GET /api/auth/csrf`
+
+- Auth: Public; uses the current browser cookies when present.
+- Request: None. Send credentials so the API receives its host-only CSRF cookies.
+- `200`: Returns the access and refresh CSRF values for the frontend to send in
+  `X-CSRF-TOKEN` on protected write requests. Missing cookies are returned as
+  `null`.
+- Response caching is disabled. The endpoint is available only to configured
+  credentialed CORS origins.
+
 ### `POST /api/auth/change-password`
 
 - Auth: Access cookie and access CSRF token in `X-CSRF-TOKEN`

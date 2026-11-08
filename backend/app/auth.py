@@ -133,6 +133,25 @@ def me():
     return jsonify({"data": public_user(user)})
 
 
+@auth_bp.get("/csrf")
+def csrf_tokens():
+    """Expose CSRF values to the credentialed frontend on a separate host."""
+    response = jsonify(
+        {
+            "data": {
+                "accessToken": request.cookies.get(
+                    current_app.config["JWT_ACCESS_CSRF_COOKIE_NAME"]
+                ),
+                "refreshToken": request.cookies.get(
+                    current_app.config["JWT_REFRESH_CSRF_COOKIE_NAME"]
+                ),
+            }
+        }
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @auth_bp.post("/change-password")
 @jwt_required()
 def change_password():

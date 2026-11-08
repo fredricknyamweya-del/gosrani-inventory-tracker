@@ -3,13 +3,35 @@ const API_BASE_URL = (
 ).replace(/\/+$/, "");
 let refreshRequest = null;
 
-function csrfToken(path) {
-  if (typeof document === "undefined") return "";
-  const cookieName = path === "/auth/refresh" ? "csrf_refresh_token" : "csrf_access_token";
-  const cookie = document.cookie
-    .split("; ")
-    .find((entry) => entry.startsWith(`${cookieName}=`));
-  return cookie ? decodeURIComponent(cookie.slice(cookieName.length + 1)) : "";
+async function csrfToken(path) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/auth/csrf`, {
+      headers: { Accept: "application/json" },
+      credentials: "include",
+    });
+  } catch {
+    throw new Error(
+      `Unable to reach the Gosrani API at ${API_BASE_URL}. Check that the backend is running and VITE_API_BASE_URL is correct.`,
+    );
+  }
+
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(`The API returned an invalid response (${response.status}).`);
+  }
+  if (!response.ok) {
+    const error = new Error(result.message || `The request failed (${response.status}).`);
+    error.status = response.status;
+    error.code = result.code;
+    error.errors = result.errors ?? [];
+    throw error;
+  }
+  return path === "/auth/refresh"
+    ? result.data.refreshToken
+    : result.data.accessToken;
 }
 
 async function request(path, options = {}, retryAfterRefresh = true) {
@@ -27,7 +49,7 @@ async function request(path, options = {}, retryAfterRefresh = true) {
     ["POST", "PUT", "PATCH", "DELETE"].includes(method) &&
     path !== "/auth/login"
   ) {
-    const token = csrfToken(path);
+    const token = await csrfToken(path);
     if (token) headers["X-CSRF-TOKEN"] = token;
   }
 
