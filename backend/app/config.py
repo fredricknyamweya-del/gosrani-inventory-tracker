@@ -117,7 +117,7 @@ class TestingConfig(BaseConfig):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = _testing_database_url(os.getenv("TEST_DATABASE_URL"))
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = {}
-    JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["cookies", "headers"]
+    JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["headers", "cookies"]
     SECRET_KEY = "testing-only-secret"
     JWT_SECRET_KEY = "testing-only-jwt-secret-with-at-least-32-bytes"
     JWT_COOKIE_SECURE = False

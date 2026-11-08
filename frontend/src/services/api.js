@@ -62,6 +62,10 @@ async function request(path, options = {}, retryAfterRefresh = true) {
       ? null
       : tokens.accessToken;
   if (token) headers.Authorization = `Bearer ${token}`;
+  const requestBody =
+    path === "/auth/logout"
+      ? { ...(body ?? {}), refreshToken: tokens.refreshToken }
+      : body;
 
   let response;
   try {
@@ -69,7 +73,9 @@ async function request(path, options = {}, retryAfterRefresh = true) {
       method,
       headers,
       credentials: "omit",
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(requestBody !== undefined
+        ? { body: JSON.stringify(requestBody) }
+        : {}),
     });
   } catch {
     throw new Error(
@@ -179,10 +185,9 @@ export const api = {
   },
 
   logout() {
-    const { refreshToken } = getAuthTokens();
     return request("/auth/logout", {
       method: "POST",
-      body: { refreshToken },
+      body: {},
     }).finally(clearAuthTokens);
   },
 

@@ -82,7 +82,7 @@ def _set_auth_cookies(response, user: User, refresh: bool = True):
     body["data"]["accessToken"] = access
     if refresh_token:
         body["data"]["refreshToken"] = refresh_token
-    response.set_json(body)
+    response.set_data(current_app.json.dumps(body))
     response.headers["Cache-Control"] = "no-store"
     return response
 
