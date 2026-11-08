@@ -246,7 +246,7 @@ export default function EntryFormPage() {
               <dd>{entry.quantityOut || "–"}</dd>
             </div>
             <div>
-              <dt>Handled by</dt>
+              <dt>Received / dispatched by</dt>
               <dd>{entry.handledBy}</dd>
             </div>
             <div>
@@ -420,12 +420,17 @@ export default function EntryFormPage() {
               onChange={(event) => update("quantityOut", event.target.value)}
             />
           </Field>
-          <Field error={errors.handledBy} label="Handled by" required>
+          <Field
+            error={errors.handledBy}
+            label="Received / dispatched by"
+            required
+          >
             <Input
               autoComplete="name"
               maxLength={160}
               onChange={(event) => update("handledBy", event.target.value)}
               placeholder="Name of the person who received or dispatched the stock"
+              required
               value={entry.handledBy}
             />
           </Field>

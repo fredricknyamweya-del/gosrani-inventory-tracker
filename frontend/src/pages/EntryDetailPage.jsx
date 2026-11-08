@@ -246,7 +246,7 @@ export default function EntryDetailPage() {
                 value={form.quantityOut}
               />
             </Field>
-            <Field label="Handled by" required>
+            <Field label="Received / dispatched by" required>
               <Input
                 autoComplete="name"
                 maxLength={160}
@@ -337,7 +337,7 @@ export default function EntryDetailPage() {
               <dd>{record.addedBy}</dd>
             </div>
             <div>
-              <dt>Handled by</dt>
+              <dt>Received / dispatched by</dt>
               <dd>{record.handledBy || "–"}</dd>
             </div>
             <div>
