@@ -133,7 +133,8 @@ CSRF values are provided in the non-HttpOnly `csrf_access_token` and
 
 ### `POST /api/users`
 
-- Auth: Active administrator and access CSRF token in `X-CSRF-TOKEN`
+- Auth: Active administrator with a bearer access token, or cookie and access
+  CSRF token in `X-CSRF-TOKEN`
 - Request:
 
   ```json
@@ -153,7 +154,8 @@ CSRF values are provided in the non-HttpOnly `csrf_access_token` and
 
 ### `PATCH /api/users/{id}`
 
-- Auth: Active administrator and access CSRF token in `X-CSRF-TOKEN`
+- Auth: Active administrator with a bearer access token, or cookie and access
+  CSRF token in `X-CSRF-TOKEN`
 - Request: Any of `name`, `email`, `role`, or `status`; for example:
 
   ```json
@@ -172,7 +174,8 @@ CSRF values are provided in the non-HttpOnly `csrf_access_token` and
 
 ### `DELETE /api/users/{id}`
 
-- Auth: Active administrator and access CSRF token in `X-CSRF-TOKEN`
+- Auth: Active administrator with a bearer access token, or cookie and access
+  CSRF token in `X-CSRF-TOKEN`
 - Request: None
 - `200`: Deletes the user and returns `{"data":{"id":12}}`.
 - `404`: User does not exist.

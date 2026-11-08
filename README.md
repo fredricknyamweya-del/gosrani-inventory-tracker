@@ -25,8 +25,8 @@ use the read-only inventory assistant.
   read-only and location-scoped. Without an OpenAI API key it uses built-in
   responses; when a key is configured, the question and relevant inventory
   results may be sent to OpenAI to phrase the answer.
-- Protect API changes with server-side validation and authorization, use
-  cookie-based authentication with CSRF protection, and keep an audit log of
+- Protect API changes with server-side validation and authorization, support
+  bearer-token and cookie-based authentication, and keep an audit log of
   application changes.
 
 Inventory quantities are associated with product specifications. Products
@@ -152,9 +152,12 @@ operations under `/auth`, plus:
 | `/api/users` | Admin user management |
 | `/api/assistant/query` | Admin read-only inventory questions |
 
-Protected requests use HTTP-only authentication cookies and CSRF tokens.
-Credentialed browser requests are restricted to the configured `CORS_ORIGINS`;
-do not use a wildcard origin.
+The frontend stores access and refresh tokens in `localStorage` and sends
+bearer authorization headers, avoiding mobile-browser cross-site cookie
+restrictions. The backend also supports cookie authentication with CSRF
+protection for compatible clients. Configure `CORS_ORIGINS` with the exact
+frontend origin(s); do not use a wildcard origin. Because scripts can access
+`localStorage`, keep dependencies current and prevent cross-site scripting.
 
 ## Tests
 
