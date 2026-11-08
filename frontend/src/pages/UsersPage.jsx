@@ -645,8 +645,8 @@ export default function UsersPage() {
             <Button
               disabled={
                 !editedEmail.trim() ||
-                editedEmail.trim().toLocaleLowerCase() ===
-                  emailTarget?.email.toLocaleLowerCase()
+                editedEmail.trim().toLowerCase() ===
+                  emailTarget?.email.toLowerCase()
               }
               form="edit-user-email-form"
               loading={savingEmail}
