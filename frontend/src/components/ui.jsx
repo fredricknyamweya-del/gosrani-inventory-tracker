@@ -249,6 +249,8 @@ export function Modal({
   const titleId = useId();
   const descriptionId = useId();
   const dialogRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -263,7 +265,7 @@ export function Modal({
     };
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
 
@@ -298,7 +300,7 @@ export function Modal({
       document.removeEventListener("keydown", handleKeyDown);
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
