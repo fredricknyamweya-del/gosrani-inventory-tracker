@@ -5,11 +5,14 @@ responses also include pagination metadata. Error responses contain `message`
 and `code`, with `errors` included for validation failures. Dates use
 `YYYY-MM-DD`; timestamps are UTC ISO 8601.
 
-Authentication uses short-lived HS256 JWTs in HttpOnly cookies. The browser
-must send credentials and the matching `X-CSRF-TOKEN` header for
-cookie-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` requests. The CSRF
-values are provided in the non-HttpOnly `csrf_access_token` and
-`csrf_refresh_token` cookies. Do not store JWTs in local storage.
+Authentication supports short-lived HS256 JWTs in either HttpOnly cookies or
+`Authorization: Bearer` headers. The frontend uses bearer tokens stored in
+`localStorage` so mobile browsers can authenticate without cross-site cookies.
+This makes protection against cross-site scripting especially important.
+Cookie-authenticated clients must send credentials and the matching
+`X-CSRF-TOKEN` header for `POST`, `PUT`, `PATCH`, and `DELETE` requests. The
+CSRF values are provided in the non-HttpOnly `csrf_access_token` and
+`csrf_refresh_token` cookies.
 
 ## Health
 
@@ -31,7 +34,8 @@ values are provided in the non-HttpOnly `csrf_access_token` and
   {"email":"staff@example.com","password":"<password>"}
   ```
 
-- `200`: Sets access and refresh cookies; body:
+- `200`: Sets access and refresh cookies and returns the tokens for bearer
+  clients; response is not cached:
 
   ```json
   {
@@ -43,7 +47,9 @@ values are provided in the non-HttpOnly `csrf_access_token` and
         "role": "User",
         "status": "Active",
         "locationIds": []
-      }
+      },
+      "accessToken": "<access-jwt>",
+      "refreshToken": "<refresh-jwt>"
     }
   }
   ```
@@ -55,7 +61,7 @@ values are provided in the non-HttpOnly `csrf_access_token` and
 
 ### `GET /api/auth/me`
 
-- Auth: Access cookie
+- Auth: Access cookie or `Authorization: Bearer <access-jwt>`
 - Request: None
 - `200`: `{"data":{"id":12,"name":"Staff Member","email":"staff@example.com","role":"User","status":"Active","locationIds":[]}}`
 - `401`: Missing, expired, revoked, or inactive-user token.
@@ -73,7 +79,7 @@ values are provided in the non-HttpOnly `csrf_access_token` and
 
 ### `POST /api/auth/change-password`
 
-- Auth: Access cookie and access CSRF token in `X-CSRF-TOKEN`
+- Auth: Access cookie and CSRF token, or `Authorization: Bearer <access-jwt>`
 - Request:
 
   ```json
@@ -84,25 +90,31 @@ values are provided in the non-HttpOnly `csrf_access_token` and
   ```
 
 - `200`: Changes the password hash, invalidates the user's other sessions, and
-  issues fresh access and refresh cookies for this session.
+  issues fresh access and refresh cookies and bearer tokens for this session.
 - `401`: Missing or invalid session, or incorrect current password.
 - `422`: Missing password fields or new password shorter than 6 characters.
 - Other applicable statuses: `400`, `415`, `500`, `503`.
 
 ### `POST /api/auth/refresh`
 
-- Auth: Refresh cookie and refresh CSRF token in `X-CSRF-TOKEN`
+- Auth: Refresh cookie and CSRF token, or `Authorization: Bearer <refresh-jwt>`
 - Request: Empty JSON object `{}` with `Content-Type: application/json`.
-- `200`: Rotates both cookies and returns the current user:
-  `{"data":{"user":{"id":12,"name":"Staff Member","email":"staff@example.com","role":"User","status":"Active","locationIds":[]}}}`
+- `200`: Rotates both cookies and bearer tokens and returns the current user.
 - `401`: Missing, expired, revoked, or inactive-user token.
 - `400`, `415`: Malformed JSON or non-JSON request body.
 - Other applicable statuses: `500`, `503`.
 
 ### `POST /api/auth/logout`
 
-- Auth: Access cookie and access CSRF token in `X-CSRF-TOKEN`
-- Request: Empty JSON object `{}` with `Content-Type: application/json`.
+- Auth: Access cookie and CSRF token, or `Authorization: Bearer <access-jwt>`
+- Bearer request: Include the matching `refreshToken` in the JSON body so both
+  tokens can be revoked:
+
+  ```json
+  {"refreshToken":"<refresh-jwt>"}
+  ```
+
+- Cookie request: Empty JSON object `{}` with `Content-Type: application/json`.
 - `200`: Revokes the active access and refresh tokens, clears auth cookies,
   and returns `{"data":{"message":"Signed out successfully."}}`.
 - `401`: Missing, expired, revoked, or inactive-user token.

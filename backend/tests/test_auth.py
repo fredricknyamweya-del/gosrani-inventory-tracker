@@ -63,6 +63,52 @@ def test_login_sets_jwt_cookies_and_me_reads_current_user(client, app):
         assert persisted.last_login_at is not None
 
 
+def test_bearer_tokens_support_cookie_free_mobile_auth(client, app):
+    user = create_user()
+    login_response = client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "correct-horse"},
+    )
+    tokens = login_response.json["data"]
+    assert tokens["accessToken"]
+    assert tokens["refreshToken"]
+
+    mobile_client = app.test_client()
+    authenticated = mobile_client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {tokens['accessToken']}"},
+    )
+    assert authenticated.status_code == 200
+    assert authenticated.json["data"]["email"] == user.email
+
+    refreshed = mobile_client.post(
+        "/api/auth/refresh",
+        json={},
+        headers={"Authorization": f"Bearer {tokens['refreshToken']}"},
+    )
+    assert refreshed.status_code == 200
+    rotated_tokens = refreshed.json["data"]
+    assert rotated_tokens["accessToken"] != tokens["accessToken"]
+    assert rotated_tokens["refreshToken"] != tokens["refreshToken"]
+
+    signed_out = mobile_client.post(
+        "/api/auth/logout",
+        json={"refreshToken": rotated_tokens["refreshToken"]},
+        headers={"Authorization": f"Bearer {rotated_tokens['accessToken']}"},
+    )
+    assert signed_out.status_code == 200
+    assert mobile_client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {rotated_tokens['accessToken']}"},
+    ).status_code == 401
+    replayed_refresh = mobile_client.post(
+        "/api/auth/refresh",
+        json={},
+        headers={"Authorization": f"Bearer {rotated_tokens['refreshToken']}"},
+    )
+    assert replayed_refresh.status_code == 401
+
+
 def test_csrf_endpoint_returns_null_without_auth_cookies(client):
     response = client.get("/api/auth/csrf")
 

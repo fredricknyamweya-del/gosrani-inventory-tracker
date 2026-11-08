@@ -60,6 +60,7 @@ def create_app(config_name: str | None = None) -> Flask:
         resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}},
         supports_credentials=True,
         allow_headers=[
+            "Authorization",
             "Content-Type",
             "X-CSRF-TOKEN",
             "X-Location-Id",

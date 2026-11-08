@@ -72,7 +72,7 @@ class BaseConfig:
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = _database_engine_options(
         SQLALCHEMY_DATABASE_URI
     )
-    JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["cookies"]
+    JWT_TOKEN_LOCATION: ClassVar[list[str]] = ["headers", "cookies"]
     JWT_COOKIE_CSRF_PROTECT = True
     JWT_COOKIE_HTTPONLY = True
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_MINUTES", "15")) * 60

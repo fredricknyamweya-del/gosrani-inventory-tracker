@@ -72,11 +72,18 @@ def _set_auth_cookies(response, user: User, refresh: bool = True):
         identity=identity, additional_claims=additional_claims
     )
     set_access_cookies(response, access)
+    refresh_token = None
     if refresh:
         refresh_token = create_refresh_token(
             identity=identity, additional_claims=additional_claims
         )
         set_refresh_cookies(response, refresh_token)
+    body = response.get_json()
+    body["data"]["accessToken"] = access
+    if refresh_token:
+        body["data"]["refreshToken"] = refresh_token
+    response.set_json(body)
+    response.headers["Cache-Control"] = "no-store"
     return response
 
 
@@ -225,15 +232,35 @@ def refresh():
 def logout():
     """Revoke the current access and refresh tokens and clear auth cookies."""
     access_payload = get_jwt()
-    _revoke_token(access_payload)
-    refresh_cookie = request.cookies.get(current_app.config["JWT_REFRESH_COOKIE_NAME"])
-    if refresh_cookie:
+    refresh_token = request.cookies.get(
+        current_app.config["JWT_REFRESH_COOKIE_NAME"]
+    )
+    if request.headers.get("Authorization", "").startswith("Bearer "):
+        payload = request.get_json(silent=True)
+        refresh_token = payload.get("refreshToken") if isinstance(payload, dict) else None
+        if not isinstance(refresh_token, str) or not refresh_token:
+            return error_response(
+                422,
+                "A refresh token is required to end this session.",
+                "refresh_token_required",
+            )
+    if refresh_token:
         try:
-            refresh_payload = decode_token(refresh_cookie, allow_expired=True)
+            refresh_payload = decode_token(refresh_token, allow_expired=True)
         except JWTExtendedException:
             refresh_payload = None
-        if refresh_payload and refresh_payload.get("type") == "refresh":
-            _revoke_token(refresh_payload)
+        if (
+            refresh_payload is None
+            or refresh_payload.get("type") != "refresh"
+            or refresh_payload.get("sub") != get_jwt_identity()
+        ):
+            return error_response(
+                401,
+                "The session is invalid. Please sign in again.",
+                "invalid_token",
+            )
+        _revoke_token(refresh_payload)
+    _revoke_token(access_payload)
     db.session.commit()
     response = jsonify({"data": {"message": "Signed out successfully."}})
     unset_jwt_cookies(response)

@@ -1,37 +1,47 @@
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
 ).replace(/\/+$/, "");
+const AUTH_STORAGE_KEY = "gosrani:authTokens";
 let refreshRequest = null;
 
-async function csrfToken(path) {
-  let response;
+function getAuthTokens() {
+  if (typeof window === "undefined") return {};
+  const stored = window.localStorage.getItem(AUTH_STORAGE_KEY);
+  if (!stored) return {};
   try {
-    response = await fetch(`${API_BASE_URL}/auth/csrf`, {
-      headers: { Accept: "application/json" },
-      credentials: "include",
-    });
+    const tokens = JSON.parse(stored);
+    return {
+      accessToken:
+        typeof tokens.accessToken === "string" ? tokens.accessToken : null,
+      refreshToken:
+        typeof tokens.refreshToken === "string" ? tokens.refreshToken : null,
+    };
   } catch {
-    throw new Error(
-      `Unable to reach the Gosrani API at ${API_BASE_URL}. Check that the backend is running and VITE_API_BASE_URL is correct.`,
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    return {};
+  }
+}
+
+function storeAuthTokens(data) {
+  if (
+    typeof window !== "undefined" &&
+    typeof data?.accessToken === "string" &&
+    typeof data?.refreshToken === "string"
+  ) {
+    window.localStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+      }),
     );
   }
+}
 
-  let result;
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(`The API returned an invalid response (${response.status}).`);
+function clearAuthTokens() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
   }
-  if (!response.ok) {
-    const error = new Error(result.message || `The request failed (${response.status}).`);
-    error.status = response.status;
-    error.code = result.code;
-    error.errors = result.errors ?? [];
-    throw error;
-  }
-  return path === "/auth/refresh"
-    ? result.data.refreshToken
-    : result.data.accessToken;
 }
 
 async function request(path, options = {}, retryAfterRefresh = true) {
@@ -45,20 +55,20 @@ async function request(path, options = {}, retryAfterRefresh = true) {
 
   const headers = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (
-    ["POST", "PUT", "PATCH", "DELETE"].includes(method) &&
-    path !== "/auth/login"
-  ) {
-    const token = await csrfToken(path);
-    if (token) headers["X-CSRF-TOKEN"] = token;
-  }
+  const tokens = getAuthTokens();
+  const token = path === "/auth/refresh"
+    ? tokens.refreshToken
+    : path === "/auth/login"
+      ? null
+      : tokens.accessToken;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   let response;
   try {
     response = await fetch(url, {
       method,
       headers,
-      credentials: "include",
+      credentials: "omit",
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
   } catch {
@@ -73,6 +83,7 @@ async function request(path, options = {}, retryAfterRefresh = true) {
   } catch {
     throw new Error(`The API returned an invalid response (${response.status}).`);
   }
+  storeAuthTokens(result.data);
   if (
     response.status === 401 &&
     retryAfterRefresh &&
@@ -89,6 +100,9 @@ async function request(path, options = {}, retryAfterRefresh = true) {
     return request(path, options, false);
   }
   if (!response.ok) {
+    if (path === "/auth/refresh" && response.status === 401) {
+      clearAuthTokens();
+    }
     const error = new Error(result.message || `The request failed (${response.status}).`);
     error.status = response.status;
     error.code = result.code;
@@ -165,7 +179,11 @@ export const api = {
   },
 
   logout() {
-    return request("/auth/logout", { method: "POST", body: {} });
+    const { refreshToken } = getAuthTokens();
+    return request("/auth/logout", {
+      method: "POST",
+      body: { refreshToken },
+    }).finally(clearAuthTokens);
   },
 
   getInventory(params = {}) {
