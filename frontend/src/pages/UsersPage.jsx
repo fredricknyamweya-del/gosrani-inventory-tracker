@@ -1,6 +1,7 @@
 import {
   Check,
   Copy,
+  Pencil,
   Plus,
   RotateCcw,
   Trash2,
@@ -48,6 +49,10 @@ export default function UsersPage() {
   const [credential, setCredential] = useState(null);
   const [copyError, setCopyError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [nameTarget, setNameTarget] = useState(null);
+  const [editedName, setEditedName] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [savingName, setSavingName] = useState(false);
   const [changeTarget, setChangeTarget] = useState(null);
   const [changeError, setChangeError] = useState("");
   const [changing, setChanging] = useState(false);
@@ -126,6 +131,37 @@ export default function UsersPage() {
     setCredential(null);
     setCopyError("");
     setCopied(false);
+  }
+
+  function requestNameChange(entry) {
+    setNameTarget(entry);
+    setEditedName(entry.name);
+    setNameError("");
+  }
+
+  function closeNameChange() {
+    if (savingName) return;
+    setNameTarget(null);
+    setEditedName("");
+    setNameError("");
+  }
+
+  async function saveNameChange(event) {
+    event.preventDefault();
+    if (!nameTarget) return;
+    setSavingName(true);
+    setNameError("");
+    try {
+      await api.updateUser(nameTarget.id, { name: editedName.trim() });
+      await reload();
+      setNameTarget(null);
+      setEditedName("");
+      setToast({ message: "User name updated." });
+    } catch (requestError) {
+      setNameError(requestError.message);
+    } finally {
+      setSavingName(false);
+    }
   }
 
   const closeAdd = useCallback(() => {
@@ -342,6 +378,14 @@ export default function UsersPage() {
                     <td>{formatDate(entry.createdAt)}</td>
                     <td>
                       <div className="users-actions">
+                        <Button
+                          aria-label={`Edit name for ${entry.name}`}
+                          onClick={() => requestNameChange(entry)}
+                          variant="ghost"
+                        >
+                          <Pencil aria-hidden="true" size={15} />
+                          Edit name
+                        </Button>
                         {entry.status === "Active" ? (
                           <Button
                             aria-label={`Deactivate ${entry.name}`}
@@ -486,6 +530,58 @@ export default function UsersPage() {
           {addError && (
             <p className="users-inline-error" role="alert">
               {addError}
+            </p>
+          )}
+        </form>
+      </Modal>
+
+      <Modal
+        description={`Update the name shown for ${nameTarget?.name ?? "this user"}.`}
+        footer={
+          <>
+            <Button
+              disabled={savingName}
+              onClick={closeNameChange}
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                !editedName.trim() || editedName.trim() === nameTarget?.name
+              }
+              form="edit-user-name-form"
+              loading={savingName}
+              type="submit"
+            >
+              Save name
+            </Button>
+          </>
+        }
+        onClose={closeNameChange}
+        open={Boolean(nameTarget)}
+        title="Edit user name"
+      >
+        <form
+          className="users-form"
+          id="edit-user-name-form"
+          onSubmit={saveNameChange}
+        >
+          <Field label="Name" required>
+            <Input
+              autoComplete="name"
+              maxLength={120}
+              onChange={(event) => {
+                setEditedName(event.target.value);
+                setNameError("");
+              }}
+              required
+              value={editedName}
+            />
+          </Field>
+          {nameError && (
+            <p className="users-inline-error" role="alert">
+              {nameError}
             </p>
           )}
         </form>
