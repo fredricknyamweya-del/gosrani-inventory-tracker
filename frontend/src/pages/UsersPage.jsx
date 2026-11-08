@@ -139,12 +139,12 @@ export default function UsersPage() {
     setNameError("");
   }
 
-  function closeNameChange() {
+  const closeNameChange = useCallback(() => {
     if (savingName) return;
     setNameTarget(null);
     setEditedName("");
     setNameError("");
-  }
+  }, [savingName]);
 
   async function saveNameChange(event) {
     event.preventDefault();
