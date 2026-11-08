@@ -92,7 +92,7 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(Exception)
     def handle_unexpected_exception(_error: Exception):
         request_id = getattr(g, "request_id", "unknown")
-        current_app.logger.error("Unhandled API error (request_id=%s)", request_id)
+        current_app.logger.exception("Unhandled API error (request_id=%s)", request_id)
         return error_response(500)
 
     app.logger.addHandler(logging.NullHandler())

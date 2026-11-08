@@ -91,6 +91,19 @@ def test_validation_error_contains_field_errors(error_routes):
     ]
 
 
+def test_unexpected_error_is_logged_with_traceback(error_routes, caplog):
+    @error_routes.application.get("/api/test-errors/unexpected")
+    def raise_unexpected_error():
+        raise RuntimeError("test failure")
+
+    with caplog.at_level("ERROR"):
+        response = error_routes.get("/api/test-errors/unexpected")
+
+    assert response.status_code == 500
+    assert "Unhandled API error" in caplog.text
+    assert "RuntimeError: test failure" in caplog.text
+
+
 def test_security_headers_and_request_id_are_present(client):
     response = client.get("/api/health")
 
