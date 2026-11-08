@@ -719,11 +719,11 @@
   text-align: center;
 }
 
-.login-loading {
-  display: grid;
-  min-height: 100vh;
-  color: var(--muted);
-  place-items: center;
+.auth-check-screen {
+  position: fixed;
+  z-index: 9999;
+  background: #fff;
+  inset: 0;
 }
 
 .auth-placeholder {

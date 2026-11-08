@@ -14,7 +14,15 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  if (loading) return <div className="login-loading" role="status">Checking your session…</div>;
+  if (loading) {
+    return (
+      <div
+        aria-label="Checking authentication"
+        className="auth-check-screen"
+        role="status"
+      />
+    );
+  }
   if (user) return <Navigate replace to="/inventory" />;
 
   const destination = location.state?.from?.pathname ?? "/inventory";
