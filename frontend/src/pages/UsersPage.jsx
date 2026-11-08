@@ -300,6 +300,7 @@ export default function UsersPage() {
             <tbody>
               {visibleUsers.map((entry) => {
                 const isSelf = entry.id === signedInUser?.id;
+                const isPrimaryAdmin = entry.isPrimaryAdmin;
                 const isLastActiveAdmin =
                   entry.role === "Admin" &&
                   entry.status === "Active" &&
@@ -309,6 +310,11 @@ export default function UsersPage() {
                     <td>
                       <div className="users-name-cell">
                         <strong>{entry.name}</strong>
+                        {isPrimaryAdmin && (
+                          <span className="users-primary-badge">
+                            Primary admin
+                          </span>
+                        )}
                         {isSelf && <span className="users-you-badge">You</span>}
                       </div>
                     </td>
@@ -318,6 +324,7 @@ export default function UsersPage() {
                         <RoleBadge role={entry.role} />
                         <Select
                           aria-label={`Change role for ${entry.name}`}
+                          disabled={isPrimaryAdmin}
                           onChange={(event) => {
                             if (event.target.value === entry.role) return;
                             requestChange(entry, { role: event.target.value });
@@ -338,7 +345,7 @@ export default function UsersPage() {
                         {entry.status === "Active" ? (
                           <Button
                             aria-label={`Deactivate ${entry.name}`}
-                            disabled={isLastActiveAdmin}
+                            disabled={isPrimaryAdmin || isLastActiveAdmin}
                             onClick={() =>
                               requestChange(entry, { status: "Inactive" })
                             }
@@ -361,7 +368,9 @@ export default function UsersPage() {
                         )}
                         <Button
                           aria-label={`Delete ${entry.name}`}
-                          disabled={isSelf || isLastActiveAdmin}
+                          disabled={
+                            isSelf || isPrimaryAdmin || isLastActiveAdmin
+                          }
                           onClick={() => requestDelete(entry)}
                           variant="ghost"
                         >

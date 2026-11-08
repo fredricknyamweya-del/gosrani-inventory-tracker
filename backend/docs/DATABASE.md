@@ -53,6 +53,13 @@ After migrating the target database, set `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` in `backend/.env` or the deployment environment. The
 password must contain at least 6 characters. Optionally set
 `SEED_ADMIN_NAME`, `DEFAULT_LOCATION_CODE`, and `DEFAULT_LOCATION_NAME`.
+The defaults identify the primary administrator as
+`Gosrani Office-Primary Admin` and the location as `Gosrani Technical Office`.
+Set these values in the deployment environment too if they are already
+configured there. The seed command marks the configured administrator as
+primary and synchronizes its display name without changing its password.
+Primary administrators cannot be deleted, demoted, or deactivated through
+user management.
 Keep these values private; especially do not commit the password.
 
 Then run from `backend/`:
@@ -61,8 +68,8 @@ Then run from `backend/`:
 PIPENV_VENV_IN_PROJECT=1 pipenv run flask --app app seed
 ```
 
-The command creates the initial active Admin, the configured Eldoret
-location, links the Admin to that location, and adds the starter categories,
+The command creates the initial active Admin, the configured location, links
+the Admin to that location, and adds the starter categories,
 items, and specifications described in `../ARCHITECTURE.md`. Sofa Sets is
 created as an empty category because its items are unconfirmed. Items whose
 proposal has no specification receive a `Standard` specification without a

@@ -1,5 +1,6 @@
 """Initial database seed command tests."""
 
+from flask_migrate import downgrade, upgrade
 from sqlalchemy import func, select
 from werkzeug.security import check_password_hash
 
@@ -18,10 +19,10 @@ from app.models import (
 
 def configure_seed_environment(monkeypatch, *, email="admin@example.com"):
     monkeypatch.setenv("SEED_ADMIN_EMAIL", email)
-    monkeypatch.setenv("SEED_ADMIN_NAME", "Initial Admin")
+    monkeypatch.setenv("SEED_ADMIN_NAME", "sytsem admin")
     monkeypatch.setenv("SEED_ADMIN_PASSWORD", "seedpw")
     monkeypatch.setenv("DEFAULT_LOCATION_CODE", "ELD")
-    monkeypatch.setenv("DEFAULT_LOCATION_NAME", "Eldoret Godown")
+    monkeypatch.setenv("DEFAULT_LOCATION_NAME", "Gosrani Technical Office")
 
 
 def invoke_seed(app):
@@ -43,7 +44,8 @@ def test_seed_creates_admin_location_and_catalog(app, monkeypatch):
         assert admin is not None
         assert admin.role == UserRole.ADMIN
         assert admin.status == UserStatus.ACTIVE
-        assert admin.name == "Initial Admin"
+        assert admin.name == "sytsem admin"
+        assert admin.is_primary_admin is True
         assert check_password_hash(
             admin.password_hash, "seedpw"
         )
@@ -51,7 +53,7 @@ def test_seed_creates_admin_location_and_catalog(app, monkeypatch):
             select(Location).where(Location.code == "ELD")
         )
         assert location is not None
-        assert location.name == "Eldoret Godown"
+        assert location.name == "Gosrani Technical Office"
         assert db.session.get(UserLocation, (admin.id, location.id)) is not None
         assert db.session.scalar(select(func.count(Category.id))) == 10
         assert db.session.scalar(select(func.count(Item.id))) == 16
@@ -75,6 +77,38 @@ def test_seed_creates_admin_location_and_catalog(app, monkeypatch):
         ) is None
 
 
+def test_seed_defaults_to_requested_primary_admin_and_location_names(app, monkeypatch):
+    configure_seed_environment(monkeypatch)
+    monkeypatch.delenv("SEED_ADMIN_NAME")
+    monkeypatch.delenv("DEFAULT_LOCATION_NAME")
+
+    result = invoke_seed(app)
+
+    assert result.exit_code == 0, result.output
+    with app.app_context():
+        admin = db.session.scalar(
+            select(User).where(User.email == "admin@example.com")
+        )
+        location = db.session.scalar(select(Location).where(Location.code == "ELD"))
+        assert admin is not None
+        assert admin.name == "Gosrani Office-Primary Admin"
+        assert admin.is_primary_admin is True
+        assert location is not None
+        assert location.name == "Gosrani Technical Office"
+
+
+def test_primary_admin_migration_normalizes_existing_location_name(app):
+    downgrade(revision="4d98c21a7b6e")
+    db.session.add(Location(code="ELD", name="Gosrani Technical office"))
+    db.session.commit()
+
+    upgrade()
+
+    location = db.session.scalar(select(Location).where(Location.code == "ELD"))
+    assert location is not None
+    assert location.name == "Gosrani Technical Office"
+
+
 def test_seed_is_idempotent_and_does_not_reset_admin_credentials(app, monkeypatch):
     configure_seed_environment(monkeypatch)
     first = invoke_seed(app)
@@ -88,7 +122,7 @@ def test_seed_is_idempotent_and_does_not_reset_admin_credentials(app, monkeypatc
         old_hash = admin.password_hash
 
     monkeypatch.setenv("SEED_ADMIN_PASSWORD", "a-different-long-password")
-    monkeypatch.setenv("SEED_ADMIN_NAME", "Changed Name")
+    monkeypatch.setenv("SEED_ADMIN_NAME", "Gosrani Office-Primary Admin")
     second = invoke_seed(app)
 
     assert second.exit_code == 0, second.output
@@ -100,7 +134,8 @@ def test_seed_is_idempotent_and_does_not_reset_admin_credentials(app, monkeypatc
         )
         assert admin is not None
         assert admin.password_hash == old_hash
-        assert admin.name == "Initial Admin"
+        assert admin.name == "Gosrani Office-Primary Admin"
+        assert admin.is_primary_admin is True
         assert db.session.scalar(select(func.count(Category.id))) == 10
         assert db.session.scalar(select(func.count(Item.id))) == 16
         assert db.session.scalar(select(func.count(Specification.id))) == 34

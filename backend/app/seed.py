@@ -6,7 +6,7 @@ import secrets
 
 import click
 from flask.cli import with_appcontext
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash
 
@@ -167,9 +167,11 @@ def seed_database(
     """Create missing first-run data without changing existing credentials."""
     email = os.getenv("SEED_ADMIN_EMAIL", "").strip().lower()
     password = os.getenv("SEED_ADMIN_PASSWORD", "")
-    name = os.getenv("SEED_ADMIN_NAME", "System Administrator").strip()
+    name = os.getenv("SEED_ADMIN_NAME", "Gosrani Office-Primary Admin").strip()
     location_code = os.getenv("DEFAULT_LOCATION_CODE", "ELD").strip().upper()
-    location_name = os.getenv("DEFAULT_LOCATION_NAME", "Eldoret Godown").strip()
+    location_name = os.getenv(
+        "DEFAULT_LOCATION_NAME", "Gosrani Technical Office"
+    ).strip()
 
     if not EMAIL_PATTERN.fullmatch(email):
         raise click.ClickException("Set a valid SEED_ADMIN_EMAIL before seeding.")
@@ -231,9 +233,18 @@ def seed_database(
                 password_hash=generate_password_hash(password),
                 role=UserRole.ADMIN,
                 status=UserStatus.ACTIVE,
+                is_primary_admin=True,
             )
             db.session.add(user)
             db.session.flush()
+        else:
+            user.name = name
+        db.session.execute(
+            update(User)
+            .where(User.is_primary_admin.is_(True), User.id != user.id)
+            .values(is_primary_admin=False)
+        )
+        user.is_primary_admin = True
 
         location = db.session.scalar(
             select(Location).where(Location.code == location_code)

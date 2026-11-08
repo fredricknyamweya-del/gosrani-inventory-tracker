@@ -58,6 +58,7 @@ def public_user(user: User) -> dict[str, object]:
         "email": user.email,
         "role": user.role.value,
         "status": user.status.value,
+        "isPrimaryAdmin": user.is_primary_admin,
         "locationIds": sorted(location_ids),
         "createdAt": iso_datetime(user.created_at),
     }
@@ -190,6 +191,12 @@ def delete_user(user_id: int):
         return error_response(404, "User not found.", "not_found")
     if target.id == actor.id:
         return error_response(409, "You cannot delete your own account.", "user_self_delete")
+    if target.is_primary_admin:
+        return error_response(
+            409,
+            "The primary administrator account cannot be deleted.",
+            "primary_admin_protected",
+        )
     if target.role == UserRole.ADMIN and target.status == UserStatus.ACTIVE:
         active_admin_count = db.session.scalar(
             select(func.count()).select_from(User).where(
@@ -243,6 +250,15 @@ def update_user(user_id: int):
     payload = request.get_json()
     if not isinstance(payload, dict):
         return validation_error([{"field": "body", "message": "A JSON object is required."}])
+    if target.is_primary_admin and (
+        payload.get("role", UserRole.ADMIN.value) != UserRole.ADMIN.value
+        or payload.get("status", UserStatus.ACTIVE.value) != UserStatus.ACTIVE.value
+    ):
+        return error_response(
+            409,
+            "The primary administrator must remain an active Admin.",
+            "primary_admin_protected",
+        )
 
     before = public_user(target)
     try:

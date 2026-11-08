@@ -135,6 +135,9 @@ class User(db.Model):
         nullable=False,
         server_default=text("'Active'"),
     )
+    is_primary_admin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
     auth_version: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default=text("0")
     )

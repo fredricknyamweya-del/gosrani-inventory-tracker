@@ -66,6 +66,53 @@ def test_admin_can_delete_user_and_their_location_assignments(client, app):
         assert deletion_audit.actor_id == admin.id
 
 
+def test_admin_cannot_delete_primary_admin(client, app):
+    admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
+    primary_admin = create_user(
+        "Gosrani Office-Primary Admin",
+        "primary@example.com",
+        UserRole.ADMIN,
+    )
+    primary_admin.is_primary_admin = True
+    db.session.commit()
+    csrf_token = authenticate(client, admin)
+
+    response = client.delete(
+        f"/api/users/{primary_admin.id}",
+        headers={"X-CSRF-TOKEN": csrf_token},
+    )
+
+    assert response.status_code == 409
+    assert response.json["code"] == "primary_admin_protected"
+    with app.app_context():
+        assert db.session.get(User, primary_admin.id) is not None
+
+
+def test_admin_cannot_demote_or_deactivate_primary_admin(client):
+    admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
+    primary_admin = create_user(
+        "Gosrani Office-Primary Admin",
+        "primary@example.com",
+        UserRole.ADMIN,
+    )
+    primary_admin.is_primary_admin = True
+    db.session.commit()
+    csrf_token = authenticate(client, admin)
+
+    for changes in ({"role": "User"}, {"status": "Inactive"}):
+        response = client.patch(
+            f"/api/users/{primary_admin.id}",
+            headers={"X-CSRF-TOKEN": csrf_token},
+            json=changes,
+        )
+
+        assert response.status_code == 409
+        assert response.json["code"] == "primary_admin_protected"
+
+    assert primary_admin.role == UserRole.ADMIN
+    assert primary_admin.status.value == "Active"
+
+
 def test_admin_can_list_active_locations(client):
     admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
     active_location = Location(code="MAIN", name="Main warehouse")
