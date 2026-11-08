@@ -109,6 +109,22 @@ def test_bearer_tokens_support_cookie_free_mobile_auth(client, app):
     assert replayed_refresh.status_code == 401
 
 
+def test_cors_preflight_allows_bearer_authorization(client, app):
+    origin = app.config["CORS_ORIGINS"][0]
+    response = client.options(
+        "/api/auth/me",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Allow-Origin"] == origin
+    assert "authorization" in response.headers["Access-Control-Allow-Headers"].lower()
+
+
 def test_csrf_endpoint_returns_null_without_auth_cookies(client):
     response = client.get("/api/auth/csrf")
 
