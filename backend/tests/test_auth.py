@@ -133,7 +133,7 @@ def test_refresh_rotates_tokens_and_logout_revokes_them(client):
     assert login_response.status_code == 200
 
     old_refresh = client.get_cookie("refresh_token_cookie", path="/api/auth").value
-    refresh_csrf = client.get_cookie("csrf_refresh_token", path="/").value
+    refresh_csrf = client.get("/api/auth/csrf").json["data"]["refreshToken"]
     refreshed = client.post(
         "/api/auth/refresh",
         json={},
@@ -146,7 +146,7 @@ def test_refresh_rotates_tokens_and_logout_revokes_them(client):
         != old_refresh
     )
 
-    access_csrf = client.get_cookie("csrf_access_token", path="/").value
+    access_csrf = client.get("/api/auth/csrf").json["data"]["accessToken"]
     logout_response = client.post(
         "/api/auth/logout",
         json={},

@@ -1,7 +1,10 @@
 """Read-only inventory assistant endpoint tests."""
 
+import json
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
@@ -188,3 +191,54 @@ def test_assistant_validates_question_length(client):
 
     assert response.status_code == 422
     assert response.json["errors"][0]["field"] == "question"
+
+
+def test_assistant_uses_openai_to_phrase_database_results(client, app, monkeypatch):
+    user = _create_user(UserRole.ADMIN)
+    db.session.commit()
+    app.config["OPENAI_API_KEY"] = "test-api-key"
+    sdk_client = Mock()
+    sdk_client.responses.create.return_value = SimpleNamespace(
+        output_text="There are no matching inventory records."
+    )
+    openai_factory = Mock(return_value=sdk_client)
+    monkeypatch.setattr("app.assistant.OpenAI", openai_factory)
+
+    response = client.post(
+        "/api/assistant/query",
+        json={"question": "show unknown inventory"},
+        headers=_authorization(user),
+    )
+
+    assert response.status_code == 200
+    assert (
+        response.json["data"]["answer"]
+        == "There are no matching inventory records."
+    )
+    openai_factory.assert_called_once_with(
+        api_key="test-api-key", timeout=20.0, max_retries=0
+    )
+    request_payload = json.loads(sdk_client.responses.create.call_args.kwargs["input"])
+    assert request_payload["question"] == "show unknown inventory"
+    assert request_payload["totalMatches"] == 0
+    assert request_payload["records"] == []
+
+
+def test_assistant_reports_openai_failure(client, app, monkeypatch):
+    user = _create_user(UserRole.ADMIN)
+    db.session.commit()
+    app.config["OPENAI_API_KEY"] = "test-api-key"
+    sdk_client = Mock()
+    sdk_client.responses.create.return_value = SimpleNamespace(output_text="")
+    monkeypatch.setattr("app.assistant.OpenAI", Mock(return_value=sdk_client))
+
+    response = client.post(
+        "/api/assistant/query",
+        json={"question": "show unknown inventory"},
+        headers=_authorization(user),
+    )
+
+    assert response.status_code == 503
+    assert response.json["message"] == (
+        "The AI assistant is temporarily unavailable. Please try again."
+    )

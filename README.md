@@ -118,7 +118,14 @@ pipenv install
 Create `backend/.env` from `.env.example`, set `SEED_ADMIN_EMAIL` and
 `SEED_ADMIN_PASSWORD` (at least 6 characters), and then run:
 
-```bash
+```
+
+To enable OpenAI-generated assistant answers, set `OPENAI_API_KEY` in
+`backend/.env` locally or in the backend service's environment settings on
+Render, and optionally set `OPENAI_MODEL`. Keep the key on the backend; never
+put it in a frontend variable or commit it. When enabled, the assistant sends
+the question and up to five location-scoped inventory records to OpenAI. Leave
+the key unset to use the built-in responses without external API calls.bash
 pipenv run flask --app app db upgrade
 pipenv run flask --app app seed
 pipenv run flask --app app run --host 0.0.0.0 --port 5000

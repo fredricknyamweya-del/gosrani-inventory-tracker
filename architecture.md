@@ -94,13 +94,13 @@ flowchart LR
     B[Browser<br/>React app] -->|HTTPS| S[Render Static Site<br/>React build, SPA rewrite]
     B -->|HTTPS + JWT| A[Render Web Service<br/>Flask + gunicorn]
     A -->|SQL, TLS, session pooler| D[(Supabase<br/>PostgreSQL)]
-    A -->|HTTPS, read-only tools| L[Anthropic API<br/>Admin assistant]
+    A -->|HTTPS, scoped results only| L[OpenAI API<br/>Admin assistant]
 ```
 
 - **Frontend:** the React build on a Render Static Site, with a rewrite rule sending every path to `index.html` (the app uses browser-style URLs).
 - **API:** one Flask service run by gunicorn. It handles auth, validation, business rules, the audit log, and the assistant. **All rules are enforced here**, never only in the browser.
 - **Database:** Supabase is used **only as managed PostgreSQL**. We do not use Supabase Auth, its auto-generated API, or the frontend client library. Flask owns authentication.
-- **Assistant:** the API calls the Anthropic API with a fixed set of read-only query functions. The model never writes SQL and has no write access.
+- **Assistant:** Flask runs fixed, read-only, location-scoped database queries. When `OPENAI_API_KEY` is configured, it sends the question and at most five matching records to OpenAI to phrase the answer; the model never writes SQL or accesses the database. Without a key, the existing built-in responses are used. Questions and returned inventory details are sent to OpenAI when enabled.
 
 ### 4.2 Layers inside the Flask app
 
@@ -387,7 +387,7 @@ The import is a one-off script (`flask import-stock`) with a **dry run** first.
 
 ### 10.4 Environment variables (API)
 
-`DATABASE_URL`, `SECRET_KEY`, `JWT_SECRET_KEY`, `JWT_EXPIRES_HOURS`, `CORS_ORIGINS`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `LARGE_QUANTITY_THRESHOLD`, `DEFAULT_LOCATION_CODE`.
+`DATABASE_URL`, `SECRET_KEY`, `JWT_SECRET_KEY`, `JWT_EXPIRES_HOURS`, `CORS_ORIGINS`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `LARGE_QUANTITY_THRESHOLD`, `DEFAULT_LOCATION_CODE`.
 
 Frontend (build time): `VITE_API_URL`.
 
@@ -424,7 +424,7 @@ Reporting-style queries over 150,000 rows are fast with the indexes above. Revis
 6. Units and stock calculation, record validation, and review warnings.
 7. Inventory list, creation with locking, Admin edit, lock, and delete.
 8. User management and location scoping.
-9. The read-only assistant, then the Anthropic integration.
+9. The read-only assistant and optional OpenAI answer generation.
 10. Seed command (locations, catalog from section 3, first Admin).
 11. Excel import command with dry run and reconciliation.
 12. Security test suite, deployment files (`render.yaml`), and documentation.

@@ -100,6 +100,8 @@ class BaseConfig:
     LOGIN_MAX_FAILURES = int(os.getenv("LOGIN_MAX_FAILURES", "5"))
     LOGIN_LOCK_MINUTES = int(os.getenv("LOGIN_LOCK_MINUTES", "15"))
     ASSISTANT_HOURLY_LIMIT = int(os.getenv("ASSISTANT_HOURLY_LIMIT", "30"))
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     JSON_SORT_KEYS = True
 
 
