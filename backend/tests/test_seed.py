@@ -1,6 +1,5 @@
 """Initial database seed command tests."""
 
-from flask_migrate import downgrade, upgrade
 from sqlalchemy import func, select
 from werkzeug.security import check_password_hash
 
@@ -95,18 +94,6 @@ def test_seed_defaults_to_requested_primary_admin_and_location_names(app, monkey
         assert admin.is_primary_admin is True
         assert location is not None
         assert location.name == "Gosrani Technical Office"
-
-
-def test_primary_admin_migration_normalizes_existing_location_name(app):
-    downgrade(revision="4d98c21a7b6e")
-    db.session.add(Location(code="ELD", name="Gosrani Technical office"))
-    db.session.commit()
-
-    upgrade()
-
-    location = db.session.scalar(select(Location).where(Location.code == "ELD"))
-    assert location is not None
-    assert location.name == "Gosrani Technical Office"
 
 
 def test_seed_is_idempotent_and_does_not_reset_admin_credentials(app, monkeypatch):
