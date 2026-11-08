@@ -27,6 +27,7 @@ function makeEntry() {
     size: "",
     quantityIn: "",
     quantityOut: "",
+    handledBy: "",
     details: "",
   };
 }
@@ -37,6 +38,9 @@ function validateEntry(entry, item) {
   if (!entry.date) errors.date = "Entry date is required.";
   if (!entry.category) errors.category = "Category is required.";
   if (!entry.item) errors.item = "Name of Item is required.";
+  if (!entry.handledBy.trim()) {
+    errors.handledBy = "Name of the person who handled the stock is required.";
+  }
   if (item?.specifications.length && !entry.size) {
     errors.size = "Specifications/Size is required.";
   }
@@ -242,6 +246,10 @@ export default function EntryFormPage() {
               <dd>{entry.quantityOut || "–"}</dd>
             </div>
             <div>
+              <dt>Handled by</dt>
+              <dd>{entry.handledBy}</dd>
+            </div>
+            <div>
               <dt>Description</dt>
               <dd>{entry.details || "–"}</dd>
             </div>
@@ -410,6 +418,15 @@ export default function EntryFormPage() {
               type="number"
               value={entry.quantityOut ?? ""}
               onChange={(event) => update("quantityOut", event.target.value)}
+            />
+          </Field>
+          <Field error={errors.handledBy} label="Handled by" required>
+            <Input
+              autoComplete="name"
+              maxLength={160}
+              onChange={(event) => update("handledBy", event.target.value)}
+              placeholder="Name of the person who received or dispatched the stock"
+              value={entry.handledBy}
             />
           </Field>
           <Field className="entry-description" label="Description">

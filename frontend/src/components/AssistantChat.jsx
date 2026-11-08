@@ -14,6 +14,7 @@ import { Button } from "./ui";
 
 const suggestions = [
   "How much stock is left for an item and size?",
+  "How much HDF is in stock across all sizes?",
   "Show items received this week",
   "What quantity went out yesterday?",
   "Show entries for a category",

@@ -433,6 +433,7 @@ class InventoryRecord(db.Model):
         nullable=False,
         server_default=text("'PCS'"),
     )
+    handled_by: Mapped[str | None] = mapped_column(String(160))
     details: Mapped[str | None] = mapped_column(Text)
     status: Mapped[RecordStatus] = mapped_column(
         _enum(RecordStatus, "record_status"),

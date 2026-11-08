@@ -133,6 +133,29 @@ def _format_quantity(value: Decimal) -> str:
     return format(value.normalize(), "f")
 
 
+def _query_item_stock(
+    item_id: int,
+    location_ids: list[int],
+    specification_id: int | None = None,
+) -> Decimal:
+    statement = (
+        select(
+            func.coalesce(func.sum(InventoryRecord.qty_in), 0)
+            - func.coalesce(func.sum(InventoryRecord.qty_out), 0)
+        )
+        .select_from(InventoryRecord)
+        .join(InventoryRecord.specification)
+        .where(
+            Specification.item_id == item_id,
+            InventoryRecord.location_id.in_(location_ids),
+            InventoryRecord.deleted_at.is_(None),
+        )
+    )
+    if specification_id is not None:
+        statement = statement.where(InventoryRecord.specification_id == specification_id)
+    return Decimal(str(db.session.scalar(statement) or 0))
+
+
 def _generate_openai_answer(
     question: str, answer: str, records: list[dict], total_matches: int
 ) -> str:
@@ -315,18 +338,11 @@ def query_assistant():
         .where(*criteria)
     )
     if wants_stock and matched_item:
-        stock_statement = (
-            select(
-                func.coalesce(func.sum(InventoryRecord.qty_in), 0)
-                - func.coalesce(func.sum(InventoryRecord.qty_out), 0)
-            )
-            .select_from(InventoryRecord)
-            .join(InventoryRecord.specification)
-            .join(Specification.item)
-            .join(Item.category)
-            .where(*criteria)
+        balance = _query_item_stock(
+            matched_item[0],
+            user_location_ids(user.id),
+            matched_specification[0] if matched_specification else None,
         )
-        balance = Decimal(str(db.session.scalar(stock_statement) or 0))
         specification_label = (
             matched_specification[1] if matched_specification else None
         )

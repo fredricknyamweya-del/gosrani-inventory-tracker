@@ -98,6 +98,12 @@ def _resolve_record(payload: object) -> tuple[dict[str, object] | None, list[dic
     if quantities["quantityIn"] is None and quantities["quantityOut"] is None:
         errors.append({"field": "quantity", "message": "Enter a value for Quantity In or Quantity Out."})
 
+    handled_by = payload.get("handledBy")
+    if not isinstance(handled_by, str) or not handled_by.strip():
+        errors.append({"field": "handledBy", "message": "The name of the person who handled the stock is required."})
+    elif len(handled_by.strip()) > 160:
+        errors.append({"field": "handledBy", "message": "The name must be 160 characters or fewer."})
+
     details = payload.get("details", "")
     if details is not None and not isinstance(details, str):
         errors.append({"field": "details", "message": "Details must be text."})
@@ -113,6 +119,7 @@ def _resolve_record(payload: object) -> tuple[dict[str, object] | None, list[dic
         "specification": specification,
         "quantityIn": quantities["quantityIn"],
         "quantityOut": quantities["quantityOut"],
+        "handledBy": handled_by.strip(),
         "details": (details or "").strip(),
         "enteredUnit": payload.get("enteredUnit", EnteredUnit.PCS.value),
     }, []
@@ -137,6 +144,7 @@ def _serialize(record: InventoryRecord) -> dict[str, object]:
         "size": specification.label if specification else "",
         "quantityIn": json_number(record.qty_in),
         "quantityOut": json_number(record.qty_out),
+        "handledBy": record.handled_by or "",
         "enteredUnit": record.entered_unit.value,
         "details": record.details or "",
         "addedBy": creator.name if creator else "",
@@ -152,6 +160,7 @@ def _record_snapshot(record: InventoryRecord) -> dict[str, object]:
         "specificationId": record.specification_id,
         "quantityIn": json_number(record.qty_in),
         "quantityOut": json_number(record.qty_out),
+        "handledBy": record.handled_by,
         "details": record.details,
         "status": record.status.value,
     }
@@ -228,6 +237,7 @@ def _create_one(payload: dict[str, object], user, location_id: int) -> Inventory
         specification_id=values["specification"].id,
         qty_in=values["quantityIn"],
         qty_out=values["quantityOut"],
+        handled_by=values["handledBy"],
         entered_unit=unit,
         details=values["details"],
         status=RecordStatus.SAVED if user.role == UserRole.ADMIN else RecordStatus.LOCKED,
@@ -282,6 +292,7 @@ def list_inventory():
                 Category.name.ilike(pattern),
                 Item.name.ilike(pattern),
                 Specification.label.ilike(pattern),
+                InventoryRecord.handled_by.ilike(pattern),
                 InventoryRecord.details.ilike(pattern),
                 User.name.ilike(pattern),
             )
@@ -341,6 +352,7 @@ def validate_inventory():
             "size": values["specification"].label,
             "quantityIn": json_number(values["quantityIn"]),
             "quantityOut": json_number(values["quantityOut"]),
+            "handledBy": values["handledBy"],
             "details": values["details"],
         })
     if errors:
@@ -431,6 +443,7 @@ def update_inventory(record_id: int):
         "size": current_specification.label,
         "quantityIn": json_number(record.qty_in),
         "quantityOut": json_number(record.qty_out),
+        "handledBy": record.handled_by or "",
         "details": record.details or "",
         **payload,
     }
@@ -452,6 +465,7 @@ def update_inventory(record_id: int):
     record.specification_id = values["specification"].id
     record.qty_in = values["quantityIn"]
     record.qty_out = values["quantityOut"]
+    record.handled_by = values["handledBy"]
     record.details = values["details"]
     if "status" in payload:
         record.status = RecordStatus(payload["status"])

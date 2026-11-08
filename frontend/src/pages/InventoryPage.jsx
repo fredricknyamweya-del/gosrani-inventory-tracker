@@ -306,6 +306,7 @@ export default function InventoryPage() {
                       <th scope="col">Qty In</th>
                       <th scope="col">Qty Out</th>
                       <th scope="col">Inventory Details</th>
+                      <th scope="col">Handled By</th>
                       <th scope="col">Added By</th>
                       <th scope="col">Status</th>
                       {isAdmin && <th scope="col">Actions</th>}
@@ -331,6 +332,7 @@ export default function InventoryPage() {
                         <td className="inventory-details-cell" title={record.details || undefined}>
                           {record.details || "–"}
                         </td>
+                        <td>{record.handledBy || "–"}</td>
                         <td>{record.addedBy || "–"}</td>
                         <td>
                           <span className="inventory-status-cell">

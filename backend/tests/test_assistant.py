@@ -145,6 +145,69 @@ def test_assistant_limits_stock_to_assigned_locations(client):
     )
 
 
+def test_assistant_queries_item_stock_across_all_specifications(client):
+    user = _create_user(UserRole.ADMIN)
+    location = Location(code="ELD", name="Eldoret")
+    other_location = Location(code="NAK", name="Nakuru")
+    category = Category(name="Mattresses")
+    db.session.add_all([location, other_location, category])
+    db.session.flush()
+    item = Item(category_id=category.id, name="HDF")
+    db.session.add(item)
+    db.session.flush()
+    smaller_specification = Specification(
+        item_id=item.id, label="36x4", is_default=True
+    )
+    larger_specification = Specification(item_id=item.id, label="48x4")
+    db.session.add_all([smaller_specification, larger_specification])
+    db.session.flush()
+    db.session.add_all(
+        [
+            UserLocation(user_id=user.id, location_id=location.id),
+            InventoryRecord(
+                location_id=location.id,
+                record_date=date(2026, 11, 5),
+                specification_id=smaller_specification.id,
+                qty_in=Decimal(12),
+                qty_out=Decimal(2),
+                entered_unit=EnteredUnit.PCS,
+                status=RecordStatus.LOCKED,
+                created_by=user.id,
+            ),
+            InventoryRecord(
+                location_id=location.id,
+                record_date=date(2026, 11, 5),
+                specification_id=larger_specification.id,
+                qty_in=Decimal(8),
+                entered_unit=EnteredUnit.PCS,
+                status=RecordStatus.LOCKED,
+                created_by=user.id,
+            ),
+            InventoryRecord(
+                location_id=other_location.id,
+                record_date=date(2026, 11, 5),
+                specification_id=larger_specification.id,
+                qty_in=Decimal(100),
+                entered_unit=EnteredUnit.PCS,
+                status=RecordStatus.LOCKED,
+                created_by=user.id,
+            ),
+        ]
+    )
+    db.session.commit()
+
+    response = client.post(
+        "/api/assistant/query",
+        json={"question": "How much HDF is in stock across all sizes?"},
+        headers=_authorization(user),
+    )
+
+    assert response.status_code == 200
+    assert response.json["data"]["answer"] == (
+        "Recorded stock for HDF is 18 across its specifications."
+    )
+
+
 def test_assistant_enforces_hourly_limit(client, app):
     app.config["ASSISTANT_HOURLY_LIMIT"] = 1
     user = _create_user(UserRole.ADMIN)

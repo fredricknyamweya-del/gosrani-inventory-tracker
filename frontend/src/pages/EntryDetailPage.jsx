@@ -30,6 +30,7 @@ function recordForm(record) {
     size: record.size,
     quantityIn: record.quantityIn ?? "",
     quantityOut: record.quantityOut ?? "",
+    handledBy: record.handledBy ?? "",
     details: record.details ?? "",
     status: record.status,
     enteredUnit: record.enteredUnit,
@@ -245,6 +246,15 @@ export default function EntryDetailPage() {
                 value={form.quantityOut}
               />
             </Field>
+            <Field label="Handled by" required>
+              <Input
+                autoComplete="name"
+                maxLength={160}
+                onChange={(event) => update("handledBy", event.target.value)}
+                required
+                value={form.handledBy}
+              />
+            </Field>
             <Field label="Entered unit">
               <Select
                 onChange={(event) => update("enteredUnit", event.target.value)}
@@ -325,6 +335,10 @@ export default function EntryDetailPage() {
             <div>
               <dt>Added by</dt>
               <dd>{record.addedBy}</dd>
+            </div>
+            <div>
+              <dt>Handled by</dt>
+              <dd>{record.handledBy || "–"}</dd>
             </div>
             <div>
               <dt>Last modified by</dt>
