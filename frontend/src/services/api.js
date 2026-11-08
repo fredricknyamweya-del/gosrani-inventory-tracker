@@ -1,6 +1,7 @@
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
 ).replace(/\/+$/, "");
+let refreshRequest = null;
 
 function csrfToken(path) {
   if (typeof document === "undefined") return "";
@@ -11,7 +12,8 @@ function csrfToken(path) {
   return cookie ? decodeURIComponent(cookie.slice(cookieName.length + 1)) : "";
 }
 
-async function request(path, { method = "GET", body, query } = {}) {
+async function request(path, options = {}, retryAfterRefresh = true) {
+  const { method = "GET", body, query } = options;
   const url = new URL(`${API_BASE_URL}${path}`);
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== undefined && value !== null && value !== "") {
@@ -48,6 +50,21 @@ async function request(path, { method = "GET", body, query } = {}) {
     result = response.status === 204 ? {} : await response.json();
   } catch {
     throw new Error(`The API returned an invalid response (${response.status}).`);
+  }
+  if (
+    response.status === 401 &&
+    retryAfterRefresh &&
+    !["/auth/login", "/auth/refresh"].includes(path)
+  ) {
+    refreshRequest ??= request(
+      "/auth/refresh",
+      { method: "POST", body: {} },
+      false,
+    ).finally(() => {
+      refreshRequest = null;
+    });
+    await refreshRequest;
+    return request(path, options, false);
   }
   if (!response.ok) {
     const error = new Error(result.message || `The request failed (${response.status}).`);

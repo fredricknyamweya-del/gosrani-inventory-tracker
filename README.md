@@ -359,6 +359,14 @@ are not available yet. Decide the following before completing the backend:
   `CORS_ORIGINS` with the exact frontend origin(s); the API enables credentialed
   CORS for `/api/*`. Set `VITE_API_BASE_URL` to the reachable API base ending
   in `/api`. Never use `*` for credentialed CORS.
+- Authentication persists in HTTP-only cookies across page reloads. Expired
+  access tokens are refreshed automatically, and the frontend signs users out
+  after 15 minutes without activity.
+- Production auth cookies use `SameSite=None; Secure` by default so separate
+  Render-hosted frontend and API domains can send cookies with credentialed
+  requests. If the browser blocks third-party cookies, use custom frontend and
+  API domains under the same registrable domain, set `COOKIE_DOMAIN` to that
+  shared parent domain, and set `COOKIE_SAMESITE=Lax`.
 
 ---
 

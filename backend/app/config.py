@@ -57,6 +57,10 @@ def _testing_database_url(value: str | None) -> str:
     return value or "sqlite:///:memory:"
 
 
+def _cookie_samesite(default: str) -> str:
+    return os.getenv("COOKIE_SAMESITE", default)
+
+
 class BaseConfig:
     """Settings shared by all runtime environments."""
 
@@ -74,7 +78,7 @@ class BaseConfig:
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_MINUTES", "15")) * 60
     JWT_REFRESH_TOKEN_EXPIRES = int(os.getenv("JWT_REFRESH_HOURS", "12")) * 60 * 60
     JWT_COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-    JWT_COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "Lax")
+    JWT_COOKIE_SAMESITE = _cookie_samesite("Lax")
     JWT_COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN") or None
     JWT_ACCESS_COOKIE_PATH = "/api"
     JWT_REFRESH_COOKIE_PATH = "/api/auth"
@@ -125,6 +129,7 @@ class ProductionConfig(BaseConfig):
     SECRET_KEY = os.getenv("SECRET_KEY")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_COOKIE_SECURE = True
+    JWT_COOKIE_SAMESITE = _cookie_samesite("None")
     SQLALCHEMY_DATABASE_URI = _database_url(os.getenv("DATABASE_URL"), require_ssl=True)
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict[str, object]] = _database_engine_options(
         SQLALCHEMY_DATABASE_URI

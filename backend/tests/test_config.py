@@ -5,6 +5,7 @@ from sqlalchemy.engine import make_url
 
 from app.config import (
     ProductionConfig,
+    _cookie_samesite,
     _database_engine_options,
     _database_url,
     _testing_database_url,
@@ -18,6 +19,14 @@ def test_empty_test_database_url_uses_in_memory_sqlite(database_url):
 
 def test_test_database_url_preserves_configured_database():
     assert _testing_database_url("sqlite:///test.db") == "sqlite:///test.db"
+
+
+def test_cookie_samesite_uses_default_and_environment_override(monkeypatch):
+    monkeypatch.delenv("COOKIE_SAMESITE", raising=False)
+    assert _cookie_samesite("None") == "None"
+
+    monkeypatch.setenv("COOKIE_SAMESITE", "Lax")
+    assert _cookie_samesite("None") == "Lax"
 
 
 @pytest.mark.parametrize(
