@@ -245,6 +245,9 @@ persisted records. Client-side checks are only for usability.
 - Provide visible keyboard focus, accessible names for icon-only buttons,
   appropriate live regions for chat updates, and reduced-motion support.
 - On narrow screens, present navigation as a slide-in drawer.
+- Use responsive CSS Grid and Flexbox layouts, switching the application shell,
+  page headers, and inventory filters to compact layouts on narrow screens.
+  Keep wide inventory and user tables inside horizontally scrollable panels.
 
 ## Planned API contract
 
