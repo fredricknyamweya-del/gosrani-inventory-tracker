@@ -139,6 +139,25 @@ values are provided in the non-HttpOnly `csrf_access_token` and
   duplicated, unknown, or inactive.
 - Other applicable statuses: `401`, `403`, `409`, `500`, `503`.
 
+### `PATCH /api/users/{id}`
+
+- Auth: Active administrator and access CSRF token in `X-CSRF-TOKEN`
+- Request: Any of `name`, `email`, `role`, or `status`; for example:
+
+  ```json
+  {
+    "email": "new-address@example.com"
+  }
+  ```
+
+- `200`: Updates the supplied fields and returns the user. Email addresses are
+  validated, stored in lowercase, and must be unique.
+- `404`: User does not exist.
+- `409`: The primary administrator cannot be demoted or deactivated, or an
+  update would remove the last active administrator.
+- `422`: A supplied field is invalid or the email address is already in use.
+- Other applicable statuses: `401`, `403`, `500`, `503`.
+
 ### `DELETE /api/users/{id}`
 
 - Auth: Active administrator and access CSRF token in `X-CSRF-TOKEN`

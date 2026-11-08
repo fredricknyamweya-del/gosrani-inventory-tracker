@@ -160,6 +160,51 @@ def test_admin_can_create_user_with_selected_location(client, app):
         assert db.session.get(UserLocation, (user_id, location.id)) is not None
 
 
+def test_admin_can_update_user_email(client, app):
+    admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
+    target = create_user("Staff", "staff@example.com")
+    csrf_token = authenticate(client, admin)
+
+    response = client.patch(
+        f"/api/users/{target.id}",
+        headers={"X-CSRF-TOKEN": csrf_token},
+        json={"email": "New.Staff@example.com"},
+    )
+
+    assert response.status_code == 200
+    assert response.json["data"]["email"] == "new.staff@example.com"
+    with app.app_context():
+        updated_user = db.session.get(User, target.id)
+        assert updated_user.email == "new.staff@example.com"
+        update_audit = db.session.scalar(
+            db.select(AuditLog).where(
+                AuditLog.entity_type == AuditEntity.USER,
+                AuditLog.entity_id == target.id,
+                AuditLog.action == AuditAction.UPDATE,
+            )
+        )
+        assert update_audit is not None
+        assert update_audit.before["email"] == "staff@example.com"
+        assert update_audit.after["email"] == "new.staff@example.com"
+
+
+def test_admin_cannot_update_user_email_to_an_existing_address(client):
+    admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
+    target = create_user("Staff", "staff@example.com")
+    another_user = create_user("Another Staff", "another@example.com")
+    csrf_token = authenticate(client, admin)
+
+    response = client.patch(
+        f"/api/users/{target.id}",
+        headers={"X-CSRF-TOKEN": csrf_token},
+        json={"email": another_user.email},
+    )
+
+    assert response.status_code == 422
+    assert response.json["errors"][0]["field"] == "email"
+    assert target.email == "staff@example.com"
+
+
 def test_create_user_rejects_inactive_location(client):
     admin = create_user("Admin", "admin@example.com", UserRole.ADMIN)
     location = Location(code="OLD", name="Old warehouse", active=False)

@@ -35,7 +35,7 @@ function UserStatus({ status }) {
 }
 
 export default function UsersPage() {
-  const { user: signedInUser } = useAuth();
+  const { user: signedInUser, refreshUser } = useAuth();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -53,6 +53,10 @@ export default function UsersPage() {
   const [editedName, setEditedName] = useState("");
   const [nameError, setNameError] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [emailTarget, setEmailTarget] = useState(null);
+  const [editedEmail, setEditedEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
   const [changeTarget, setChangeTarget] = useState(null);
   const [changeError, setChangeError] = useState("");
   const [changing, setChanging] = useState(false);
@@ -161,6 +165,38 @@ export default function UsersPage() {
       setNameError(requestError.message);
     } finally {
       setSavingName(false);
+    }
+  }
+
+  function requestEmailChange(entry) {
+    setEmailTarget(entry);
+    setEditedEmail(entry.email);
+    setEmailError("");
+  }
+
+  function closeEmailChange() {
+    if (savingEmail) return;
+    setEmailTarget(null);
+    setEditedEmail("");
+    setEmailError("");
+  }
+
+  async function saveEmailChange(event) {
+    event.preventDefault();
+    if (!emailTarget) return;
+    setSavingEmail(true);
+    setEmailError("");
+    try {
+      await api.updateUser(emailTarget.id, { email: editedEmail.trim() });
+      await reload();
+      if (emailTarget.id === signedInUser?.id) await refreshUser();
+      setEmailTarget(null);
+      setEditedEmail("");
+      setToast({ message: "User email updated." });
+    } catch (requestError) {
+      setEmailError(requestError.message);
+    } finally {
+      setSavingEmail(false);
     }
   }
 
@@ -386,6 +422,14 @@ export default function UsersPage() {
                           <Pencil aria-hidden="true" size={15} />
                           Edit name
                         </Button>
+                        <Button
+                          aria-label={`Edit email for ${entry.name}`}
+                          onClick={() => requestEmailChange(entry)}
+                          variant="ghost"
+                        >
+                          <Pencil aria-hidden="true" size={15} />
+                          Edit email
+                        </Button>
                         {entry.status === "Active" ? (
                           <Button
                             aria-label={`Deactivate ${entry.name}`}
@@ -582,6 +626,61 @@ export default function UsersPage() {
           {nameError && (
             <p className="users-inline-error" role="alert">
               {nameError}
+            </p>
+          )}
+        </form>
+      </Modal>
+
+      <Modal
+        description={`Update the email address used to sign in as ${emailTarget?.name ?? "this user"}.`}
+        footer={
+          <>
+            <Button
+              disabled={savingEmail}
+              onClick={closeEmailChange}
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                !editedEmail.trim() ||
+                editedEmail.trim().toLocaleLowerCase() ===
+                  emailTarget?.email.toLocaleLowerCase()
+              }
+              form="edit-user-email-form"
+              loading={savingEmail}
+              type="submit"
+            >
+              Save email
+            </Button>
+          </>
+        }
+        onClose={closeEmailChange}
+        open={Boolean(emailTarget)}
+        title="Edit user email"
+      >
+        <form
+          className="users-form"
+          id="edit-user-email-form"
+          onSubmit={saveEmailChange}
+        >
+          <Field label="Email" required>
+            <Input
+              autoComplete="email"
+              maxLength={254}
+              onChange={(event) => {
+                setEditedEmail(event.target.value);
+                setEmailError("");
+              }}
+              required
+              type="email"
+              value={editedEmail}
+            />
+          </Field>
+          {emailError && (
+            <p className="users-inline-error" role="alert">
+              {emailError}
             </p>
           )}
         </form>
