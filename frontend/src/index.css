@@ -1443,6 +1443,47 @@
   padding: 22px;
 }
 
+.entry-batch-list,
+.entry-review-entries {
+  display: grid;
+  gap: 16px;
+}
+
+.entry-batch-row,
+.entry-review-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--surface);
+}
+
+.entry-batch-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.entry-batch-heading h2,
+.entry-review-card h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.entry-remove-row {
+  min-height: 34px;
+  padding: 6px 9px;
+  color: var(--red);
+  font-size: 12px;
+}
+
+.entry-add-row {
+  margin-top: 18px;
+}
+
 .password-change-panel {
   display: grid;
   max-width: 560px;
@@ -1878,6 +1919,18 @@
   margin: 0;
 }
 
+.entry-review-entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry-review-card {
+  display: grid;
+  gap: 14px;
+  background: var(--surface);
+}
+
 .entry-review-list > div {
   display: grid;
   align-content: start;
@@ -2035,6 +2088,11 @@
 
   .entry-form-panel {
     padding: 16px;
+  }
+
+  .entry-batch-row,
+  .entry-review-card {
+    padding: 13px;
   }
 
   .entry-record-hero {
