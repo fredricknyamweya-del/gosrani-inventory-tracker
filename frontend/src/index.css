@@ -1475,6 +1475,18 @@
   gap: 20px;
 }
 
+.entry-quantity-section {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 20px;
+}
+
+.entry-quantity-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
 .entry-handler-field {
   grid-column: 1 / -1;
   gap: 9px;
@@ -2041,6 +2053,14 @@
   .entry-handler-field {
     grid-column: auto;
     padding: 13px;
+  }
+
+  .entry-quantity-section {
+    grid-column: auto;
+  }
+
+  .entry-quantity-fields {
+    grid-template-columns: 1fr;
   }
 
   .entry-handler-field .input {

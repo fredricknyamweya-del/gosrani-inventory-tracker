@@ -399,39 +399,43 @@ export default function EntryFormPage() {
               ))}
             </Select>
           </Field>
-          <Field label="Quantity unit" required>
-            <Select
-              value={entry.enteredUnit}
-              onChange={(event) => update("enteredUnit", event.target.value)}
-            >
-              <option value="BALE">Bale(s)</option>
-              <option value="PCS">Pcs</option>
-            </Select>
-          </Field>
-          <Field
-            error={errors.quantityIn || errors.quantity}
-            label={`Quantity In (${enteredUnitLabel})`}
-          >
-            <Input
-              min="0"
-              step="1"
-              type="number"
-              value={entry.quantityIn ?? ""}
-              onChange={(event) => update("quantityIn", event.target.value)}
-            />
-          </Field>
-          <Field
-            error={errors.quantityOut || errors.quantity}
-            label={`Quantity Out (${enteredUnitLabel})`}
-          >
-            <Input
-              min="0"
-              step="1"
-              type="number"
-              value={entry.quantityOut ?? ""}
-              onChange={(event) => update("quantityOut", event.target.value)}
-            />
-          </Field>
+          <div className="entry-quantity-section">
+            <Field label="Quantity unit" required>
+              <Select
+                value={entry.enteredUnit}
+                onChange={(event) => update("enteredUnit", event.target.value)}
+              >
+                <option value="BALE">Bale(s)</option>
+                <option value="PCS">Pcs</option>
+              </Select>
+            </Field>
+            <div className="entry-quantity-fields">
+              <Field
+                error={errors.quantityIn || errors.quantity}
+                label={`Quantity In (${enteredUnitLabel})`}
+              >
+                <Input
+                  min="0"
+                  step="1"
+                  type="number"
+                  value={entry.quantityIn ?? ""}
+                  onChange={(event) => update("quantityIn", event.target.value)}
+                />
+              </Field>
+              <Field
+                error={errors.quantityOut || errors.quantity}
+                label={`Quantity Out (${enteredUnitLabel})`}
+              >
+                <Input
+                  min="0"
+                  step="1"
+                  type="number"
+                  value={entry.quantityOut ?? ""}
+                  onChange={(event) => update("quantityOut", event.target.value)}
+                />
+              </Field>
+            </div>
+          </div>
           <Field
             className="entry-handler-field"
             error={errors.handledBy}
