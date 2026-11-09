@@ -129,10 +129,8 @@ export default function EntryFormPage() {
   }
 
   function addEntry() {
-    setEntries((current) => [
-      ...current,
-      makeEntry(++entryId.current),
-    ]);
+    const newEntry = makeEntry(++entryId.current);
+    setEntries((current) => [...current, newEntry]);
   }
 
   function removeEntry(entryId) {
