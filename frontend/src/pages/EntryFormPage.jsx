@@ -25,6 +25,7 @@ function makeEntry() {
     category: "",
     item: "",
     size: "",
+    enteredUnit: "PCS",
     quantityIn: "",
     quantityOut: "",
     handledBy: "",
@@ -99,6 +100,8 @@ export default function EntryFormPage() {
     (item) => item.active && item.categoryId === selectedCategory?.id,
   );
   const selectedItem = availableItems.find((item) => item.name === entry.item);
+  const enteredUnitLabel =
+    entry.enteredUnit === "BALE" ? "Bale(s)" : "Pcs";
   const ownRequests = myRequests ?? [];
   const catalogItems = catalog?.items ?? [];
 
@@ -238,11 +241,11 @@ export default function EntryFormPage() {
               <dd>{entry.size || "–"}</dd>
             </div>
             <div>
-              <dt>Quantity In</dt>
+              <dt>Quantity In ({enteredUnitLabel})</dt>
               <dd>{entry.quantityIn || "–"}</dd>
             </div>
             <div>
-              <dt>Quantity Out</dt>
+              <dt>Quantity Out ({enteredUnitLabel})</dt>
               <dd>{entry.quantityOut || "–"}</dd>
             </div>
             <div>
@@ -396,9 +399,18 @@ export default function EntryFormPage() {
               ))}
             </Select>
           </Field>
+          <Field label="Quantity unit" required>
+            <Select
+              value={entry.enteredUnit}
+              onChange={(event) => update("enteredUnit", event.target.value)}
+            >
+              <option value="BALE">Bale(s)</option>
+              <option value="PCS">Pcs</option>
+            </Select>
+          </Field>
           <Field
             error={errors.quantityIn || errors.quantity}
-            label="Quantity In"
+            label={`Quantity In (${enteredUnitLabel})`}
           >
             <Input
               min="0"
@@ -410,7 +422,7 @@ export default function EntryFormPage() {
           </Field>
           <Field
             error={errors.quantityOut || errors.quantity}
-            label="Quantity Out"
+            label={`Quantity Out (${enteredUnitLabel})`}
           >
             <Input
               min="0"
@@ -421,15 +433,17 @@ export default function EntryFormPage() {
             />
           </Field>
           <Field
+            className="entry-handler-field"
             error={errors.handledBy}
-            label="Received / dispatched by"
+            hint="Enter the full name of the person receiving stock into or dispatching it from the godown."
+            label="Person who received / dispatched the stock"
             required
           >
             <Input
               autoComplete="name"
               maxLength={160}
               onChange={(event) => update("handledBy", event.target.value)}
-              placeholder="Name of the person who received or dispatched the stock"
+              placeholder="Full name of recipient / dispatcher"
               required
               value={entry.handledBy}
             />

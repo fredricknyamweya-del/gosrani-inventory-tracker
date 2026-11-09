@@ -1475,6 +1475,36 @@
   gap: 20px;
 }
 
+.entry-handler-field {
+  grid-column: 1 / -1;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--red) 42%, var(--border));
+  border-left: 4px solid var(--red);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--red-soft);
+}
+
+.entry-handler-field .field-label {
+  color: var(--red);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.entry-handler-field .input {
+  height: 48px;
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--red) 42%, var(--border-strong));
+  background: var(--surface);
+  font-size: 15px;
+}
+
+.entry-handler-field .field-hint {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 550;
+}
+
 .entry-description {
   grid-column: 1 / -1;
 }
@@ -2006,6 +2036,16 @@
   .entry-form-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+
+  .entry-handler-field {
+    grid-column: auto;
+    padding: 13px;
+  }
+
+  .entry-handler-field .input {
+    height: 50px;
+    font-size: 16px;
   }
 
   .entry-own-requests {

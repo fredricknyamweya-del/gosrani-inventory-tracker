@@ -353,6 +353,7 @@ def validate_inventory():
             "quantityIn": json_number(values["quantityIn"]),
             "quantityOut": json_number(values["quantityOut"]),
             "handledBy": values["handledBy"],
+            "enteredUnit": values["enteredUnit"],
             "details": values["details"],
         })
     if errors:
