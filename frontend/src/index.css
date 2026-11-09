@@ -1479,6 +1479,7 @@
   display: grid;
   grid-column: 1 / -1;
   gap: 20px;
+  width: 75%;
 }
 
 .entry-quantity-fields {
@@ -1490,6 +1491,7 @@
 .entry-handler-field {
   grid-column: 1 / -1;
   gap: 9px;
+  width: 75%;
   border: 1px solid color-mix(in srgb, var(--red) 42%, var(--border));
   border-left: 4px solid var(--red);
   border-radius: 10px;
@@ -2053,10 +2055,12 @@
   .entry-handler-field {
     grid-column: auto;
     padding: 13px;
+    width: 100%;
   }
 
   .entry-quantity-section {
     grid-column: auto;
+    width: 100%;
   }
 
   .entry-quantity-fields {
