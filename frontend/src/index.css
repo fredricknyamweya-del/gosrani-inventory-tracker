@@ -1488,10 +1488,14 @@
   gap: 20px;
 }
 
+.entry-quantity-unit {
+  width: calc(50% - 10px);
+}
+
 .entry-handler-field {
   grid-column: 1 / -1;
   gap: 9px;
-  width: 75%;
+  width: calc(37.5% - 10px);
   border: 1px solid color-mix(in srgb, var(--red) 42%, var(--border));
   border-left: 4px solid var(--red);
   border-radius: 10px;
@@ -2060,6 +2064,10 @@
 
   .entry-quantity-section {
     grid-column: auto;
+    width: 100%;
+  }
+
+  .entry-quantity-unit {
     width: 100%;
   }
 

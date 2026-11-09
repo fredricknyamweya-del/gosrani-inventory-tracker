@@ -400,7 +400,7 @@ export default function EntryFormPage() {
             </Select>
           </Field>
           <div className="entry-quantity-section">
-            <Field label="Quantity unit" required>
+            <Field className="entry-quantity-unit" label="Quantity unit" required>
               <Select
                 value={entry.enteredUnit}
                 onChange={(event) => update("enteredUnit", event.target.value)}
