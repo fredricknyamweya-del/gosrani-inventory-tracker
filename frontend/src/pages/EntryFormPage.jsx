@@ -241,11 +241,11 @@ export default function EntryFormPage() {
               <dd>{entry.size || "–"}</dd>
             </div>
             <div>
-              <dt>Quantity In ({enteredUnitLabel})</dt>
+              <dt>Quantity In {enteredUnitLabel}</dt>
               <dd>{entry.quantityIn || "–"}</dd>
             </div>
             <div>
-              <dt>Quantity Out ({enteredUnitLabel})</dt>
+              <dt>Quantity Out {enteredUnitLabel}</dt>
               <dd>{entry.quantityOut || "–"}</dd>
             </div>
             <div>
@@ -412,7 +412,7 @@ export default function EntryFormPage() {
             <div className="entry-quantity-fields">
               <Field
                 error={errors.quantityIn || errors.quantity}
-                label={`Quantity In (${enteredUnitLabel})`}
+                label={`Quantity In ${enteredUnitLabel}`}
               >
                 <Input
                   min="0"
@@ -424,7 +424,7 @@ export default function EntryFormPage() {
               </Field>
               <Field
                 error={errors.quantityOut || errors.quantity}
-                label={`Quantity Out (${enteredUnitLabel})`}
+                label={`Quantity Out ${enteredUnitLabel}`}
               >
                 <Input
                   min="0"
