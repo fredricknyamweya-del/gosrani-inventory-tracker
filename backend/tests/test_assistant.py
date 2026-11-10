@@ -48,7 +48,7 @@ def test_assistant_normalizes_dimensions_units_punctuation_and_plural_names():
     assert _normalized("BLS bales pcs pieces KGS kilograms") == (
         "bale bale pc pc kg kg"
     )
-    assert _normalized("BEDCOVERS") == "bedcover"
+    assert _normalized("BEDCOVERS") == "bedcovers"
 
 
 def test_assistant_resolves_partial_names_and_synonyms_without_guessing():

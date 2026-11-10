@@ -104,7 +104,7 @@ def _normalized(value: str) -> str:
     value = re.sub(r"(?<=\d)\s*[x*]\s*(?=\d)", "x", value)
     value = re.sub(r"[^a-z0-9\s]", " ", value)
     words = " ".join(value.split()).split()
-    normalized_words = [_UNIT_WORDS.get(word, _singular(word)) for word in words]
+    normalized_words = [_UNIT_WORDS.get(word, word) for word in words]
     return " ".join(normalized_words)
 
 
@@ -114,6 +114,10 @@ def _singular(word: str) -> str:
     if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
         return word[:-1]
     return word
+
+
+def _entity_key(value: str) -> str:
+    return " ".join(_singular(word) for word in _normalized(value).split())
 
 
 def _active_catalog():
@@ -145,21 +149,21 @@ def _resolve_catalog_entity(
     entity_type: str,
 ) -> tuple[tuple[int, str] | None, list[str]]:
     """Resolve a catalog name without choosing between equally plausible matches."""
-    query_normalized = _normalized(query)
+    query_normalized = _entity_key(query)
     if not query_normalized:
         return None, []
 
     synonyms = _SYNONYMS.get(entity_type, {})
     canonical_to_aliases: dict[str, set[str]] = {}
     for alias, canonical in synonyms.items():
-        canonical_to_aliases.setdefault(_normalized(canonical), set()).add(
-            _normalized(alias)
+        canonical_to_aliases.setdefault(_entity_key(canonical), set()).add(
+            _entity_key(alias)
         )
 
     candidates: list[tuple[float, tuple[int, str]]] = []
     query_tokens = set(query_normalized.split())
     for value in values:
-        name = _normalized(value[1])
+        name = _entity_key(value[1])
         aliases = canonical_to_aliases.get(name, set())
         forms = {name, *aliases}
         score = 0.0
