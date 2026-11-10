@@ -9,8 +9,8 @@ from unittest.mock import Mock
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
-from app.extensions import db
 from app.assistant import _normalized, _resolve_catalog_entity
+from app.extensions import db
 from app.models import (
     AssistantQuery,
     Category,
