@@ -10,6 +10,7 @@ from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
 from app.extensions import db
+from app.assistant import _normalized, _resolve_catalog_entity
 from app.models import (
     AssistantQuery,
     Category,
@@ -40,6 +41,27 @@ def _create_user(role: UserRole) -> User:
 def _authorization(user: User) -> dict[str, str]:
     token = create_access_token(identity=str(user.id))
     return {"Authorization": f"Bearer {token}"}
+
+
+def test_assistant_normalizes_dimensions_units_punctuation_and_plural_names():
+    assert _normalized("  4 X 6, 4*6, 4 × 6  ") == "4x6 4x6 4x6"
+    assert _normalized("BLS bales pcs pieces KGS kilograms") == (
+        "bale bale pc pc kg kg"
+    )
+    assert _normalized("BEDCOVERS") == "bedcovers"
+
+
+def test_assistant_resolves_partial_names_and_synonyms_without_guessing():
+    categories = [(1, "Bedcovers"), (2, "Bedding")]
+    items = [(1, "Pillow 600g"), (2, "Pillow 700g")]
+
+    match, suggestions = _resolve_catalog_entity("bed covers", categories, "categories")
+    assert match == categories[0]
+    assert suggestions == []
+
+    match, suggestions = _resolve_catalog_entity("Pillows", items, "items")
+    assert match is None
+    assert suggestions == ["Pillow 600g", "Pillow 700g"]
 
 
 def test_assistant_requires_authentication(client):

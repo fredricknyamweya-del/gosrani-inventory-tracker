@@ -19,6 +19,7 @@ openpyxl = "*"
 [dev-packages]
 pytest = "*"
 pytest-cov = "*"
+flask-caching = "*"
 ruff = "*"
 
 [requires]
