@@ -4,6 +4,8 @@ import json
 import re
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from difflib import SequenceMatcher
+from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required
@@ -79,9 +81,120 @@ _STOP_WORDS = {
     "details",
 }
 
+_UNIT_WORDS = {
+    "bl": "bale",
+    "bls": "bale",
+    "bale": "bale",
+    "bales": "bale",
+    "pc": "pc",
+    "pcs": "pc",
+    "piece": "pc",
+    "pieces": "pc",
+    "kg": "kg",
+    "kgs": "kg",
+    "kilogram": "kg",
+    "kilograms": "kg",
+}
+_SYNONYMS_PATH = Path(__file__).with_name("assistant_synonyms.json")
+_SYNONYMS = json.loads(_SYNONYMS_PATH.read_text(encoding="utf-8"))
+
 
 def _normalized(value: str) -> str:
-    return " ".join(value.casefold().split())
+    value = value.casefold().replace("×", "x")
+    value = re.sub(r"(?<=\d)\s*[x*]\s*(?=\d)", "x", value)
+    value = re.sub(r"[^a-z0-9\s]", " ", value)
+    words = " ".join(value.split()).split()
+    normalized_words = [_UNIT_WORDS.get(word, _singular(word)) for word in words]
+    return " ".join(normalized_words)
+
+
+def _singular(word: str) -> str:
+    if len(word) > 4 and word.endswith("ies"):
+        return f"{word[:-3]}y"
+    if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+
+def _active_catalog():
+    """Load only active catalog names for matching and safe intent extraction."""
+    categories = db.session.execute(
+        select(Category.id, Category.name).where(Category.active.is_(True))
+    ).all()
+    items = db.session.execute(
+        select(Item.id, Item.name, Item.category_id, Category.name)
+        .join(Category, Item.category_id == Category.id)
+        .where(Item.active.is_(True), Category.active.is_(True))
+    ).all()
+    sizes = db.session.execute(
+        select(Specification.id, Specification.label, Specification.item_id, Item.name)
+        .join(Item, Specification.item_id == Item.id)
+        .join(Category, Item.category_id == Category.id)
+        .where(
+            Specification.active.is_(True),
+            Item.active.is_(True),
+            Category.active.is_(True),
+        )
+    ).all()
+    return categories, items, sizes
+
+
+def _resolve_catalog_entity(
+    query: str,
+    values: list[tuple[int, str]],
+    entity_type: str,
+) -> tuple[tuple[int, str] | None, list[str]]:
+    """Resolve a catalog name without choosing between equally plausible matches."""
+    query_normalized = _normalized(query)
+    if not query_normalized:
+        return None, []
+
+    synonyms = _SYNONYMS.get(entity_type, {})
+    canonical_to_aliases: dict[str, set[str]] = {}
+    for alias, canonical in synonyms.items():
+        canonical_to_aliases.setdefault(_normalized(canonical), set()).add(
+            _normalized(alias)
+        )
+
+    candidates: list[tuple[float, tuple[int, str]]] = []
+    query_tokens = set(query_normalized.split())
+    for value in values:
+        name = _normalized(value[1])
+        aliases = canonical_to_aliases.get(name, set())
+        forms = {name, *aliases}
+        score = 0.0
+        if query_normalized in forms:
+            score = 4.0
+        elif any(form and form in query_normalized for form in forms):
+            score = 3.0 + max(len(form) for form in forms if form in query_normalized) / 1000
+        else:
+            tokens = set(name.split())
+            if tokens and tokens.issubset(query_tokens):
+                score = 2.0 + len(tokens) / 1000
+            elif tokens & query_tokens:
+                overlap = len(tokens & query_tokens) / len(tokens)
+                if overlap >= 0.5:
+                    score = 1.0 + overlap
+            if score == 0:
+                score = max(
+                    (SequenceMatcher(None, form, query_normalized).ratio() for form in forms),
+                    default=0,
+                )
+                if score < 0.78:
+                    score = 0
+        if score:
+            candidates.append((score, value))
+
+    if not candidates:
+        return None, []
+    best_score = max(score for score, _value in candidates)
+    winners = sorted(
+        {value for score, value in candidates if score == best_score},
+        key=lambda value: value[1].casefold(),
+    )
+    if len(winners) != 1:
+        return None, [value[1] for value in winners[:3]]
+    return winners[0], []
 
 
 def _match_catalog_name(
