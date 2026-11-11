@@ -177,7 +177,7 @@ export default function AppLayout() {
     { to: "/inventory/new", label: "Add Entry", icon: PackagePlus },
     ...(isAdmin
       ? [
-          { to: "/assistant", label: "AI Assistant", icon: Sparkles },
+          { to: "/assistant", label: "Assistance", icon: Sparkles },
           {
             to: "/catalog",
             label: "Product Catalog",
@@ -361,7 +361,7 @@ export default function AppLayout() {
         <button
           aria-controls="assistant-panel"
           aria-expanded={assistantOpen}
-          aria-label={assistantOpen ? "Close AI assistant" : "Open AI assistant"}
+          aria-label={assistantOpen ? "Close assistance" : "Open assistance"}
           className="assistant-launcher"
           onClick={() => setAssistantOpen((open) => !open)}
           ref={assistantTriggerRef}
@@ -393,10 +393,10 @@ export default function AppLayout() {
             <header className="assistant-panel-header">
               <div>
                 <span>ADMIN WORKSPACE</span>
-                <h2 id="assistant-panel-title">AI Assistant</h2>
+                <h2 id="assistant-panel-title">Assistance</h2>
               </div>
               <button
-                aria-label="Close AI assistant"
+                aria-label="Close assistance"
                 className="icon-btn"
                 onClick={() => setAssistantOpen(false)}
                 ref={assistantCloseRef}
