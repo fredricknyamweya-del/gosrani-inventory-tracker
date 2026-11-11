@@ -92,6 +92,13 @@ export default function AssistantChat({ compact = false }) {
       inputRef.current?.focus();
       return;
     }
+    if (requestQuestion.length > 500) {
+      setValidationError(
+        "Keep your question and product name to 500 characters or fewer.",
+      );
+      inputRef.current?.focus();
+      return;
+    }
 
     setValidationError("");
     setDraft("");

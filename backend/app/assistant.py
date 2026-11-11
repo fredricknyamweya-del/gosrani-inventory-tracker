@@ -400,7 +400,10 @@ def query_assistant():
         return validation_error([{"field": "question", "message": str(exc)}])
 
     if wants_stock and not matched_item:
-        answer = "Which product would you like me to check? Enter its actual catalog name."
+        answer = (
+            "Which product would you like me to check? "
+            "Enter its actual catalog name."
+        )
         db.session.add(
             AssistantQuery(
                 user_id=user.id,

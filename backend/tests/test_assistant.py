@@ -279,7 +279,7 @@ def test_assistant_asks_for_item_before_querying_stock(client):
     )
 
     assert response.status_code == 200
-    assert response.json["data"]["needsClarification"] is None
+    assert "needsClarification" not in response.json["data"]
     assert response.json["data"]["answer"] == (
         "Recorded stock for Vivo Mattress is 8 across its specifications."
     )
