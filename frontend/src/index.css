@@ -3341,17 +3341,15 @@
 }
 
 .assistant-launcher {
-  position: fixed;
-  z-index: 45;
-  right: 24px;
-  bottom: 64px;
   display: inline-flex;
+  align-self: flex-end;
   min-height: 52px;
   align-items: center;
   justify-content: center;
   gap: 10px;
   border: 1px solid rgb(255 255 255 / 28%);
   border-radius: 999px;
+  margin: 0 30px 12px;
   padding: 0 20px;
   background: linear-gradient(135deg, var(--red), var(--red-hover));
   box-shadow:
@@ -3512,11 +3510,6 @@
     height: 26px;
   }
 
-  .assistant-launcher {
-    right: 16px;
-    bottom: 56px;
-  }
-
   .assistant-panel-backdrop {
     padding: 16px 16px 76px;
   }
@@ -3524,6 +3517,14 @@
   .assistant-panel {
     width: 100%;
     height: min(620px, calc(100dvh - 100px));
+  }
+}
+
+@media (max-width: 760px) {
+  .assistant-launcher {
+    margin-right: 16px;
+    margin-bottom: 12px;
+    margin-left: 16px;
   }
 }
 

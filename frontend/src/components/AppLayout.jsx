@@ -352,25 +352,25 @@ export default function AppLayout() {
         <main className="app-content">
           <Outlet />
         </main>
+        {isAdmin && (
+          <button
+            aria-controls="assistant-panel"
+            aria-expanded={assistantOpen}
+            aria-label={assistantOpen ? "Close assistance" : "Open assistance"}
+            className="assistant-launcher"
+            onClick={() => setAssistantOpen((open) => !open)}
+            ref={assistantTriggerRef}
+            type="button"
+          >
+            <Sparkles aria-hidden="true" size={18} />
+            <span>Assistant</span>
+          </button>
+        )}
         <footer className="app-footer">
           <span>© {new Date().getFullYear()} Gosrani Wholesalers Limited</span>
           <span>Eldoret, Kenya</span>
         </footer>
       </div>
-      {isAdmin && (
-        <button
-          aria-controls="assistant-panel"
-          aria-expanded={assistantOpen}
-          aria-label={assistantOpen ? "Close assistance" : "Open assistance"}
-          className="assistant-launcher"
-          onClick={() => setAssistantOpen((open) => !open)}
-          ref={assistantTriggerRef}
-          type="button"
-        >
-          <Sparkles aria-hidden="true" size={18} />
-          <span>Assistant</span>
-        </button>
-      )}
       {isAdmin && assistantOpen && (
         <div
           className="assistant-panel-backdrop"
