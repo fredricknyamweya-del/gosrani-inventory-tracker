@@ -230,6 +230,61 @@ def test_assistant_queries_item_stock_across_all_specifications(client):
     )
 
 
+def test_assistant_asks_for_item_before_querying_stock(client):
+    user = _create_user(UserRole.ADMIN)
+    location = Location(code="ELD", name="Eldoret")
+    category = Category(name="Bedding")
+    db.session.add_all([location, category])
+    db.session.flush()
+    item = Item(category_id=category.id, name="Vivo Mattress")
+    db.session.add(item)
+    db.session.flush()
+    specification = Specification(item_id=item.id, label="72*60*6", is_default=True)
+    db.session.add(specification)
+    db.session.flush()
+    db.session.add_all(
+        [
+            UserLocation(user_id=user.id, location_id=location.id),
+            InventoryRecord(
+                location_id=location.id,
+                record_date=date(2026, 11, 5),
+                specification_id=specification.id,
+                qty_in=Decimal(10),
+                qty_out=Decimal(2),
+                entered_unit=EnteredUnit.PCS,
+                status=RecordStatus.LOCKED,
+                created_by=user.id,
+            ),
+        ]
+    )
+    db.session.commit()
+    headers = _authorization(user)
+
+    clarification = client.post(
+        "/api/assistant/query",
+        json={"question": "How much stock is left?"},
+        headers=headers,
+    )
+
+    assert clarification.status_code == 200
+    assert clarification.json["data"]["needsClarification"] is True
+    assert clarification.json["data"]["records"] == []
+    assert "actual catalog name" in clarification.json["data"]["answer"]
+    assert db.session.query(AssistantQuery).count() == 1
+
+    response = client.post(
+        "/api/assistant/query",
+        json={"question": "How much stock is left? Vivo Mattress"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json["data"]["needsClarification"] is None
+    assert response.json["data"]["answer"] == (
+        "Recorded stock for Vivo Mattress is 8 across its specifications."
+    )
+
+
 def test_assistant_enforces_hourly_limit(client, app):
     app.config["ASSISTANT_HOURLY_LIMIT"] = 1
     user = _create_user(UserRole.ADMIN)

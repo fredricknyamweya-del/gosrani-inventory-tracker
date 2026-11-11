@@ -399,6 +399,29 @@ def query_assistant():
     except ValueError as exc:
         return validation_error([{"field": "question", "message": str(exc)}])
 
+    if wants_stock and not matched_item:
+        answer = "Which product would you like me to check? Enter its actual catalog name."
+        db.session.add(
+            AssistantQuery(
+                user_id=user.id,
+                question=question,
+                tools_called={"stock": True, "needs_clarification": True},
+                result_count=0,
+            )
+        )
+        db.session.commit()
+        return jsonify(
+            {
+                "data": {
+                    "answer": answer,
+                    "records": [],
+                    "totalMatches": 0,
+                    "searchQuery": question,
+                    "needsClarification": True,
+                }
+            }
+        )
+
     criteria = [
         InventoryRecord.location_id.in_(user_location_ids(user.id)),
         InventoryRecord.deleted_at.is_(None),
