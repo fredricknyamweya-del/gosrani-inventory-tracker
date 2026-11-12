@@ -25,13 +25,49 @@ from app.models import (
     EnteredUnit,
     InventoryRecord,
     Item,
+    Location,
     RecordStatus,
     Specification,
+    StockUnit,
     User,
     UserRole,
+    v_stock,
 )
 
 inventory_bp = Blueprint("inventory", __name__, url_prefix="/api/inventory")
+
+
+@inventory_bp.after_request
+def _disable_stock_response_caching(response):
+    if request.endpoint == "inventory.get_inventory_stock":
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def _stock_display(quantity: Decimal, unit: StockUnit, pack_size: int | None) -> str:
+    def format_number(value: Decimal) -> str:
+        return f"{value:,.3f}".rstrip("0").rstrip(".")
+
+    if unit == StockUnit.KG:
+        return f"{format_number(quantity)} kg"
+    if pack_size and quantity > 0:
+        bale_count = int(quantity // pack_size)
+        remaining_pieces = quantity - bale_count * pack_size
+        parts = []
+        if bale_count:
+            parts.append(f"{format_number(Decimal(bale_count))} {'bale' if bale_count == 1 else 'bales'}")
+        if remaining_pieces:
+            parts.append(f"{format_number(remaining_pieces)} {'pc' if remaining_pieces == 1 else 'pcs'}")
+        if parts:
+            return " + ".join(parts)
+    return f"{format_number(quantity)} PCS"
+
+
+def _parse_record_identifier(identifier: str) -> int | None:
+    digits = identifier[4:] if identifier[:4].casefold() == "inv-" else identifier
+    if not digits or any(character not in "0123456789" for character in digits):
+        return None
+    return int(digits)
 
 
 def _resolve_record(payload: object) -> tuple[dict[str, object] | None, list[dict[str, str]]]:
@@ -416,6 +452,54 @@ def get_inventory(record_id: int):
     if record is None:
         return error_response(404, "Inventory record not found.", "not_found")
     return jsonify({"data": _serialize(record)})
+
+
+@inventory_bp.get("/<record_identifier>/stock")
+@jwt_required()
+def get_inventory_stock(record_identifier: str):
+    user = current_user()
+    if user.role != UserRole.ADMIN:
+        return error_response(403)
+
+    record_id = _parse_record_identifier(record_identifier)
+    if record_id is None:
+        return error_response(404, "Inventory record not found.", "not_found")
+
+    record = db.session.scalar(
+        select(InventoryRecord).where(
+            InventoryRecord.id == record_id,
+            InventoryRecord.deleted_at.is_(None),
+            InventoryRecord.location_id.in_(_accessible_location_ids()),
+        )
+    )
+    if record is None:
+        return error_response(404, "Inventory record not found.", "not_found")
+
+    specification = db.session.get(Specification, record.specification_id)
+    item = db.session.get(Item, specification.item_id)
+    location = db.session.get(Location, record.location_id)
+    quantity = db.session.scalar(
+        select(v_stock.c.stock).where(
+            v_stock.c.location_id == record.location_id,
+            v_stock.c.specification_id == record.specification_id,
+        )
+    )
+    quantity = Decimal(quantity or 0)
+
+    return jsonify({
+        "data": {
+            "quantity": json_number(quantity),
+            "unit": item.unit.value,
+            "packSize": specification.pack_size,
+            "display": _stock_display(quantity, item.unit, specification.pack_size),
+            "locationId": str(location.id),
+            "locationName": location.name,
+            "specificationId": str(specification.id),
+            "itemName": item.name,
+            "sizeLabel": specification.label,
+            "asOf": iso_datetime(datetime.now(UTC)),
+        }
+    })
 
 
 @inventory_bp.patch("/<int:record_id>")

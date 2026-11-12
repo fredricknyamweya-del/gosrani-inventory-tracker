@@ -45,7 +45,7 @@ function clearAuthTokens() {
 }
 
 async function request(path, options = {}, retryAfterRefresh = true) {
-  const { method = "GET", body, query } = options;
+  const { method = "GET", body, query, cache: cacheMode } = options;
   const url = new URL(`${API_BASE_URL}${path}`);
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value !== undefined && value !== null && value !== "") {
@@ -73,6 +73,7 @@ async function request(path, options = {}, retryAfterRefresh = true) {
       method,
       headers,
       credentials: "omit",
+      ...(cacheMode ? { cache: cacheMode } : {}),
       ...(requestBody !== undefined
         ? { body: JSON.stringify(requestBody) }
         : {}),
@@ -199,6 +200,12 @@ export const api = {
     return request(`/inventory/${encodeURIComponent(id)}`);
   },
 
+  getInventoryStock(id) {
+    return request(`/inventory/${encodeURIComponent(id)}/stock`, {
+      cache: "no-store",
+    });
+  },
+
   validateInventory(input) {
     return request("/inventory/validate", { method: "POST", body: input });
   },
@@ -214,8 +221,14 @@ export const api = {
     });
   },
 
-  deleteInventory(id) {
-    return request(`/inventory/${encodeURIComponent(id)}`, { method: "DELETE" });
+  async deleteInventory(id) {
+    const response = await request(`/inventory/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("inventory-stock-changed"));
+    }
+    return response;
   },
 
   assistantQuery(question) {
