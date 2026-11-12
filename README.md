@@ -13,6 +13,8 @@ use the read-only inventory assistant.
   and optional details.
 - Browse, search, filter, sort, paginate, and inspect inventory records within
   the signed-in user's assigned locations.
+- Review current stock remaining on an inventory record, calculated across all
+  non-deleted entries for the same specification and location.
 - Validate entries on the server and show review warnings, including large
   quantities, both quantity fields being filled, outgoing quantity exceeding
   recorded stock, and unusual dates.
@@ -145,6 +147,7 @@ operations under `/auth`, plus:
 | `/api/inventory` | List and create inventory records |
 | `/api/inventory/validate` | Validate a record before saving |
 | `/api/inventory/<id>` | Read, update, or delete an inventory record |
+| `/api/inventory/<id>/stock` | Read current stock for an administrator's record |
 | `/api/locations` | List locations available to the signed-in user |
 | `/api/catalog` | Read the active catalog |
 | `/api/catalog/categories` and `/api/catalog/items` | Manage catalog entries |

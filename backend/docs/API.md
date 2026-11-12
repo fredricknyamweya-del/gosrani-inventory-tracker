@@ -121,6 +121,39 @@ CSRF values are provided in the non-HttpOnly `csrf_access_token` and
 - `400`, `415`: Malformed JSON or non-JSON request body.
 - Other applicable statuses: `500`, `503`.
 
+## Inventory
+
+### `GET /api/inventory/{id}/stock`
+
+- Auth: Active administrator with an access token. User accounts receive `403`.
+- Request: None. The record identifier may be numeric (for example, `128`) or
+  use the `INV-000128` form.
+- `200`: Returns current stock for the record's specification at its location.
+  The balance is Quantity In minus Quantity Out across all dates, excluding
+  soft-deleted records and entries for other specifications or locations:
+
+  ```json
+  {
+    "data": {
+      "quantity": 998,
+      "unit": "PCS",
+      "packSize": 10,
+      "display": "99 bales + 8 pcs",
+      "locationId": "1",
+      "locationName": "Eldoret Godown",
+      "specificationId": "5",
+      "itemName": "V SHD Cushion",
+      "sizeLabel": "Quilted",
+      "asOf": "2026-11-12T08:41:00Z"
+    }
+  }
+  ```
+
+- `404`: Record does not exist or has been soft-deleted.
+- `Cache-Control: no-store`; the stock response is not cached.
+- This endpoint does not add fields or ETags to the inventory record detail
+  response.
+
 ## User management
 
 ### `GET /api/locations`
