@@ -269,7 +269,7 @@ export const api = {
     return request("/catalog");
   },
 
-  getCatalogSummary() {
+  getInventorySummary() {
     return request("/catalog/summary", { cache: "no-store" });
   },
 

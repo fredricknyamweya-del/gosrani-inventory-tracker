@@ -2541,7 +2541,7 @@
 
 .inventory-summary-filters {
   display: grid;
-  grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(160px, 1fr));
+  grid-template-columns: minmax(240px, 2fr) repeat(3, minmax(160px, 1fr));
   align-items: end;
   gap: 14px;
   padding: 16px;

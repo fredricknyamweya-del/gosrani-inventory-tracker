@@ -134,7 +134,8 @@ seeding, and deployment configuration details.
 | `/login` | Sign in | Public |
 | `/inventory` | Inventory list | Signed in |
 | `/inventory/new` | Add and review an inventory record | Signed in |
-| `/catalog-summary` | Inventory summary by item size | Signed in |
+| `/inventory-summary` | Inventory summary by item size | Signed in |
+| `/catalog-summary` | Redirects to the inventory summary | Signed in |
 | `/inventory/:id` | Inventory record details | Signed in |
 | `/inventory/:id/edit` | Edit an inventory record | Admin |
 | `/account/password` | Change password | Signed in |
