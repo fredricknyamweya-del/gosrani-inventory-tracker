@@ -124,7 +124,7 @@ def test_bale_transactions_normalize_and_keep_the_original_unit(client):
     assert persisted is not None
 
 
-def test_bale_unit_is_enforced_and_stock_out_cannot_exceed_balance(client):
+def test_bale_and_piece_units_are_allowed_and_stock_out_cannot_exceed_balance(client):
     admin, _, _, _, _, _, _, _ = create_case()
     received = client.post(
         "/api/inventory",
@@ -133,6 +133,20 @@ def test_bale_unit_is_enforced_and_stock_out_cannot_exceed_balance(client):
     )
     assert received.status_code == 201
 
+    partial_bale = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "4x6",
+            quantityIn=3,
+            enteredUnit="PCS",
+        ),
+        headers=authorization(admin),
+    )
+    assert partial_bale.status_code == 201
+    assert partial_bale.json["data"][0]["piecesPerUnit"] == 1
+    assert partial_bale.json["data"][0]["normalizedQuantityIn"] == 3
+
     wrong_unit = client.post(
         "/api/inventory",
         json=transaction_payload(
@@ -140,12 +154,12 @@ def test_bale_unit_is_enforced_and_stock_out_cannot_exceed_balance(client):
             "4x6",
             quantityIn=None,
             quantityOut=1,
-            enteredUnit="PCS",
+            enteredUnit="KG",
         ),
         headers=authorization(admin),
     )
     assert wrong_unit.status_code == 422
-    assert "configured for BALE" in wrong_unit.json["errors"][0]["message"]
+    assert "BALE or PCS" in wrong_unit.json["errors"][0]["message"]
 
     excess = client.post(
         "/api/inventory",
@@ -439,5 +453,6 @@ def test_catalogue_summary_reports_size_level_stock_in_inventory_units(client):
         "size": "4x6",
         "inventoryUnit": "BALE",
         "remainingStock": 3,
+        "equivalentPieces": 15,
     }
     assert sizes["5x7"]["remainingStock"] == 0

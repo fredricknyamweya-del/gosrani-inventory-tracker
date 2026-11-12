@@ -155,13 +155,32 @@ def _resolve_record(
             {"field": "enteredUnit", "message": "Choose PCS, BALE, or KG."}
         )
         entered_unit = EnteredUnit.PCS
-    if entered_unit.value != expected_unit.value:
+    allowed_units = (
+        {EnteredUnit.BALE, EnteredUnit.PCS}
+        if configured_unit == InventoryUnit.BALE
+        else {EnteredUnit(expected_unit.value)}
+    )
+    if entered_unit not in allowed_units:
         errors.append(
             {
                 "field": "enteredUnit",
-                "message": f"This product is configured for {expected_unit.value} transactions.",
+                "message": (
+                    "This product is configured for BALE or PCS transactions."
+                    if configured_unit == InventoryUnit.BALE
+                    else f"This product is configured for {expected_unit.value} transactions."
+                ),
             }
         )
+    if configured_unit == InventoryUnit.BALE:
+        if entered_unit == EnteredUnit.PCS:
+            pieces_per_unit = 1
+        elif not (
+            existing_record is not None
+            and specification is not None
+            and specification.id == existing_record.specification_id
+            and existing_record.entered_unit == EnteredUnit.BALE
+        ):
+            pieces_per_unit = item.pieces_per_bale
 
     quantities: dict[str, Decimal | None] = {}
     for key in ("quantityIn", "quantityOut"):

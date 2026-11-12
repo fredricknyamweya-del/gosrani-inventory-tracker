@@ -203,9 +203,13 @@ export default function EntryFormPage() {
       if (entry.item && !selectedItem) {
         entryErrors.item = "Choose an item from the selected category.";
       }
-      if (selectedItem && entry.enteredUnit !== selectedItem.inventoryUnit) {
+      if (
+        selectedItem &&
+        entry.enteredUnit !== selectedItem.inventoryUnit &&
+        !(selectedItem.inventoryUnit === "BALE" && entry.enteredUnit === "PCS")
+      ) {
         entryErrors.enteredUnit =
-          "The inventory unit must match the product configuration.";
+          "Choose bales or pieces for this bale-based product.";
       }
       if (Object.keys(entryErrors).length) {
         nextErrors[entry.id] = entryErrors;
@@ -568,12 +572,22 @@ export default function EntryFormPage() {
                       required
                     >
                       <Select
-                        disabled
+                        disabled={!selectedItem || selectedItem.inventoryUnit !== "BALE"}
+                        onChange={(event) =>
+                          updateEntry(entry.id, "enteredUnit", event.target.value)
+                        }
                         value={entry.enteredUnit}
                       >
-                        <option value={entry.enteredUnit}>
-                          {unitLabel(entry.enteredUnit)}
-                        </option>
+                        {selectedItem?.inventoryUnit === "BALE" ? (
+                          <>
+                            <option value="BALE">Bales</option>
+                            <option value="PCS">Pieces</option>
+                          </>
+                        ) : (
+                          <option value={entry.enteredUnit}>
+                            {unitLabel(entry.enteredUnit)}
+                          </option>
+                        )}
                       </Select>
                     </Field>
                     <div className="entry-quantity-fields">
