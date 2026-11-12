@@ -1,7 +1,7 @@
 """Add bale configuration and normalized inventory quantities.
 
 Revision ID: c31a4d8e6f02
-Revises: 2abfe71c8930
+Revises: b43d92f1a6c0
 Create Date: 2026-11-12 15:30:00.000000
 """
 
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "c31a4d8e6f02"
-down_revision = "2abfe71c8930"
+down_revision = "b43d92f1a6c0"
 branch_labels = None
 depends_on = None
 

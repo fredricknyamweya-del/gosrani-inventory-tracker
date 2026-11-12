@@ -230,7 +230,6 @@ def _resolve_record(
         ),
         "handledBy": handled_by.strip(),
         "details": (details or "").strip(),
-        "enteredUnit": payload.get("enteredUnit", EnteredUnit.PCS.value),
     }, []
 
 
@@ -275,6 +274,7 @@ def _record_snapshot(record: InventoryRecord) -> dict[str, object]:
         "normalizedQuantityIn": json_number(record.qty_in_normalized),
         "normalizedQuantityOut": json_number(record.qty_out_normalized),
         "piecesPerUnit": record.pieces_per_unit,
+        "enteredUnit": record.entered_unit.value,
         "handledBy": record.handled_by,
         "details": record.details,
         "status": record.status.value,
