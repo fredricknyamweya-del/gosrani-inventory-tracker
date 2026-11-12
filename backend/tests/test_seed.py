@@ -70,6 +70,13 @@ def test_seed_creates_admin_location_and_catalog(app, monkeypatch):
         kiss_case = db.session.scalar(
             select(Item).where(Item.name == "Pillow Kiss Case")
         )
+        goldstar = db.session.scalar(
+            select(Item).where(Item.name == "Goldstar Blanket (BF)")
+        )
+        bedcover = db.session.scalar(
+            select(Item).where(Item.name == "Bedcover 60x80")
+        )
+        pillow = db.session.scalar(select(Item).where(Item.name == "Pillow"))
         assert duvet_n.inventory_unit == InventoryUnit.BALE
         assert duvet_n.pieces_per_bale == 5
         assert duvet_s.inventory_unit == InventoryUnit.BALE
@@ -78,8 +85,14 @@ def test_seed_creates_admin_location_and_catalog(app, monkeypatch):
         assert woolen_duvet.pieces_per_bale == 20
         assert white_case.inventory_unit == InventoryUnit.BALE
         assert white_case.pieces_per_bale == 100
+        assert goldstar.inventory_unit == InventoryUnit.BALE
+        assert goldstar.pieces_per_bale == 20
+        assert bedcover.inventory_unit == InventoryUnit.BALE
+        assert bedcover.pieces_per_bale == 50
         assert kiss_case.inventory_unit == InventoryUnit.PCS
         assert kiss_case.pieces_per_bale is None
+        assert pillow.inventory_unit == InventoryUnit.PCS
+        assert pillow.pieces_per_bale is None
 
         fibre = db.session.scalar(select(Item).where(Item.name == "Fibre"))
         assert fibre is not None

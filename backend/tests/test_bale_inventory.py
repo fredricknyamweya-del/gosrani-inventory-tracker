@@ -118,7 +118,7 @@ def test_bale_transactions_normalize_and_keep_the_original_unit(client):
     assert stock.json["data"]["unit"] == "BALE"
     assert stock.json["data"]["quantity"] == 3
     assert stock.json["data"]["equivalentPieces"] == 15
-    assert stock.json["data"]["display"] == "3 bales"
+    assert stock.json["data"]["display"] == "3 bales (15 pcs)"
 
     persisted = db.session.get(Specification, specification.id)
     assert persisted is not None
@@ -170,6 +170,14 @@ def test_catalogue_summary_includes_products_without_entries_and_converts_bales(
         headers=authorization(admin),
     )
     assert response.status_code == 201
+    piece_response = client.post(
+        "/api/inventory",
+        json=transaction_payload("Pillow Kiss Case", "Standard", quantityIn=2),
+        headers=authorization(admin),
+    )
+    assert piece_response.status_code == 201
+    assert piece_response.json["data"][0]["enteredUnit"] == "PCS"
+    assert piece_response.json["data"][0]["normalizedQuantityIn"] == 2
 
     summary = client.get(
         "/api/catalog/summary",
@@ -183,8 +191,9 @@ def test_catalogue_summary_includes_products_without_entries_and_converts_bales(
     assert products["Configured Duvet"]["equivalentPieces"] == 15
     assert products["Configured Duvet"]["piecesPerBale"] == 5
     assert products["Configured Duvet"]["totalEntries"] == 1
-    assert products["Pillow Kiss Case"]["remainingStock"] == 0
+    assert products["Pillow Kiss Case"]["remainingStock"] == 2
     assert products["Pillow Kiss Case"]["inventoryUnit"] == "PCS"
+    assert products["Pillow Kiss Case"]["equivalentPieces"] == 2
     assert summary.json["data"]["totals"]["registeredProducts"] == 2
     assert ordinary_item.inventory_unit == InventoryUnit.PCS
 
@@ -204,6 +213,18 @@ def test_admin_must_configure_pillow_conversion_and_users_cannot_edit_it(client)
     pillow_specification = Specification(item_id=pillow.id, label="Standard")
     db.session.add(pillow_specification)
     db.session.commit()
+
+    unconfigured_bale_transaction = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Pillow",
+            "Standard",
+            quantityIn=1,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(user),
+    )
+    assert unconfigured_bale_transaction.status_code == 422
 
     invalid_update = client.patch(
         f"/api/catalog/items/{pillow.id}",
@@ -236,6 +257,46 @@ def test_admin_must_configure_pillow_conversion_and_users_cannot_edit_it(client)
     assert transaction.status_code == 201
     assert transaction.json["data"][0]["enteredUnit"] == "BALE"
     assert transaction.json["data"][0]["normalizedQuantityIn"] == 20
+
+
+def test_conversion_changes_do_not_rewrite_historical_transactions(client):
+    admin, _, _, _, item, _, _, _ = create_case()
+    received = client.post(
+        "/api/inventory",
+        json=transaction_payload("Configured Duvet", "4x6", quantityIn=2),
+        headers=authorization(admin),
+    )
+    assert received.status_code == 201
+    record_id = received.json["data"][0]["id"]
+
+    updated = client.patch(
+        f"/api/catalog/items/{item.id}",
+        json={"inventoryUnit": "BALE", "piecesPerBale": 10},
+        headers=authorization(admin),
+    )
+    assert updated.status_code == 200
+
+    record = client.get(
+        f"/api/inventory/{record_id}",
+        headers=authorization(admin),
+    )
+    assert record.status_code == 200
+    assert record.json["data"]["quantityIn"] == 2
+    assert record.json["data"]["enteredUnit"] == "BALE"
+    assert record.json["data"]["piecesPerUnit"] == 5
+    assert record.json["data"]["normalizedQuantityIn"] == 10
+
+    summary = client.get(
+        "/api/catalog/summary",
+        headers=authorization(admin),
+    )
+    configured = next(
+        row
+        for row in summary.json["data"]["products"]
+        if row["productName"] == item.name
+    )
+    assert configured["remainingStock"] == 1
+    assert configured["equivalentPieces"] == 10
 
 
 def test_catalog_create_requires_positive_whole_bale_rate(client):

@@ -160,7 +160,7 @@ def test_stock_endpoint_scopes_totals_to_record_location_and_specification(clien
         "equivalentPieces": None,
         "packSize": 10,
         "piecesPerBale": None,
-        "display": "70 bales",
+        "display": "700 PCS",
         "locationId": str(location.id),
         "locationName": "Eldoret Godown",
         "specificationId": str(specification.id),
@@ -179,7 +179,7 @@ def test_stock_endpoint_formats_packs_kilograms_negative_and_zero(client):
         f"/api/inventory/{record.id}/stock",
         headers=authorization(admin),
     )
-    assert response.json["data"]["display"] == "99 bales + 8 pcs"
+    assert response.json["data"]["display"] == "998 PCS"
 
     kg_item = Item(
         category_id=item.category_id,

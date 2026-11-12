@@ -292,7 +292,8 @@ def get_catalog_summary():
                 "remainingStock": remaining,
                 "equivalentPieces": (
                     float(normalized_in) - float(normalized_out)
-                    if item.inventory_unit == InventoryUnit.BALE
+                    if item.inventory_unit
+                    in {InventoryUnit.BALE, InventoryUnit.PCS}
                     else None
                 ),
                 "totalEntries": entry_count,
