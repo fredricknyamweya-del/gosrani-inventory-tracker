@@ -175,6 +175,7 @@ export default function AppLayout() {
   const navigation = [
     { to: "/inventory", label: "Inventory", icon: LayoutDashboard, end: true },
     { to: "/inventory/new", label: "Add Entry", icon: PackagePlus },
+    { to: "/catalog-summary", label: "Catalogue Summary", icon: ClipboardList },
     ...(isAdmin
       ? [
           { to: "/assistant", label: "Assistant", icon: Sparkles },
