@@ -299,6 +299,44 @@ def test_conversion_changes_do_not_rewrite_historical_transactions(client):
     assert configured["equivalentPieces"] == 10
 
 
+def test_switching_product_to_pieces_preserves_stock_and_defaults_new_entries(client):
+    admin, _, _, _, item, _, _, _ = create_case()
+    received = client.post(
+        "/api/inventory",
+        json=transaction_payload("Configured Duvet", "4x6", quantityIn=1),
+        headers=authorization(admin),
+    )
+    assert received.status_code == 201
+    historical_record = received.json["data"][0]
+
+    updated = client.patch(
+        f"/api/catalog/items/{item.id}",
+        json={"inventoryUnit": "PCS"},
+        headers=authorization(admin),
+    )
+    assert updated.status_code == 200
+    assert updated.json["data"]["inventoryUnit"] == "PCS"
+    assert updated.json["data"]["piecesPerBale"] is None
+
+    stock = client.get(
+        f"/api/inventory/{historical_record['id']}/stock",
+        headers=authorization(admin),
+    )
+    assert stock.status_code == 200
+    assert stock.json["data"]["unit"] == "PCS"
+    assert stock.json["data"]["quantity"] == 5
+    assert stock.json["data"]["display"] == "5 PCS"
+
+    new_received = client.post(
+        "/api/inventory",
+        json=transaction_payload("Configured Duvet", "4x6", quantityIn=2),
+        headers=authorization(admin),
+    )
+    assert new_received.status_code == 201
+    assert new_received.json["data"][0]["enteredUnit"] == "PCS"
+    assert new_received.json["data"][0]["normalizedQuantityIn"] == 2
+
+
 def test_catalog_create_requires_positive_whole_bale_rate(client):
     admin, _, _, category, _, _, _, _ = create_case()
     request_body = {

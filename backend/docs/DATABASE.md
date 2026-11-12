@@ -84,8 +84,8 @@ items with conflicting units or pack sizes stop the command and roll back all
 changes.
 
 The starter catalog configures Duvet N at 5 pieces per bale, Duvet S and
-Woolen Duvet at 20, Goldstar Blanket (BF) at 20, Bedcover 60x80 at 50, and
-White Pillow Case at 100. Pillow Kiss Case remains piece-based. Other Pillow
+Woolen Duvet at 20, Bedcover 60x80 at 50, and White Pillow Case at 100.
+Goldstar Blanket (BF) and Pillow Kiss Case remain piece-based. Other Pillow
 products remain piece-based until an administrator explicitly sets a valid
 pieces-per-bale rate.
 
