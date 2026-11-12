@@ -15,6 +15,11 @@ use the read-only inventory assistant.
   the signed-in user's assigned locations.
 - Review current stock remaining on an inventory record, calculated across all
   non-deleted entries for the same specification and location.
+- Track products in pieces or bales, preserve each transaction's entered
+  quantity and conversion snapshot, and normalize bale stock to individual
+  pieces for calculations.
+- Review a searchable catalogue summary with product-level stock totals,
+  product configuration, and location-scoped transaction counts.
 - Validate entries on the server and show review warnings, including large
   quantities, both quantity fields being filled, outgoing quantity exceeding
   recorded stock, and unusual dates.
@@ -32,9 +37,11 @@ use the read-only inventory assistant.
   application changes.
 
 Inventory quantities are associated with product specifications. Products
-support piece (`PCS`) or kilogram (`KG`) stock units, and specifications can
-carry pack-size metadata. Historical spreadsheet import and offline operation
-are not currently part of the application.
+support piece (`PCS`), bale (`BALE`), or kilogram (`KG`) stock units, and
+specifications can carry pack-size metadata. Bale-based products store a
+product-specific pieces-per-bale conversion; historical transaction
+quantities and conversions are retained. Historical spreadsheet import and
+offline operation are not currently part of the application.
 
 ## Roles
 
@@ -127,6 +134,7 @@ seeding, and deployment configuration details.
 | `/login` | Sign in | Public |
 | `/inventory` | Inventory list | Signed in |
 | `/inventory/new` | Add and review an inventory record | Signed in |
+| `/catalog-summary` | Product stock and catalogue summary | Signed in |
 | `/inventory/:id` | Inventory record details | Signed in |
 | `/inventory/:id/edit` | Edit an inventory record | Admin |
 | `/account/password` | Change password | Signed in |
@@ -150,6 +158,7 @@ operations under `/auth`, plus:
 | `/api/inventory/<id>/stock` | Read current stock for an administrator's record |
 | `/api/locations` | List locations available to the signed-in user |
 | `/api/catalog` | Read the active catalog |
+| `/api/catalog/summary` | Read location-scoped product stock summaries |
 | `/api/catalog/categories` and `/api/catalog/items` | Manage catalog entries |
 | `/api/catalog/requests` | Submit or review missing-catalog requests |
 | `/api/users` | Admin user management |

@@ -154,6 +154,53 @@ CSRF values are provided in the non-HttpOnly `csrf_access_token` and
 - This endpoint does not add fields or ETags to the inventory record detail
   response.
 
+New records derive `enteredUnit` from the saved product configuration. Bale
+quantities are stored as originally entered and normalized to pieces using the
+product's configured rate. The response includes the normalized transaction
+quantities and the conversion snapshot used at the time:
+
+```json
+{
+  "quantityIn": 5,
+  "enteredUnit": "BALE",
+  "piecesPerUnit": 5,
+  "normalizedQuantityIn": 25
+}
+```
+
+Stock-out quantities are validated against the normalized available balance.
+
+## Catalogue
+
+### `GET /api/catalog/summary`
+
+- Auth: Signed-in user
+- `200`: Returns one summary for every registered product, including products
+  with no transactions. Transaction totals are limited to the user's assigned
+  locations. Bale totals are displayed in bales and include
+  `equivalentPieces`; no totals are added across different units.
+- The `totals` object includes registered, bale-based, piece-based, and
+  transaction counts.
+
+### `POST /api/catalog/items`
+
+- Auth: Active administrator
+- Request: Includes `categoryId`, `name`, and `specifications`. Optional
+  `inventoryUnit` is `PCS`, `BALE`, or `KG`; `piecesPerBale` is required as a
+  positive whole number when `inventoryUnit` is `BALE`.
+- `201`: Creates the item with its saved inventory configuration. Omitted
+  inventory configuration defaults to pieces.
+- `422`: Invalid inventory unit or bale conversion configuration.
+
+### `PATCH /api/catalog/items/{id}`
+
+- Auth: Active administrator
+- Request: May update `inventoryUnit` and `piecesPerBale`. Historical
+  transaction quantities and conversion snapshots are not rewritten.
+- `200`: Returns the updated item configuration.
+- `422`: Invalid configuration, or an incompatible kilogram/piece unit change
+  after stock transactions exist.
+
 ## User management
 
 ### `GET /api/locations`
