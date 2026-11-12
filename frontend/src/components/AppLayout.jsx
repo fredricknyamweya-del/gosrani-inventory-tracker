@@ -352,25 +352,25 @@ export default function AppLayout() {
         <main className="app-content">
           <Outlet />
         </main>
+        {isAdmin && (
+          <button
+            aria-controls="assistant-panel"
+            aria-expanded={assistantOpen}
+            aria-label={assistantOpen ? "Close assistance" : "Open assistance"}
+            className="assistant-launcher"
+            onClick={() => setAssistantOpen((open) => !open)}
+            ref={assistantTriggerRef}
+            type="button"
+          >
+            <Sparkles aria-hidden="true" size={18} />
+            <span>Assistant</span>
+          </button>
+        )}
         <footer className="app-footer">
           <span>© {new Date().getFullYear()} Gosrani Wholesalers Limited</span>
           <span>Eldoret, Kenya</span>
         </footer>
       </div>
-      {isAdmin && (
-        <button
-          aria-controls="assistant-panel"
-          aria-expanded={assistantOpen}
-          aria-label={assistantOpen ? "Close AI assistant" : "Open AI assistant"}
-          className="assistant-launcher"
-          onClick={() => setAssistantOpen((open) => !open)}
-          ref={assistantTriggerRef}
-          type="button"
-        >
-          <Sparkles aria-hidden="true" size={18} />
-          <span>Assistant</span>
-        </button>
-      )}
       {isAdmin && assistantOpen && (
         <div
           className="assistant-panel-backdrop"
@@ -393,10 +393,10 @@ export default function AppLayout() {
             <header className="assistant-panel-header">
               <div>
                 <span>ADMIN WORKSPACE</span>
-                <h2 id="assistant-panel-title">AI Assistant</h2>
+                <h2 id="assistant-panel-title">Assistance</h2>
               </div>
               <button
-                aria-label="Close AI assistant"
+                aria-label="Close assistance"
                 className="icon-btn"
                 onClick={() => setAssistantOpen(false)}
                 ref={assistantCloseRef}

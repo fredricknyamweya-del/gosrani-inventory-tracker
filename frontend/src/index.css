@@ -1391,7 +1391,7 @@
 }
 
 .inventory-table-panel {
-  overflow: hidden;
+  overflow: clip;
 }
 
 .inventory-table {
@@ -2146,12 +2146,17 @@
 }
 
 .inventory-pagination {
+  position: sticky;
+  z-index: 3;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   border-top: 1px solid var(--border);
   padding: 13px 16px;
+  background: var(--surface);
+  box-shadow: 0 -6px 16px rgb(0 0 0 / 6%);
   color: var(--muted);
   font-size: 12px;
 }
@@ -3463,27 +3468,48 @@
 }
 
 .assistant-launcher {
-  position: fixed;
-  z-index: 45;
-  right: 24px;
-  bottom: 64px;
   display: inline-flex;
-  min-height: 48px;
+  align-self: flex-end;
+  min-height: 52px;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  border: 0;
+  gap: 10px;
+  border: 1px solid rgb(255 255 255 / 28%);
   border-radius: 999px;
-  padding: 0 18px;
-  background: var(--red);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+  margin: 0 30px 12px;
+  padding: 0 20px;
+  background: linear-gradient(135deg, var(--red), var(--red-hover));
+  box-shadow:
+    0 8px 24px color-mix(in srgb, var(--red) 32%, transparent),
+    0 2px 6px rgb(0 0 0 / 20%);
   color: var(--red-contrast);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.assistant-launcher svg {
+  box-sizing: content-box;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  padding: 4px;
+  background: rgb(255 255 255 / 17%);
 }
 
 .assistant-launcher:hover {
-  background: var(--red-hover);
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 28px color-mix(in srgb, var(--red) 38%, transparent),
+    0 3px 8px rgb(0 0 0 / 22%);
+}
+
+.assistant-launcher:active {
+  transform: translateY(0);
 }
 
 .assistant-panel-backdrop {
@@ -3611,11 +3637,6 @@
     height: 26px;
   }
 
-  .assistant-launcher {
-    right: 16px;
-    bottom: 56px;
-  }
-
   .assistant-panel-backdrop {
     padding: 16px 16px 76px;
   }
@@ -3623,6 +3644,14 @@
   .assistant-panel {
     width: 100%;
     height: min(620px, calc(100dvh - 100px));
+  }
+}
+
+@media (max-width: 760px) {
+  .assistant-launcher {
+    margin-right: 16px;
+    margin-bottom: 12px;
+    margin-left: 16px;
   }
 }
 

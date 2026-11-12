@@ -13,12 +13,14 @@ import { formatDate } from "../utils/format";
 import { Button } from "./ui";
 
 const suggestions = [
-  "How much stock is left for an item and size?",
-  "How much HDF is in stock across all sizes?",
+  "How much stock is left?",
+  "How much stock is left for a product and size?",
+  "How much stock is left across all sizes for a product?",
+  "Show inventory entries recorded today",
+  "Show inventory entries from this week",
   "Show items received this week",
   "What quantity went out yesterday?",
-  "Show entries for a category",
-  "Find entries where the details mention a supplier",
+  "Find entries where details mention supplier",
 ];
 
 export default function AssistantChat({ compact = false }) {
@@ -26,6 +28,7 @@ export default function AssistantChat({ compact = false }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [validationError, setValidationError] = useState("");
+  const [clarificationQuestion, setClarificationQuestion] = useState("");
   const [pending, setPending] = useState(false);
   const nextId = useRef(0);
   const pendingRef = useRef(false);
@@ -45,6 +48,9 @@ export default function AssistantChat({ compact = false }) {
   async function fetchAnswer(question, responseId) {
     try {
       const response = await api.assistantQuery(question);
+      setClarificationQuestion(
+        response.data.needsClarification ? question : "",
+      );
       setMessages((current) =>
         current.map((message) =>
           message.id === responseId
@@ -72,6 +78,9 @@ export default function AssistantChat({ compact = false }) {
 
   function submitQuestion(value = draft) {
     const question = value.trim();
+    const requestQuestion = clarificationQuestion
+      ? `${clarificationQuestion} ${question}`
+      : question;
     if (pendingRef.current) return;
     if (!question) {
       setValidationError("Enter a question to get started.");
@@ -83,26 +92,39 @@ export default function AssistantChat({ compact = false }) {
       inputRef.current?.focus();
       return;
     }
+    if (requestQuestion.length > 500) {
+      setValidationError(
+        "Keep your question and product name to 500 characters or fewer.",
+      );
+      inputRef.current?.focus();
+      return;
+    }
 
     setValidationError("");
     setDraft("");
+    setClarificationQuestion("");
     pendingRef.current = true;
     setPending(true);
     const questionId = ++nextId.current;
     const responseId = ++nextId.current;
     setMessages((current) => [
       ...current,
-      { id: questionId, role: "user", text: question },
+      {
+        id: questionId,
+        role: "user",
+        text: question,
+        queryText: requestQuestion,
+      },
       { id: responseId, role: "assistant", status: "thinking" },
     ]);
-    void fetchAnswer(question, responseId);
+    void fetchAnswer(requestQuestion, responseId);
   }
 
   function retryQuestion(questionId, responseId) {
     if (pendingRef.current) return;
     const question = messages.find(
       (message) => message.id === questionId,
-    )?.text;
+    )?.queryText;
     if (!question) return;
     pendingRef.current = true;
     setPending(true);
@@ -121,6 +143,7 @@ export default function AssistantChat({ compact = false }) {
     setMessages([]);
     setDraft("");
     setValidationError("");
+    setClarificationQuestion("");
     inputRef.current?.focus();
   }
 
@@ -206,6 +229,7 @@ export default function AssistantChat({ compact = false }) {
               const result = message.result;
               const matches = result?.records ?? [];
               const totalMatches = result?.totalMatches ?? 0;
+              const needsClarification = result?.needsClarification ?? false;
 
               return (
                 <li className="assistant-message assistant-message-bot" key={message.id}>
@@ -236,7 +260,7 @@ export default function AssistantChat({ compact = false }) {
                     ) : (
                       <>
                         <p className="assistant-answer">{result?.answer}</p>
-                        {totalMatches === 0 && (
+                        {totalMatches === 0 && !needsClarification && (
                           <p className="assistant-no-results">
                             I couldn&apos;t find any matching records.
                           </p>
