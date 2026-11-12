@@ -44,8 +44,12 @@ PIPENV_VENV_IN_PROJECT=1 pipenv run flask --app app db upgrade
 ```
 
 Run this as a release/pre-deploy step, not automatically on every web-worker
-startup. The migration creates the schema and the `v_stock` view. Do not run
-the destructive test suite against a production database.
+startup. Migrations add saved product inventory units, pieces-per-bale
+configuration, and normalized transaction quantities. Existing transaction
+quantities are backfilled unchanged; selected seeded bedding products receive
+their documented conversion rates. The `v_stock` view uses normalized
+quantities for new transactions. Do not run the destructive test suite against
+a production database.
 
 ## Seed first-run data
 
@@ -78,6 +82,12 @@ data is created only when missing; rerunning the command does not reset an
 existing Admin password or reactivate existing accounts. Existing catalog
 items with conflicting units or pack sizes stop the command and roll back all
 changes.
+
+The starter catalog configures Duvet N at 5 pieces per bale, Duvet S and
+Woolen Duvet at 20, Goldstar Blanket (BF) at 20, Bedcover 60x80 at 50, and
+White Pillow Case at 100. Pillow Kiss Case remains piece-based. Other Pillow
+products remain piece-based until an administrator explicitly sets a valid
+pieces-per-bale rate.
 
 To create initial active User accounts as part of the same seed transaction,
 pass `--user-email` once per account. The command generates a random password

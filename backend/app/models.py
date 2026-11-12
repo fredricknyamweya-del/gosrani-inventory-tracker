@@ -50,6 +50,12 @@ class StockUnit(str, Enum):
     KG = "KG"
 
 
+class InventoryUnit(str, Enum):
+    PCS = "PCS"
+    BALE = "BALE"
+    KG = "KG"
+
+
 class EnteredUnit(str, Enum):
     PCS = "PCS"
     BALE = "BALE"
@@ -90,12 +96,17 @@ class TokenType(str, Enum):
     REFRESH = "refresh"
 
 
-def _enum(enum_class: type[Enum], name: str) -> SqlEnum:
+def _enum(
+    enum_class: type[Enum],
+    name: str,
+    *,
+    create_constraint: bool = True,
+) -> SqlEnum:
     return SqlEnum(
         enum_class,
         name=name,
         native_enum=False,
-        create_constraint=True,
+        create_constraint=create_constraint,
         validate_strings=True,
         values_callable=lambda members: [member.value for member in members],
     )
@@ -216,6 +227,16 @@ class Item(db.Model):
         nullable=False,
         server_default=text("'PCS'"),
     )
+    inventory_unit: Mapped[InventoryUnit] = mapped_column(
+        _enum(
+            InventoryUnit,
+            "inventory_unit",
+            create_constraint=False,
+        ),
+        nullable=False,
+        server_default=text("'PCS'"),
+    )
+    pieces_per_bale: Mapped[int | None] = mapped_column(Integer)
     active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true")
     )
@@ -428,6 +449,11 @@ class InventoryRecord(db.Model):
     )
     qty_in: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
     qty_out: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    pieces_per_unit: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1")
+    )
+    qty_in_normalized: Mapped[Decimal | None] = mapped_column(Numeric(15, 3))
+    qty_out_normalized: Mapped[Decimal | None] = mapped_column(Numeric(15, 3))
     entered_unit: Mapped[EnteredUnit] = mapped_column(
         _enum(EnteredUnit, "entered_unit"),
         nullable=False,
@@ -494,5 +520,5 @@ v_stock = Table(
     MetaData(),
     Column("location_id", ID_TYPE, nullable=False),
     Column("specification_id", ID_TYPE, nullable=False),
-    Column("stock", Numeric(12, 3), nullable=True),
+    Column("stock", Numeric(15, 3), nullable=True),
 )

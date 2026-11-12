@@ -269,6 +269,10 @@ export const api = {
     return request("/catalog");
   },
 
+  getCatalogSummary() {
+    return request("/catalog/summary", { cache: "no-store" });
+  },
+
   createCatalogItem(input = {}) {
     return request("/catalog/items", { method: "POST", body: input });
   },

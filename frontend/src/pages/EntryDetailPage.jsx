@@ -183,11 +183,22 @@ export default function EntryDetailPage() {
   const selectedSizeIsAvailable = specifications.includes(form.size)
 
   function update(key, value) {
+    const selectedItem =
+      key === "item"
+        ? categoryItems.find((entry) => entry.name === value)
+        : null
     setForm((current) => ({
       ...current,
       [key]: value,
-      ...(key === "category" ? { item: "", size: "" } : {}),
-      ...(key === "item" ? { size: "" } : {}),
+      ...(key === "category"
+        ? { item: "", size: "", enteredUnit: "PCS" }
+        : {}),
+      ...(key === "item"
+        ? {
+            size: "",
+            enteredUnit: selectedItem?.inventoryUnit ?? "PCS",
+          }
+        : {}),
     }))
     setSaveError("")
   }
@@ -307,20 +318,20 @@ export default function EntryDetailPage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Quantity In">
+            <Field label={`Quantity In (${form.enteredUnit})`}>
               <Input
                 min="0"
                 onChange={(event) => update("quantityIn", event.target.value)}
-                step="0.001"
+                step={form.enteredUnit === "BALE" ? "1" : "0.001"}
                 type="number"
                 value={form.quantityIn}
               />
             </Field>
-            <Field label="Quantity Out">
+            <Field label={`Quantity Out (${form.enteredUnit})`}>
               <Input
                 min="0"
                 onChange={(event) => update("quantityOut", event.target.value)}
-                step="0.001"
+                step={form.enteredUnit === "BALE" ? "1" : "0.001"}
                 type="number"
                 value={form.quantityOut}
               />
@@ -336,12 +347,10 @@ export default function EntryDetailPage() {
             </Field>
             <Field label="Entered unit">
               <Select
-                onChange={(event) => update("enteredUnit", event.target.value)}
+                disabled
                 value={form.enteredUnit}
               >
-                <option value="PCS">PCS</option>
-                <option value="BALE">BALE</option>
-                <option value="KG">KG</option>
+                <option value={form.enteredUnit}>{form.enteredUnit}</option>
               </Select>
             </Field>
             <Field label="Status">

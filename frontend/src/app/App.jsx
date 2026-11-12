@@ -12,6 +12,7 @@ import CatalogPage from "../pages/CatalogPage"
 import UsersPage from "../pages/UsersPage"
 import EntryDetailPage from "../pages/EntryDetailPage"
 import PasswordChangePage from "../pages/PasswordChangePage"
+import CatalogSummaryPage from "../pages/CatalogSummaryPage"
 
 export default function App() {
   return (
@@ -24,6 +25,10 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route element={<Navigate replace to="/inventory" />} index />
                 <Route element={<InventoryPage />} path="inventory" />
+                <Route
+                  element={<CatalogSummaryPage />}
+                  path="catalog-summary"
+                />
                 <Route element={<EntryFormPage />} path="inventory/new" />
                 <Route element={<EntryDetailPage />} path="inventory/:id" />
                 <Route

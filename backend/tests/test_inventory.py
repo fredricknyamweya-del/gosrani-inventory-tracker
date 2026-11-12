@@ -156,7 +156,10 @@ def test_stock_endpoint_scopes_totals_to_record_location_and_specification(clien
     assert response.json["data"] == {
         "quantity": 700.0,
         "unit": "PCS",
+        "normalizedQuantity": 700.0,
+        "equivalentPieces": None,
         "packSize": 10,
+        "piecesPerBale": None,
         "display": "70 bales",
         "locationId": str(location.id),
         "locationName": "Eldoret Godown",
@@ -178,7 +181,12 @@ def test_stock_endpoint_formats_packs_kilograms_negative_and_zero(client):
     )
     assert response.json["data"]["display"] == "99 bales + 8 pcs"
 
-    kg_item = Item(category_id=item.category_id, name="Cotton", unit=StockUnit.KG)
+    kg_item = Item(
+        category_id=item.category_id,
+        name="Cotton",
+        unit=StockUnit.KG,
+        inventory_unit="KG",
+    )
     db.session.add(kg_item)
     db.session.flush()
     kg_specification = Specification(
@@ -196,7 +204,7 @@ def test_stock_endpoint_formats_packs_kilograms_negative_and_zero(client):
     )
     assert kg_response.json["data"]["display"] == "22,816 kg"
 
-    kg_record.qty_out = Decimal("22,916")
+    kg_record.qty_out = Decimal("22916")
     db.session.commit()
     negative_response = client.get(
         f"/api/inventory/{kg_record.id}/stock",
@@ -244,7 +252,7 @@ def test_stock_endpoint_restricts_users_and_hides_unknown_or_deleted_records(cli
         assert missing.headers["Cache-Control"] == "no-store"
 
 
-def test_record_detail_response_remains_unchanged(client):
+def test_record_detail_response_includes_transaction_unit_metadata(client):
     admin, _, location, _, _, specification, _ = create_stock_case()
     record = add_record(admin, location, specification, quantity_in=10)
     db.session.commit()
@@ -264,6 +272,9 @@ def test_record_detail_response_remains_unchanged(client):
         "size",
         "quantityIn",
         "quantityOut",
+        "normalizedQuantityIn",
+        "normalizedQuantityOut",
+        "piecesPerUnit",
         "handledBy",
         "enteredUnit",
         "details",
