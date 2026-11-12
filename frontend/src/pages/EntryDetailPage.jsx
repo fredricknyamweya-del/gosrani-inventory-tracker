@@ -20,7 +20,7 @@ import {
 import { useAuth } from "../context/AuthContext"
 import { useApi } from "../hooks/useApi"
 import { api } from "../services/api"
-import { formatDate } from "../utils/format"
+import { formatDate, formatDateTime } from "../utils/format"
 
 function recordForm(record) {
   return {
@@ -37,6 +37,61 @@ function recordForm(record) {
   }
 }
 
+function StockFigure({ stock, loading, error, onRetry, context = false }) {
+  if (loading) {
+    return (
+      <span aria-label="Loading stock" className="entry-stock-skeleton" role="status">
+        <span aria-hidden="true" className="skeleton" />
+      </span>
+    )
+  }
+
+  if (error || !stock) {
+    return (
+      <span aria-live="polite" className="entry-stock-error" role="status">
+        <span>Stock unavailable</span>
+        <button
+          className="entry-stock-retry"
+          onClick={onRetry}
+          type="button"
+        >
+          Retry
+        </button>
+      </span>
+    )
+  }
+
+  const isNegative = stock.quantity < 0
+  const isZero = stock.quantity === 0
+  const state = isNegative ? "negative" : isZero ? "zero" : "positive"
+
+  return (
+    <span
+      aria-atomic="true"
+      aria-live="polite"
+      className={`entry-stock-value entry-stock-value-${state}`}
+    >
+      <strong>{stock.display}</strong>
+      {isNegative && (
+        <small>Stock is below zero. Check recent entries.</small>
+      )}
+      {isZero && <small>Out of stock</small>}
+      {context && (
+        <>
+          <small>
+            In minus Out across all entries for {stock.itemName}
+            {stock.sizeLabel ? ` . ${stock.sizeLabel}` : ""} at{" "}
+            {stock.locationName}
+          </small>
+          <small>
+            As of {formatDateTime(stock.asOf).replace(" at ", " ")}
+          </small>
+        </>
+      )}
+    </span>
+  )
+}
+
 export default function EntryDetailPage() {
   const { id } = useParams()
   const location = useLocation()
@@ -50,6 +105,12 @@ export default function EntryDetailPage() {
     loading,
     reload,
   } = useApi(() => api.getInventoryById(id), [id])
+  const {
+    data: stock,
+    error: stockError,
+    loading: stockLoading,
+    reload: reloadStock,
+  } = useApi(() => api.getInventoryStock(id), [id])
   const {
     data: catalog,
     error: catalogError,
@@ -68,6 +129,23 @@ export default function EntryDetailPage() {
     setForm(recordForm(record))
     setEditing(editRequested)
   }, [record, editRequested])
+
+  useEffect(() => {
+    function refreshStock() {
+      if (document.visibilityState === "visible") {
+        void reloadStock()
+      }
+    }
+
+    window.addEventListener("focus", refreshStock)
+    window.addEventListener("inventory-stock-changed", refreshStock)
+    document.addEventListener("visibilitychange", refreshStock)
+    return () => {
+      window.removeEventListener("focus", refreshStock)
+      window.removeEventListener("inventory-stock-changed", refreshStock)
+      document.removeEventListener("visibilitychange", refreshStock)
+    }
+  }, [reloadStock])
 
   if (loading || catalogLoading) {
     return (
@@ -121,6 +199,7 @@ export default function EntryDetailPage() {
     try {
       const response = await api.updateInventory(id, form)
       setRecord(response.data)
+      await reloadStock()
       setEditing(false)
       if (location.pathname.endsWith("/edit")) {
         navigate(`/inventory/${encodeURIComponent(id)}`, { replace: true })
@@ -304,7 +383,29 @@ export default function EntryDetailPage() {
               <span className="entry-record-category">{record.category}</span>
               <StatusBadge status={record.status} />
             </div>
-            <h2>{record.item}</h2>
+            <div className="entry-record-title-row">
+              <h2>{record.item}</h2>
+              <div
+                aria-label={
+                  stockLoading
+                    ? "In stock: loading"
+                    : stockError || !stock
+                      ? "In stock: stock unavailable"
+                      : `In stock: ${stock.display}`
+                }
+                className="entry-record-stock-stat"
+              >
+                <span className="entry-record-stock-stat-label">In stock</span>
+                <StockFigure
+                  error={stockError}
+                  loading={stockLoading}
+                  onRetry={() => {
+                    void reloadStock()
+                  }}
+                  stock={stock}
+                />
+              </div>
+            </div>
             <p>{record.size || "No specification or size recorded"}</p>
           </header>
           <dl aria-label="Quantity movement" className="entry-record-quantities">
@@ -343,6 +444,20 @@ export default function EntryDetailPage() {
             <div>
               <dt>Last modified by</dt>
               <dd>{record.modifiedBy}</dd>
+            </div>
+            <div className="entry-record-stock-card">
+              <dt>Stock remaining</dt>
+              <dd>
+                <StockFigure
+                  context
+                  error={stockError}
+                  loading={stockLoading}
+                  onRetry={() => {
+                    void reloadStock()
+                  }}
+                  stock={stock}
+                />
+              </dd>
             </div>
             <div className="entry-record-details">
               <dt>Details</dt>

@@ -1781,6 +1781,115 @@
   line-height: 1.2;
 }
 
+.entry-record-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.entry-record-title-row h2 {
+  min-width: 0;
+}
+
+.entry-record-stock-stat {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  min-width: 110px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 11px;
+  background: var(--surface);
+}
+
+.entry-record-stock-stat-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.entry-stock-value {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.entry-stock-value strong {
+  color: var(--green);
+  font-size: clamp(20px, 2.6vw, 27px);
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.entry-stock-value-zero strong {
+  color: var(--muted);
+}
+
+.entry-stock-value-negative strong {
+  color: var(--red);
+}
+
+.entry-stock-value small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.entry-record-stock-stat .entry-stock-value {
+  justify-items: end;
+  text-align: right;
+}
+
+.entry-record-stock-stat .entry-stock-value strong {
+  font-size: 16px;
+}
+
+.entry-stock-skeleton {
+  display: block;
+  width: 108px;
+}
+
+.entry-stock-skeleton .skeleton {
+  display: block;
+  height: 23px;
+}
+
+.entry-record-stock-stat .entry-stock-skeleton {
+  width: 74px;
+}
+
+.entry-record-stock-stat .entry-stock-skeleton .skeleton {
+  height: 19px;
+}
+
+.entry-stock-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.entry-stock-retry {
+  border: 0;
+  border-radius: 3px;
+  padding: 1px 3px;
+  background: transparent;
+  color: var(--red);
+  font-size: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .entry-record-hero p {
   margin: 0;
   color: var(--muted);
@@ -1872,6 +1981,10 @@
 
 .entry-record-fields .entry-record-details {
   grid-column: 1 / -1;
+}
+
+.entry-record-stock-card dd {
+  min-width: 0;
 }
 
 .entry-review-panel {
@@ -2097,6 +2210,20 @@
 
   .entry-record-hero {
     padding: 20px;
+  }
+
+  .entry-record-title-row {
+    flex-wrap: wrap;
+  }
+
+  .entry-record-stock-stat {
+    flex-basis: 100%;
+    justify-items: start;
+  }
+
+  .entry-record-stock-stat .entry-stock-value {
+    justify-items: start;
+    text-align: left;
   }
 
   .entry-record-quantities,
