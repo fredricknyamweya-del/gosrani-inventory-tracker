@@ -118,7 +118,7 @@ def test_bale_transactions_normalize_and_keep_the_original_unit(client):
     assert stock.json["data"]["unit"] == "BALE"
     assert stock.json["data"]["quantity"] == 3
     assert stock.json["data"]["equivalentPieces"] == 15
-    assert stock.json["data"]["display"] == "3 bales"
+    assert stock.json["data"]["display"] == "3 bales (15 pcs)"
 
     persisted = db.session.get(Specification, specification.id)
     assert persisted is not None

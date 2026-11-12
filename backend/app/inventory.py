@@ -47,7 +47,6 @@ def _disable_stock_response_caching(response):
 def _stock_display(
     quantity: Decimal,
     unit: InventoryUnit,
-    pack_size: int | None,
     pieces_per_bale: int | None,
 ) -> str:
     def format_number(value: Decimal) -> str:
@@ -56,31 +55,13 @@ def _stock_display(
     if unit == InventoryUnit.KG:
         return f"{format_number(quantity)} kg"
     if unit == InventoryUnit.BALE and pieces_per_bale:
-        negative = quantity < 0
-        absolute_quantity = abs(quantity)
-        bale_count = int(absolute_quantity // pieces_per_bale)
-        remaining_pieces = absolute_quantity - bale_count * pieces_per_bale
-        sign = "-" if negative else ""
-        parts = []
-        if bale_count:
-            parts.append(
-                f"{sign}{format_number(Decimal(bale_count))} {'bale' if bale_count == 1 else 'bales'}"
-            )
-        if remaining_pieces:
-            parts.append(
-                f"{sign}{format_number(remaining_pieces)} {'pc' if remaining_pieces == 1 else 'pcs'}"
-            )
-        return " + ".join(parts) or "0 bales"
-    if pack_size and quantity > 0:
-        bale_count = int(quantity // pack_size)
-        remaining_pieces = quantity - bale_count * pack_size
-        parts = []
-        if bale_count:
-            parts.append(f"{format_number(Decimal(bale_count))} {'bale' if bale_count == 1 else 'bales'}")
-        if remaining_pieces:
-            parts.append(f"{format_number(remaining_pieces)} {'pc' if remaining_pieces == 1 else 'pcs'}")
-        if parts:
-            return " + ".join(parts)
+        bale_quantity = quantity / Decimal(pieces_per_bale)
+        bale_label = "bale" if abs(bale_quantity) == 1 else "bales"
+        piece_label = "pc" if abs(quantity) == 1 else "pcs"
+        return (
+            f"{format_number(bale_quantity)} {bale_label} "
+            f"({format_number(quantity)} {piece_label})"
+        )
     return f"{format_number(quantity)} PCS"
 
 
@@ -625,7 +606,6 @@ def get_inventory_stock(record_identifier: str):
             "display": _stock_display(
                 quantity,
                 item.inventory_unit,
-                specification.pack_size,
                 item.pieces_per_bale,
             ),
             "locationId": str(location.id),
