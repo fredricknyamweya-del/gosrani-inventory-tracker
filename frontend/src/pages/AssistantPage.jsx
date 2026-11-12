@@ -7,7 +7,7 @@ export default function AssistantPage() {
       <PageHeader
         description="Ask questions about recorded stock and inventory movements."
         eyebrow="ADMIN WORKSPACE"
-        title="AI Assistant"
+        title="Assistance"
       />
       <AssistantChat />
     </section>

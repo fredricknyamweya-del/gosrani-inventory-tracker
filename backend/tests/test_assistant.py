@@ -9,6 +9,7 @@ from unittest.mock import Mock
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
+from app.assistant import _normalized, _resolve_catalog_entity
 from app.extensions import db
 from app.models import (
     AssistantQuery,
@@ -40,6 +41,27 @@ def _create_user(role: UserRole) -> User:
 def _authorization(user: User) -> dict[str, str]:
     token = create_access_token(identity=str(user.id))
     return {"Authorization": f"Bearer {token}"}
+
+
+def test_assistant_normalizes_dimensions_units_punctuation_and_plural_names():
+    assert _normalized("  4 X 6, 4*6, 4 × 6  ") == "4x6 4x6 4x6"
+    assert _normalized("BLS bales pcs pieces KGS kilograms") == (
+        "bale bale pc pc kg kg"
+    )
+    assert _normalized("BEDCOVERS") == "bedcovers"
+
+
+def test_assistant_resolves_partial_names_and_synonyms_without_guessing():
+    categories = [(1, "Bedcovers"), (2, "Bedding")]
+    items = [(1, "Pillow 600g"), (2, "Pillow 700g")]
+
+    match, suggestions = _resolve_catalog_entity("bed covers", categories, "categories")
+    assert match == categories[0]
+    assert suggestions == []
+
+    match, suggestions = _resolve_catalog_entity("Pillows", items, "items")
+    assert match is None
+    assert suggestions == ["Pillow 600g", "Pillow 700g"]
 
 
 def test_assistant_requires_authentication(client):
@@ -205,6 +227,61 @@ def test_assistant_queries_item_stock_across_all_specifications(client):
     assert response.status_code == 200
     assert response.json["data"]["answer"] == (
         "Recorded stock for HDF is 18 across its specifications."
+    )
+
+
+def test_assistant_asks_for_item_before_querying_stock(client):
+    user = _create_user(UserRole.ADMIN)
+    location = Location(code="ELD", name="Eldoret")
+    category = Category(name="Bedding")
+    db.session.add_all([location, category])
+    db.session.flush()
+    item = Item(category_id=category.id, name="Vivo Mattress")
+    db.session.add(item)
+    db.session.flush()
+    specification = Specification(item_id=item.id, label="72*60*6", is_default=True)
+    db.session.add(specification)
+    db.session.flush()
+    db.session.add_all(
+        [
+            UserLocation(user_id=user.id, location_id=location.id),
+            InventoryRecord(
+                location_id=location.id,
+                record_date=date(2026, 11, 5),
+                specification_id=specification.id,
+                qty_in=Decimal(10),
+                qty_out=Decimal(2),
+                entered_unit=EnteredUnit.PCS,
+                status=RecordStatus.LOCKED,
+                created_by=user.id,
+            ),
+        ]
+    )
+    db.session.commit()
+    headers = _authorization(user)
+
+    clarification = client.post(
+        "/api/assistant/query",
+        json={"question": "How much stock is left?"},
+        headers=headers,
+    )
+
+    assert clarification.status_code == 200
+    assert clarification.json["data"]["needsClarification"] is True
+    assert clarification.json["data"]["records"] == []
+    assert "actual catalog name" in clarification.json["data"]["answer"]
+    assert db.session.query(AssistantQuery).count() == 1
+
+    response = client.post(
+        "/api/assistant/query",
+        json={"question": "How much stock is left? Vivo Mattress"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert "needsClarification" not in response.json["data"]
+    assert response.json["data"]["answer"] == (
+        "Recorded stock for Vivo Mattress is 8 across its specifications."
     )
 
 

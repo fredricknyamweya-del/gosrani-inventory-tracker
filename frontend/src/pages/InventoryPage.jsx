@@ -26,7 +26,7 @@ import { useAuth } from "../context/AuthContext";
 import { formatDate } from "../utils/format";
 import { api } from "../services/api";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 5;
 
 export default function InventoryPage() {
   const { isAdmin } = useAuth();
@@ -292,7 +292,7 @@ export default function InventoryPage() {
       ) : (
         <section aria-label="Inventory records" className="panel inventory-table-panel">
           {inventoryLoading || catalogLoading ? (
-            <LoadingState label="Loading inventory records" rows={6} />
+            <LoadingState label="Loading inventory records" rows={5} />
           ) : records?.length ? (
             <>
               <div className="table-scroll">
