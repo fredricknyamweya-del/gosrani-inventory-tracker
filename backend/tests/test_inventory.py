@@ -4,6 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from flask_jwt_extended import create_access_token
+
 from app.extensions import db
 from app.inventory import _resolve_record
 from app.models import (
