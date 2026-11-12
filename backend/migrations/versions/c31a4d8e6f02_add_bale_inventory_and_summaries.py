@@ -88,6 +88,7 @@ def upgrade() -> None:
             )
         )
 
+    op.execute("DROP VIEW v_stock")
     op.add_column(
         "inventory_records",
         sa.Column(
@@ -116,12 +117,21 @@ def upgrade() -> None:
         )
     )
 
-    op.execute("DROP VIEW v_stock")
     _create_stock_view()
 
 
 def downgrade() -> None:
     op.execute("DROP VIEW v_stock")
+    op.drop_column("inventory_records", "qty_out_normalized")
+    op.drop_column("inventory_records", "qty_in_normalized")
+    with op.batch_alter_table("inventory_records") as batch_op:
+        batch_op.drop_constraint("pieces_per_unit_positive", type_="check")
+    op.drop_column("inventory_records", "pieces_per_unit")
+    with op.batch_alter_table("items") as batch_op:
+        batch_op.drop_constraint("item_bale_conversion_valid", type_="check")
+        batch_op.drop_constraint("inventory_unit", type_="check")
+    op.drop_column("items", "pieces_per_bale")
+    op.drop_column("items", "inventory_unit")
     op.execute(
         """
         CREATE VIEW v_stock AS
@@ -133,13 +143,3 @@ def downgrade() -> None:
         GROUP BY location_id, specification_id
         """
     )
-    op.drop_column("inventory_records", "qty_out_normalized")
-    op.drop_column("inventory_records", "qty_in_normalized")
-    with op.batch_alter_table("inventory_records") as batch_op:
-        batch_op.drop_constraint("pieces_per_unit_positive", type_="check")
-    op.drop_column("inventory_records", "pieces_per_unit")
-    with op.batch_alter_table("items") as batch_op:
-        batch_op.drop_constraint("item_bale_conversion_valid", type_="check")
-        batch_op.drop_constraint("inventory_unit", type_="check")
-    op.drop_column("items", "pieces_per_bale")
-    op.drop_column("items", "inventory_unit")
