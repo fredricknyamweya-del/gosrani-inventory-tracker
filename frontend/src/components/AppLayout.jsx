@@ -177,7 +177,7 @@ export default function AppLayout() {
     { to: "/inventory/new", label: "Add Entry", icon: PackagePlus },
     ...(isAdmin
       ? [
-          { to: "/assistant", label: "AI Assistant", icon: Sparkles },
+          { to: "/assistant", label: "Assistant", icon: Sparkles },
           {
             to: "/catalog",
             label: "Product Catalog",
