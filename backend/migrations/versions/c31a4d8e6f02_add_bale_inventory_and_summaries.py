@@ -30,7 +30,8 @@ def _create_stock_view() -> None:
         CREATE VIEW v_stock AS
         SELECT location_id,
                specification_id,
-               COALESCE(SUM(qty_in), 0) - COALESCE(SUM(qty_out), 0) AS stock
+               COALESCE(SUM(COALESCE(qty_in_normalized, qty_in)), 0)
+                 - COALESCE(SUM(COALESCE(qty_out_normalized, qty_out)), 0) AS stock
         FROM inventory_records
         WHERE deleted_at IS NULL
         GROUP BY location_id, specification_id
@@ -126,8 +127,7 @@ def downgrade() -> None:
         CREATE VIEW v_stock AS
         SELECT location_id,
                specification_id,
-               COALESCE(SUM(COALESCE(qty_in_normalized, qty_in)), 0)
-                 - COALESCE(SUM(COALESCE(qty_out_normalized, qty_out)), 0) AS stock
+               COALESCE(SUM(qty_in), 0) - COALESCE(SUM(qty_out), 0) AS stock
         FROM inventory_records
         WHERE deleted_at IS NULL
         GROUP BY location_id, specification_id
