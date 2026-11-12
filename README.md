@@ -18,8 +18,8 @@ use the read-only inventory assistant.
 - Track products in pieces or bales, preserve each transaction's entered
   quantity and conversion snapshot, and normalize bale stock to individual
   pieces for calculations.
-- Review a searchable catalogue summary with product-level stock totals,
-  product configuration, and location-scoped transaction counts.
+- Review a searchable inventory summary with stock remaining by item size and
+  the item's configured inventory unit.
 - Validate entries on the server and show review warnings, including large
   quantities, both quantity fields being filled, outgoing quantity exceeding
   recorded stock, and unusual dates.
@@ -134,7 +134,7 @@ seeding, and deployment configuration details.
 | `/login` | Sign in | Public |
 | `/inventory` | Inventory list | Signed in |
 | `/inventory/new` | Add and review an inventory record | Signed in |
-| `/catalog-summary` | Product stock and catalogue summary | Signed in |
+| `/catalog-summary` | Inventory summary by item size | Signed in |
 | `/inventory/:id` | Inventory record details | Signed in |
 | `/inventory/:id/edit` | Edit an inventory record | Admin |
 | `/account/password` | Change password | Signed in |
