@@ -30,8 +30,7 @@ def _create_stock_view() -> None:
         CREATE VIEW v_stock AS
         SELECT location_id,
                specification_id,
-               COALESCE(SUM(qty_in_normalized), 0)
-                 - COALESCE(SUM(qty_out_normalized), 0) AS stock
+               COALESCE(SUM(qty_in), 0) - COALESCE(SUM(qty_out), 0) AS stock
         FROM inventory_records
         WHERE deleted_at IS NULL
         GROUP BY location_id, specification_id
@@ -57,6 +56,9 @@ def upgrade() -> None:
             "item_bale_conversion_valid",
             "(inventory_unit = 'BALE' AND pieces_per_bale IS NOT NULL AND pieces_per_bale > 0) "
             "OR (inventory_unit != 'BALE' AND pieces_per_bale IS NULL)",
+        )
+        batch_op.create_check_constraint(
+            "inventory_unit", "inventory_unit IN ('PCS', 'BALE', 'KG')"
         )
     op.execute(
         sa.text(
@@ -102,6 +104,10 @@ def upgrade() -> None:
         "inventory_records",
         sa.Column("qty_out_normalized", sa.Numeric(15, 3), nullable=True),
     )
+    with op.batch_alter_table("inventory_records") as batch_op:
+        batch_op.create_check_constraint(
+            "pieces_per_unit_positive", "pieces_per_unit > 0"
+        )
     op.execute(
         sa.text(
             "UPDATE inventory_records SET "
@@ -120,7 +126,8 @@ def downgrade() -> None:
         CREATE VIEW v_stock AS
         SELECT location_id,
                specification_id,
-               COALESCE(SUM(qty_in), 0) - COALESCE(SUM(qty_out), 0) AS stock
+               COALESCE(SUM(COALESCE(qty_in_normalized, qty_in)), 0)
+                 - COALESCE(SUM(COALESCE(qty_out_normalized, qty_out)), 0) AS stock
         FROM inventory_records
         WHERE deleted_at IS NULL
         GROUP BY location_id, specification_id
@@ -128,8 +135,11 @@ def downgrade() -> None:
     )
     op.drop_column("inventory_records", "qty_out_normalized")
     op.drop_column("inventory_records", "qty_in_normalized")
+    with op.batch_alter_table("inventory_records") as batch_op:
+        batch_op.drop_constraint("pieces_per_unit_positive", type_="check")
     op.drop_column("inventory_records", "pieces_per_unit")
     with op.batch_alter_table("items") as batch_op:
         batch_op.drop_constraint("item_bale_conversion_valid", type_="check")
+        batch_op.drop_constraint("inventory_unit", type_="check")
     op.drop_column("items", "pieces_per_bale")
     op.drop_column("items", "inventory_unit")

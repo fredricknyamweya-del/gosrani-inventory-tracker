@@ -24,6 +24,7 @@ from app.models import (
     Category,
     EnteredUnit,
     InventoryRecord,
+    InventoryUnit,
     Item,
     Location,
     RecordStatus,
@@ -44,12 +45,30 @@ def _disable_stock_response_caching(response):
     return response
 
 
-def _stock_display(quantity: Decimal, unit: StockUnit, pack_size: int | None) -> str:
+def _stock_display(
+    quantity: Decimal,
+    unit: InventoryUnit,
+    pack_size: int | None,
+    pieces_per_bale: int | None,
+) -> str:
     def format_number(value: Decimal) -> str:
         return f"{value:,.3f}".rstrip("0").rstrip(".")
 
-    if unit == StockUnit.KG:
+    if unit == InventoryUnit.KG:
         return f"{format_number(quantity)} kg"
+    if unit == InventoryUnit.BALE and pieces_per_bale:
+        bale_count = int(quantity // pieces_per_bale)
+        remaining_pieces = quantity - bale_count * pieces_per_bale
+        parts = []
+        if bale_count:
+            parts.append(
+                f"{format_number(Decimal(bale_count))} {'bale' if bale_count == 1 else 'bales'}"
+            )
+        if remaining_pieces:
+            parts.append(
+                f"{format_number(remaining_pieces)} {'pc' if remaining_pieces == 1 else 'pcs'}"
+            )
+        return " + ".join(parts) or "0 bales"
     if pack_size and quantity > 0:
         bale_count = int(quantity // pack_size)
         remaining_pieces = quantity - bale_count * pack_size
@@ -70,7 +89,11 @@ def _parse_record_identifier(identifier: str) -> int | None:
     return int(digits)
 
 
-def _resolve_record(payload: object) -> tuple[dict[str, object] | None, list[dict[str, str]]]:
+def _resolve_record(
+    payload: object,
+    *,
+    existing_record: InventoryRecord | None = None,
+) -> tuple[dict[str, object] | None, list[dict[str, str]]]:
     if not isinstance(payload, dict):
         return None, [{"field": "body", "message": "A JSON object is required."}]
 
@@ -114,6 +137,38 @@ def _resolve_record(payload: object) -> tuple[dict[str, object] | None, list[dic
             item.id,
         )
 
+    configured_unit = item.inventory_unit if item is not None else InventoryUnit.PCS
+    expected_unit = configured_unit
+    pieces_per_unit = (
+        item.pieces_per_bale
+        if item is not None and configured_unit == InventoryUnit.BALE
+        else 1
+    )
+    if (
+        existing_record is not None
+        and specification is not None
+        and specification.id == existing_record.specification_id
+    ):
+        expected_unit = InventoryUnit(existing_record.entered_unit.value)
+        pieces_per_unit = existing_record.pieces_per_unit
+    entered_unit_value = payload.get(
+        "enteredUnit", expected_unit.value
+    )
+    try:
+        entered_unit = EnteredUnit(entered_unit_value)
+    except (TypeError, ValueError):
+        errors.append(
+            {"field": "enteredUnit", "message": "Choose PCS, BALE, or KG."}
+        )
+        entered_unit = EnteredUnit.PCS
+    if entered_unit.value != expected_unit.value:
+        errors.append(
+            {
+                "field": "enteredUnit",
+                "message": f"This product is configured for {expected_unit.value} transactions.",
+            }
+        )
+
     quantities: dict[str, Decimal | None] = {}
     for key in ("quantityIn", "quantityOut"):
         value = payload.get(key)
@@ -124,11 +179,17 @@ def _resolve_record(payload: object) -> tuple[dict[str, object] | None, list[dic
             quantity = Decimal(str(value))
             if not quantity.is_finite() or quantity < 0 or quantity.as_tuple().exponent < -3:
                 raise InvalidOperation
+            if entered_unit == EnteredUnit.BALE and quantity != quantity.to_integral_value():
+                raise InvalidOperation
             quantities[key] = quantity
         except (InvalidOperation, ValueError):
             errors.append({
                 "field": key,
-                "message": "Enter a non-negative quantity with no more than three decimal places.",
+                "message": (
+                    "Enter a non-negative whole number of bales."
+                    if entered_unit == EnteredUnit.BALE
+                    else "Enter a non-negative quantity with no more than three decimal places."
+                ),
             })
             quantities[key] = None
     if quantities["quantityIn"] is None and quantities["quantityOut"] is None:
@@ -155,6 +216,18 @@ def _resolve_record(payload: object) -> tuple[dict[str, object] | None, list[dic
         "specification": specification,
         "quantityIn": quantities["quantityIn"],
         "quantityOut": quantities["quantityOut"],
+        "enteredUnit": entered_unit,
+        "piecesPerUnit": pieces_per_unit or 1,
+        "normalizedQuantityIn": (
+            quantities["quantityIn"] * (pieces_per_unit or 1)
+            if quantities["quantityIn"] is not None
+            else None
+        ),
+        "normalizedQuantityOut": (
+            quantities["quantityOut"] * (pieces_per_unit or 1)
+            if quantities["quantityOut"] is not None
+            else None
+        ),
         "handledBy": handled_by.strip(),
         "details": (details or "").strip(),
         "enteredUnit": payload.get("enteredUnit", EnteredUnit.PCS.value),
@@ -180,6 +253,9 @@ def _serialize(record: InventoryRecord) -> dict[str, object]:
         "size": specification.label if specification else "",
         "quantityIn": json_number(record.qty_in),
         "quantityOut": json_number(record.qty_out),
+        "normalizedQuantityIn": json_number(record.qty_in_normalized),
+        "normalizedQuantityOut": json_number(record.qty_out_normalized),
+        "piecesPerUnit": record.pieces_per_unit,
         "handledBy": record.handled_by or "",
         "enteredUnit": record.entered_unit.value,
         "details": record.details or "",
@@ -196,6 +272,9 @@ def _record_snapshot(record: InventoryRecord) -> dict[str, object]:
         "specificationId": record.specification_id,
         "quantityIn": json_number(record.qty_in),
         "quantityOut": json_number(record.qty_out),
+        "normalizedQuantityIn": json_number(record.qty_in_normalized),
+        "normalizedQuantityOut": json_number(record.qty_out_normalized),
+        "piecesPerUnit": record.pieces_per_unit,
         "handledBy": record.handled_by,
         "details": record.details,
         "status": record.status.value,
@@ -225,14 +304,33 @@ def _warning_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
         locations = _accessible_location_ids()
         if locations and qty_out is not None:
             stock = db.session.scalar(
-                select(func.coalesce(func.sum(InventoryRecord.qty_in), 0) - func.coalesce(func.sum(InventoryRecord.qty_out), 0))
+                select(
+                    func.coalesce(
+                        func.sum(
+                            func.coalesce(
+                                InventoryRecord.qty_in_normalized,
+                                InventoryRecord.qty_in,
+                            )
+                        ),
+                        0,
+                    )
+                    - func.coalesce(
+                        func.sum(
+                            func.coalesce(
+                                InventoryRecord.qty_out_normalized,
+                                InventoryRecord.qty_out,
+                            )
+                        ),
+                        0,
+                    )
+                )
                 .where(
                     InventoryRecord.location_id.in_(locations),
                     InventoryRecord.specification_id == row["specification"].id,
                     InventoryRecord.deleted_at.is_(None),
                 )
             ) or 0
-            if qty_out > stock:
+            if row["normalizedQuantityOut"] > stock:
                 flags.append({
                     "field": "quantityOut",
                     "message": "Quantity Out is greater than the recorded available stock.",
@@ -262,11 +360,19 @@ def _create_one(payload: dict[str, object], user, location_id: int) -> Inventory
     values, errors = _resolve_record(payload)
     if errors:
         raise ApiValidationError(errors[0]["field"], errors[0]["message"])
-    entered_unit = payload.get("enteredUnit", EnteredUnit.PCS.value)
-    try:
-        unit = EnteredUnit(entered_unit)
-    except (TypeError, ValueError):
-        raise ApiValidationError("enteredUnit", "Choose PCS, BALE, or KG.") from None
+    normalized_out = values["normalizedQuantityOut"]
+    if normalized_out is not None:
+        available = db.session.scalar(
+            select(v_stock.c.stock).where(
+                v_stock.c.location_id == location_id,
+                v_stock.c.specification_id == values["specification"].id,
+            )
+        ) or 0
+        if normalized_out > available:
+            raise ApiValidationError(
+                "quantityOut",
+                "Quantity Out cannot exceed the available stock for this product and location.",
+            )
     record = InventoryRecord(
         location_id=location_id,
         record_date=values["date"],
@@ -274,7 +380,10 @@ def _create_one(payload: dict[str, object], user, location_id: int) -> Inventory
         qty_in=values["quantityIn"],
         qty_out=values["quantityOut"],
         handled_by=values["handledBy"],
-        entered_unit=unit,
+        entered_unit=values["enteredUnit"],
+        pieces_per_unit=values["piecesPerUnit"],
+        qty_in_normalized=values["normalizedQuantityIn"],
+        qty_out_normalized=values["normalizedQuantityOut"],
         details=values["details"],
         status=RecordStatus.SAVED if user.role == UserRole.ADMIN else RecordStatus.LOCKED,
         created_by=user.id,
@@ -485,13 +594,27 @@ def get_inventory_stock(record_identifier: str):
         )
     )
     quantity = Decimal(quantity or 0)
+    if item.inventory_unit == InventoryUnit.BALE:
+        unit_quantity = quantity / item.pieces_per_bale
+        equivalent_pieces = quantity
+    else:
+        unit_quantity = quantity
+        equivalent_pieces = None
 
     return jsonify({
         "data": {
-            "quantity": json_number(quantity),
-            "unit": item.unit.value,
+            "quantity": json_number(unit_quantity),
+            "unit": item.inventory_unit.value,
+            "normalizedQuantity": json_number(quantity),
+            "equivalentPieces": json_number(equivalent_pieces),
             "packSize": specification.pack_size,
-            "display": _stock_display(quantity, item.unit, specification.pack_size),
+            "piecesPerBale": item.pieces_per_bale,
+            "display": _stock_display(
+                quantity,
+                item.inventory_unit,
+                specification.pack_size,
+                item.pieces_per_bale,
+            ),
             "locationId": str(location.id),
             "locationName": location.name,
             "specificationId": str(specification.id),
@@ -532,24 +655,43 @@ def update_inventory(record_id: int):
         "details": record.details or "",
         **payload,
     }
-    values, errors = _resolve_record(merged)
+    values, errors = _resolve_record(merged, existing_record=record)
     if errors:
         return validation_error(errors)
+    current_stock = db.session.scalar(
+        select(v_stock.c.stock).where(
+            v_stock.c.location_id == record.location_id,
+            v_stock.c.specification_id == values["specification"].id,
+        )
+    ) or 0
+    if values["specification"].id == record.specification_id:
+        current_stock = (
+            current_stock
+            - (record.qty_in_normalized or 0)
+            + (record.qty_out_normalized or 0)
+        )
+    if values["normalizedQuantityOut"] is not None and values["normalizedQuantityOut"] > current_stock:
+        return validation_error(
+            [
+                {
+                    "field": "quantityOut",
+                    "message": "Quantity Out cannot exceed the available stock for this product and location.",
+                }
+            ]
+        )
     if "status" in payload and (
         not isinstance(payload["status"], str)
         or payload["status"] not in {status.value for status in RecordStatus}
     ):
         return validation_error([{"field": "status", "message": "Status must be Saved or Locked."}])
-    if "enteredUnit" in payload:
-        try:
-            record.entered_unit = EnteredUnit(payload["enteredUnit"])
-        except (TypeError, ValueError):
-            return validation_error([{"field": "enteredUnit", "message": "Choose PCS, BALE, or KG."}])
-
     record.record_date = values["date"]
     record.specification_id = values["specification"].id
     record.qty_in = values["quantityIn"]
     record.qty_out = values["quantityOut"]
+    record.entered_unit = values["enteredUnit"]
+    record.pieces_per_unit = values["piecesPerUnit"]
+    record.qty_in_normalized = values["normalizedQuantityIn"]
+    record.qty_out_normalized = values["normalizedQuantityOut"]
     record.handled_by = values["handledBy"]
     record.details = values["details"]
     if "status" in payload:

@@ -240,8 +240,22 @@ def get_catalog_summary():
     totals_statement = (
         select(
             Item.id,
-            func.coalesce(func.sum(InventoryRecord.qty_in_normalized), 0),
-            func.coalesce(func.sum(InventoryRecord.qty_out_normalized), 0),
+            func.coalesce(
+                func.sum(
+                    func.coalesce(
+                        InventoryRecord.qty_in_normalized, InventoryRecord.qty_in
+                    )
+                ),
+                0,
+            ),
+            func.coalesce(
+                func.sum(
+                    func.coalesce(
+                        InventoryRecord.qty_out_normalized, InventoryRecord.qty_out
+                    )
+                ),
+                0,
+            ),
             func.count(InventoryRecord.id),
             func.max(InventoryRecord.record_date),
         )
