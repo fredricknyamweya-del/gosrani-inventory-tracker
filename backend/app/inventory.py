@@ -146,6 +146,17 @@ def _resolve_record(
         if item is not None and configured_unit == InventoryUnit.BALE
         else 1
     )
+    if configured_unit == InventoryUnit.BALE and (
+        isinstance(pieces_per_unit, bool)
+        or not isinstance(pieces_per_unit, int)
+        or pieces_per_unit <= 0
+    ):
+        errors.append(
+            {
+                "field": "enteredUnit",
+                "message": "This bale-based product needs a valid pieces-per-bale conversion before stock can be recorded.",
+            }
+        )
     if (
         existing_record is not None
         and specification is not None

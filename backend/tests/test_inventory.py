@@ -204,7 +204,7 @@ def test_stock_endpoint_formats_packs_kilograms_negative_and_zero(client):
     )
     assert kg_response.json["data"]["display"] == "22,816 kg"
 
-    kg_record.qty_out = Decimal("22,916")
+    kg_record.qty_out = Decimal("22916")
     db.session.commit()
     negative_response = client.get(
         f"/api/inventory/{kg_record.id}/stock",
