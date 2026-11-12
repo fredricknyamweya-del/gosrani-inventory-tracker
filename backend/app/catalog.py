@@ -7,13 +7,21 @@ from flask_jwt_extended import jwt_required
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from app.api_utils import ApiValidationError, audit, current_user, iso_datetime
+from app.api_utils import (
+    ApiValidationError,
+    audit,
+    current_user,
+    iso_datetime,
+    user_location_ids,
+)
 from app.errors import error_response, validation_error
 from app.extensions import db
 from app.models import (
     AuditAction,
     AuditEntity,
     Category,
+    InventoryRecord,
+    InventoryUnit,
     Item,
     ItemRequest,
     RequestStatus,
@@ -41,6 +49,8 @@ def _serialize_item(item: Item) -> dict[str, object]:
         "categoryId": str(item.category_id),
         "name": item.name,
         "unit": item.unit.value,
+        "inventoryUnit": item.inventory_unit.value,
+        "piecesPerBale": item.pieces_per_bale,
         "active": item.active,
         "specifications": [specification.label for specification in specifications],
     }
@@ -152,6 +162,54 @@ def _normalize_specifications(values: object) -> list[str]:
     return labels
 
 
+def _inventory_configuration(
+    payload: dict,
+    *,
+    current_unit: InventoryUnit = InventoryUnit.PCS,
+    current_pieces_per_bale: int | None = None,
+    stock_unit: StockUnit = StockUnit.PCS,
+) -> tuple[InventoryUnit, int | None]:
+    unit_value = payload.get(
+        "inventoryUnit",
+        current_unit.value if current_unit != InventoryUnit.PCS or "unit" not in payload
+        else ("KG" if payload.get("unit") == StockUnit.KG.value else current_unit.value),
+    )
+    try:
+        inventory_unit = InventoryUnit(unit_value)
+    except (TypeError, ValueError):
+        raise ApiValidationError(
+            "inventoryUnit", "Inventory unit must be PCS, BALE, or KG."
+        ) from None
+
+    rate = (
+        payload.get("piecesPerBale")
+        if "piecesPerBale" in payload
+        else None
+        if "inventoryUnit" in payload and inventory_unit != InventoryUnit.BALE
+        else current_pieces_per_bale
+    )
+    if inventory_unit == InventoryUnit.BALE:
+        if isinstance(rate, bool) or not isinstance(rate, int) or rate <= 0:
+            raise ApiValidationError(
+                "piecesPerBale",
+                "Enter a positive whole number of pieces per bale before enabling bale stock.",
+            )
+        return inventory_unit, rate
+    if rate not in (None, ""):
+        raise ApiValidationError(
+            "piecesPerBale", "Pieces per bale is only valid for bale-based products."
+        )
+    if inventory_unit == InventoryUnit.KG and stock_unit != StockUnit.KG:
+        raise ApiValidationError(
+            "inventoryUnit", "Kilogram inventory requires the item's stock unit to be KG."
+        )
+    if inventory_unit != InventoryUnit.KG and stock_unit == StockUnit.KG:
+        raise ApiValidationError(
+            "inventoryUnit", "Change the item's stock unit before leaving kilogram inventory."
+        )
+    return inventory_unit, None
+
+
 @catalog_bp.get("")
 @jwt_required()
 def get_catalog():
@@ -167,6 +225,89 @@ def get_catalog():
             "items": [_serialize_item(item) for item in items],
         }
     })
+
+
+@catalog_bp.get("/summary")
+@jwt_required()
+def get_catalog_summary():
+    user = current_user()
+    location_ids = user_location_ids(user.id)
+    items = db.session.execute(
+        select(Item, Category.name)
+        .join(Category, Category.id == Item.category_id)
+        .order_by(Category.sort_order, Category.name, Item.name)
+    ).all()
+    totals_statement = (
+        select(
+            Item.id,
+            func.coalesce(func.sum(InventoryRecord.qty_in_normalized), 0),
+            func.coalesce(func.sum(InventoryRecord.qty_out_normalized), 0),
+            func.count(InventoryRecord.id),
+            func.max(InventoryRecord.record_date),
+        )
+        .join(Specification, Specification.item_id == Item.id)
+        .join(InventoryRecord, InventoryRecord.specification_id == Specification.id)
+        .where(
+            InventoryRecord.deleted_at.is_(None),
+            InventoryRecord.location_id.in_(location_ids) if location_ids else False,
+        )
+        .group_by(Item.id)
+    )
+    totals_by_item = {
+        row[0]: row[1:] for row in db.session.execute(totals_statement).all()
+    }
+
+    product_summaries = []
+    for item, category_name in items:
+        normalized_in, normalized_out, entry_count, last_date = totals_by_item.get(
+            item.id, (0, 0, 0, None)
+        )
+        conversion = item.pieces_per_bale if item.inventory_unit == InventoryUnit.BALE else 1
+        quantity_in = float(normalized_in) / conversion
+        quantity_out = float(normalized_out) / conversion
+        remaining = quantity_in - quantity_out
+        product_summaries.append(
+            {
+                "id": str(item.id),
+                "productName": item.name,
+                "category": category_name,
+                "inventoryUnit": item.inventory_unit.value,
+                "piecesPerBale": item.pieces_per_bale,
+                "totalStockIn": quantity_in,
+                "totalStockOut": quantity_out,
+                "remainingStock": remaining,
+                "equivalentPieces": (
+                    float(normalized_in) - float(normalized_out)
+                    if item.inventory_unit == InventoryUnit.BALE
+                    else None
+                ),
+                "totalEntries": entry_count,
+                "lastTransactionDate": last_date.isoformat() if last_date else None,
+            }
+        )
+
+    return jsonify(
+        {
+            "data": {
+                "products": product_summaries,
+                "totals": {
+                    "registeredProducts": len(items),
+                    "baleBasedProducts": sum(
+                        item.inventory_unit == InventoryUnit.BALE for item, _ in items
+                    ),
+                    "pieceBasedProducts": sum(
+                        item.inventory_unit == InventoryUnit.PCS for item, _ in items
+                    ),
+                    "kilogramBasedProducts": sum(
+                        item.inventory_unit == InventoryUnit.KG for item, _ in items
+                    ),
+                    "stockEntries": sum(
+                        summary["totalEntries"] for summary in product_summaries
+                    ),
+                },
+            }
+        }
+    )
 
 
 @catalog_bp.post("/categories")
@@ -213,7 +354,16 @@ def create_item():
             unit = StockUnit(unit_value)
         except (TypeError, ValueError):
             raise ApiValidationError("unit", "Unit must be PCS or KG.") from None
-        item = Item(category_id=category.id, name=name, unit=unit)
+        inventory_unit, pieces_per_bale = _inventory_configuration(
+            payload, stock_unit=unit
+        )
+        item = Item(
+            category_id=category.id,
+            name=name,
+            unit=unit,
+            inventory_unit=inventory_unit,
+            pieces_per_bale=pieces_per_bale,
+        )
         db.session.add(item)
         db.session.flush()
         for label in specifications:
@@ -255,6 +405,32 @@ def update_item(item_id: int):
             if not isinstance(payload["active"], bool):
                 raise ApiValidationError("active", "Active must be a boolean.")
             item.active = payload["active"]
+        if "inventoryUnit" in payload or "piecesPerBale" in payload:
+            inventory_unit, pieces_per_bale = _inventory_configuration(
+                payload,
+                current_unit=item.inventory_unit,
+                current_pieces_per_bale=item.pieces_per_bale,
+                stock_unit=item.unit,
+            )
+            if inventory_unit != item.inventory_unit:
+                has_inventory = db.session.scalar(
+                    select(InventoryRecord.id)
+                    .join(
+                        Specification,
+                        Specification.id == InventoryRecord.specification_id,
+                    )
+                    .where(Specification.item_id == item.id)
+                    .limit(1)
+                )
+                if has_inventory and (
+                    inventory_unit == InventoryUnit.KG
+                ) != (item.inventory_unit == InventoryUnit.KG):
+                    raise ApiValidationError(
+                        "inventoryUnit",
+                        "An item's kilogram or piece-based stock type cannot be changed after stock transactions exist.",
+                    )
+            item.inventory_unit = inventory_unit
+            item.pieces_per_bale = pieces_per_bale
 
         active_specs = db.session.scalars(
             select(Specification).where(Specification.item_id == item.id)

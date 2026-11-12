@@ -13,6 +13,7 @@ from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models import (
     Category,
+    InventoryUnit,
     Item,
     Location,
     Specification,
@@ -96,6 +97,14 @@ CATALOG: tuple[tuple[str, tuple[tuple[str, StockUnit, tuple[tuple[str, int | Non
     ),
 )
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+BALE_PRODUCT_CONFIG = {
+    ("Duvets", "Duvet N"): 5,
+    ("Duvets", "Duvet S"): 20,
+    ("Duvets", "Woolen Duvet"): 20,
+    ("Blankets", "Goldstar Blanket (BF)"): 20,
+    ("Bedcovers", "Bedcover 60x80"): 50,
+    ("Pillow Cases", "White Pillow Case"): 100,
+}
 
 
 def _find_ci(model, field: str, value: str):
@@ -126,7 +135,22 @@ def _seed_catalog() -> tuple[int, int, int]:
                 )
             )
             if item is None:
-                item = Item(category_id=category.id, name=item_name, unit=unit)
+                pieces_per_bale = BALE_PRODUCT_CONFIG.get(
+                    (category_name, item_name)
+                )
+                item = Item(
+                    category_id=category.id,
+                    name=item_name,
+                    unit=unit,
+                    inventory_unit=(
+                        InventoryUnit.BALE
+                        if pieces_per_bale is not None
+                        else InventoryUnit.KG
+                        if unit == StockUnit.KG
+                        else InventoryUnit.PCS
+                    ),
+                    pieces_per_bale=pieces_per_bale,
+                )
                 db.session.add(item)
                 db.session.flush()
                 items_added += 1

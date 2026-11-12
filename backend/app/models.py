@@ -50,6 +50,12 @@ class StockUnit(str, Enum):
     KG = "KG"
 
 
+class InventoryUnit(str, Enum):
+    PCS = "PCS"
+    BALE = "BALE"
+    KG = "KG"
+
+
 class EnteredUnit(str, Enum):
     PCS = "PCS"
     BALE = "BALE"
@@ -204,6 +210,11 @@ class Item(db.Model):
             text("lower(trim(name))"),
             unique=True,
         ),
+        CheckConstraint(
+            "(inventory_unit = 'BALE' AND pieces_per_bale IS NOT NULL AND pieces_per_bale > 0) "
+            "OR (inventory_unit != 'BALE' AND pieces_per_bale IS NULL)",
+            name="item_bale_conversion_valid",
+        ),
     )
 
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
@@ -216,6 +227,12 @@ class Item(db.Model):
         nullable=False,
         server_default=text("'PCS'"),
     )
+    inventory_unit: Mapped[InventoryUnit] = mapped_column(
+        _enum(InventoryUnit, "inventory_unit"),
+        nullable=False,
+        server_default=text("'PCS'"),
+    )
+    pieces_per_bale: Mapped[int | None] = mapped_column(Integer)
     active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true")
     )
@@ -415,6 +432,10 @@ class InventoryRecord(db.Model):
             "qty_in >= 0 AND qty_out >= 0",
             name="quantities_non_negative",
         ),
+        CheckConstraint(
+            "pieces_per_unit > 0",
+            name="pieces_per_unit_positive",
+        ),
         {"sqlite_autoincrement": True},
     )
 
@@ -428,6 +449,11 @@ class InventoryRecord(db.Model):
     )
     qty_in: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
     qty_out: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    pieces_per_unit: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("1")
+    )
+    qty_in_normalized: Mapped[Decimal | None] = mapped_column(Numeric(15, 3))
+    qty_out_normalized: Mapped[Decimal | None] = mapped_column(Numeric(15, 3))
     entered_unit: Mapped[EnteredUnit] = mapped_column(
         _enum(EnteredUnit, "entered_unit"),
         nullable=False,
@@ -494,5 +520,5 @@ v_stock = Table(
     MetaData(),
     Column("location_id", ID_TYPE, nullable=False),
     Column("specification_id", ID_TYPE, nullable=False),
-    Column("stock", Numeric(12, 3), nullable=True),
+    Column("stock", Numeric(15, 3), nullable=True),
 )
