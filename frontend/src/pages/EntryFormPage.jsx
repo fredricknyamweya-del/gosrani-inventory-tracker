@@ -34,6 +34,12 @@ function makeEntry(id) {
   };
 }
 
+function unitLabel(unit) {
+  if (unit === "BALE") return "Bales";
+  if (unit === "KG") return "Kg";
+  return "Pieces";
+}
+
 function validateEntry(entry, item) {
   const errors = {};
 
@@ -155,6 +161,7 @@ export default function EntryFormPage() {
                   (category) => category.id === item.categoryId,
                 )?.name ?? entry.category,
               item: item.name,
+              enteredUnit: item.inventoryUnit ?? "PCS",
               size: "",
             }
           : entry,
@@ -195,6 +202,10 @@ export default function EntryFormPage() {
       }
       if (entry.item && !selectedItem) {
         entryErrors.item = "Choose an item from the selected category.";
+      }
+      if (selectedItem && entry.enteredUnit !== selectedItem.inventoryUnit) {
+        entryErrors.enteredUnit =
+          "The inventory unit must match the product configuration.";
       }
       if (Object.keys(entryErrors).length) {
         nextErrors[entry.id] = entryErrors;
@@ -324,8 +335,7 @@ export default function EntryFormPage() {
           </div>
           <ol className="entry-review-entries">
             {entries.map((entry, index) => {
-              const enteredUnitLabel =
-                entry.enteredUnit === "BALE" ? "Bale(s)" : "Pcs";
+              const enteredUnitLabel = unitLabel(entry.enteredUnit);
               return (
                 <li className="entry-review-card" key={entry.id}>
                   <h3>Entry {index + 1}</h3>
@@ -422,8 +432,7 @@ export default function EntryFormPage() {
             const selectedItem = availableItems.find(
               (item) => item.name === entry.item,
             );
-            const enteredUnitLabel =
-              entry.enteredUnit === "BALE" ? "Bale(s)" : "Pcs";
+            const enteredUnitLabel = unitLabel(entry.enteredUnit);
 
             return (
               <section className="entry-batch-row" key={entry.id}>
@@ -470,6 +479,7 @@ export default function EntryFormPage() {
                         );
                         updateEntry(entry.id, "item", "");
                         updateEntry(entry.id, "size", "");
+                        updateEntry(entry.id, "enteredUnit", "PCS");
                       }}
                     >
                       <option value="">Select category</option>
@@ -490,7 +500,15 @@ export default function EntryFormPage() {
                         disabled={!entry.category}
                         value={entry.item}
                         onChange={(event) => {
+                          const nextItem = availableItems.find(
+                            (item) => item.name === event.target.value,
+                          );
                           updateEntry(entry.id, "item", event.target.value);
+                          updateEntry(
+                            entry.id,
+                            "enteredUnit",
+                            nextItem?.inventoryUnit ?? "PCS",
+                          );
                           updateEntry(entry.id, "size", "");
                         }}
                       >
@@ -545,21 +563,17 @@ export default function EntryFormPage() {
                   <div className="entry-quantity-section">
                     <Field
                       className="entry-quantity-unit"
+                      error={entryErrors.enteredUnit}
                       label="Quantity unit"
                       required
                     >
                       <Select
+                        disabled
                         value={entry.enteredUnit}
-                        onChange={(event) =>
-                          updateEntry(
-                            entry.id,
-                            "enteredUnit",
-                            event.target.value,
-                          )
-                        }
                       >
-                        <option value="BALE">Bale(s)</option>
-                        <option value="PCS">Pcs</option>
+                        <option value={entry.enteredUnit}>
+                          {unitLabel(entry.enteredUnit)}
+                        </option>
                       </Select>
                     </Field>
                     <div className="entry-quantity-fields">

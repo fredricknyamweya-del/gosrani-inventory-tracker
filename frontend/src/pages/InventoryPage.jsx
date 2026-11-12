@@ -327,8 +327,14 @@ export default function InventoryPage() {
                           </Link>
                         </td>
                         <td>{record.size || "–"}</td>
-                        <td>{record.quantityIn ?? "–"}</td>
-                        <td>{record.quantityOut ?? "–"}</td>
+                        <td>
+                          {record.quantityIn ?? "–"}{" "}
+                          <small>{record.enteredUnit}</small>
+                        </td>
+                        <td>
+                          {record.quantityOut ?? "–"}{" "}
+                          <small>{record.enteredUnit}</small>
+                        </td>
                         <td className="inventory-details-cell" title={record.details || undefined}>
                           {record.details || "–"}
                         </td>

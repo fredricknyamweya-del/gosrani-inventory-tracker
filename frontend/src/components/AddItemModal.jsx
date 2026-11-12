@@ -22,6 +22,8 @@ export default function AddItemModal({
   const [categoryId, setCategoryId] = useState(initialCategoryId);
   const [name, setName] = useState("");
   const [specifications, setSpecifications] = useState([""]);
+  const [inventoryUnit, setInventoryUnit] = useState("PCS");
+  const [piecesPerBale, setPiecesPerBale] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -30,6 +32,8 @@ export default function AddItemModal({
     setCategoryId(initialCategoryId);
     setName("");
     setSpecifications([""]);
+    setInventoryUnit("PCS");
+    setPiecesPerBale("");
     setError("");
   }, [open, initialCategoryId]);
 
@@ -73,6 +77,13 @@ export default function AddItemModal({
       setError("Add at least one specification.");
       return;
     }
+    if (
+      inventoryUnit === "BALE" &&
+      (!Number.isInteger(Number(piecesPerBale)) || Number(piecesPerBale) <= 0)
+    ) {
+      setError("Enter a positive whole number of pieces per bale.");
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -81,6 +92,10 @@ export default function AddItemModal({
         categoryId,
         name,
         specifications: cleanSpecifications,
+        unit: inventoryUnit === "KG" ? "KG" : "PCS",
+        inventoryUnit,
+        piecesPerBale:
+          inventoryUnit === "BALE" ? Number(piecesPerBale) : null,
       });
       await onCreated?.(response.data);
       onClose();
@@ -144,6 +159,34 @@ export default function AddItemModal({
             value={name}
           />
         </Field>
+        <Field label="Inventory unit" required>
+          <Select
+            onChange={(event) => {
+              setInventoryUnit(event.target.value);
+              setPiecesPerBale("");
+              setError("");
+            }}
+            value={inventoryUnit}
+          >
+            <option value="PCS">Pieces</option>
+            <option value="BALE">Bales</option>
+            <option value="KG">Kilograms</option>
+          </Select>
+        </Field>
+        {inventoryUnit === "BALE" && (
+          <Field label="Number of Pieces per Bale" required>
+            <Input
+              min="1"
+              onChange={(event) => {
+                setPiecesPerBale(event.target.value);
+                setError("");
+              }}
+              step="1"
+              type="number"
+              value={piecesPerBale}
+            />
+          </Field>
+        )}
         {exactMatch ? (
           <p className="catalog-inline-error" role="alert">
             An item named “{nearMatch}” already exists in this category.
