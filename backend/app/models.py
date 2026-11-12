@@ -96,12 +96,17 @@ class TokenType(str, Enum):
     REFRESH = "refresh"
 
 
-def _enum(enum_class: type[Enum], name: str) -> SqlEnum:
+def _enum(
+    enum_class: type[Enum],
+    name: str,
+    *,
+    create_constraint: bool = True,
+) -> SqlEnum:
     return SqlEnum(
         enum_class,
         name=name,
         native_enum=False,
-        create_constraint=True,
+        create_constraint=create_constraint,
         validate_strings=True,
         values_callable=lambda members: [member.value for member in members],
     )
@@ -210,11 +215,6 @@ class Item(db.Model):
             text("lower(trim(name))"),
             unique=True,
         ),
-        CheckConstraint(
-            "(inventory_unit = 'BALE' AND pieces_per_bale IS NOT NULL AND pieces_per_bale > 0) "
-            "OR (inventory_unit != 'BALE' AND pieces_per_bale IS NULL)",
-            name="item_bale_conversion_valid",
-        ),
     )
 
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
@@ -228,7 +228,11 @@ class Item(db.Model):
         server_default=text("'PCS'"),
     )
     inventory_unit: Mapped[InventoryUnit] = mapped_column(
-        _enum(InventoryUnit, "inventory_unit"),
+        _enum(
+            InventoryUnit,
+            "inventory_unit",
+            create_constraint=False,
+        ),
         nullable=False,
         server_default=text("'PCS'"),
     )
@@ -431,10 +435,6 @@ class InventoryRecord(db.Model):
         CheckConstraint(
             "qty_in >= 0 AND qty_out >= 0",
             name="quantities_non_negative",
-        ),
-        CheckConstraint(
-            "pieces_per_unit > 0",
-            name="pieces_per_unit_positive",
         ),
         {"sqlite_autoincrement": True},
     )

@@ -52,15 +52,6 @@ def upgrade() -> None:
     op.add_column(
         "items", sa.Column("pieces_per_bale", sa.Integer(), nullable=True)
     )
-    with op.batch_alter_table("items") as batch_op:
-        batch_op.create_check_constraint(
-            "item_bale_conversion_valid",
-            "(inventory_unit = 'BALE' AND pieces_per_bale IS NOT NULL AND pieces_per_bale > 0) "
-            "OR (inventory_unit != 'BALE' AND pieces_per_bale IS NULL)",
-        )
-        batch_op.create_check_constraint(
-            "inventory_unit", "inventory_unit IN ('PCS', 'BALE', 'KG')"
-        )
     op.execute(
         sa.text(
             "UPDATE items SET inventory_unit = 'KG' WHERE unit = 'KG'"
@@ -106,10 +97,6 @@ def upgrade() -> None:
         "inventory_records",
         sa.Column("qty_out_normalized", sa.Numeric(15, 3), nullable=True),
     )
-    with op.batch_alter_table("inventory_records") as batch_op:
-        batch_op.create_check_constraint(
-            "pieces_per_unit_positive", "pieces_per_unit > 0"
-        )
     op.execute(
         sa.text(
             "UPDATE inventory_records SET "
@@ -121,15 +108,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP VIEW v_stock")
+    op.execute("DROP VIEW v_stock"    )
     op.drop_column("inventory_records", "qty_out_normalized")
     op.drop_column("inventory_records", "qty_in_normalized")
-    with op.batch_alter_table("inventory_records") as batch_op:
-        batch_op.drop_constraint("pieces_per_unit_positive", type_="check")
     op.drop_column("inventory_records", "pieces_per_unit")
-    with op.batch_alter_table("items") as batch_op:
-        batch_op.drop_constraint("item_bale_conversion_valid", type_="check")
-        batch_op.drop_constraint("inventory_unit", type_="check")
     op.drop_column("items", "pieces_per_bale")
     op.drop_column("items", "inventory_unit")
     op.execute(
