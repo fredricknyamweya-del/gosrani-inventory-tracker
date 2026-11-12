@@ -10,12 +10,12 @@ import {
 } from "../components/ui";
 import { useApi } from "../hooks/useApi";
 import { api } from "../services/api";
-import { formatDate } from "../utils/format";
 
-function unitName(unit) {
-  if (unit === "BALE") return "Bales";
-  if (unit === "KG") return "Kg";
-  return "Pieces";
+function unitName(unit, quantity) {
+  const singular = Math.abs(Number(quantity)) === 1;
+  if (unit === "BALE") return singular ? "bale" : "bales";
+  if (unit === "KG") return "kg";
+  return singular ? "piece" : "pieces";
 }
 
 function formatQuantity(quantity) {
@@ -27,49 +27,42 @@ function formatQuantity(quantity) {
 export default function CatalogSummaryPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
-  const [unit, setUnit] = useState("");
-  const [sort, setSort] = useState("name");
+  const [size, setSize] = useState("");
   const { data, error, loading, reload } = useApi(
     () => api.getCatalogSummary(),
     [],
   );
-  const products = data?.products ?? [];
+  const stockRows = data?.stockBySpecification ?? [];
   const categories = useMemo(
-    () => [...new Set(products.map((product) => product.category))].sort(
+    () => [...new Set(stockRows.map((row) => row.category))].sort(
       (left, right) => left.localeCompare(right),
     ),
-    [products],
+    [stockRows],
   );
-  const visibleProducts = useMemo(() => {
+  const sizes = useMemo(
+    () => [...new Set(stockRows.map((row) => row.size))].sort(
+      (left, right) => left.localeCompare(right),
+    ),
+    [stockRows],
+  );
+  const visibleRows = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    return products
-      .filter((product) => {
-        const matchesSearch = !query ||
-          product.productName.toLocaleLowerCase().includes(query);
-        const matchesCategory = !category || product.category === category;
-        const matchesUnit = !unit || product.inventoryUnit === unit;
-        return matchesSearch && matchesCategory && matchesUnit;
-      })
-      .sort((left, right) => {
-        if (sort === "category") {
-          return left.category.localeCompare(right.category) ||
-            left.productName.localeCompare(right.productName);
-        }
-        if (sort === "remaining") {
-          return right.remainingStock - left.remainingStock ||
-            left.productName.localeCompare(right.productName);
-        }
-        return left.productName.localeCompare(right.productName);
-      });
-  }, [products, search, category, unit, sort]);
-  const totals = data?.totals ?? {};
+    return stockRows.filter((row) => {
+      const matchesSearch = !query ||
+        `${row.itemName} ${row.size}`.toLocaleLowerCase().includes(query);
+      return matchesSearch &&
+        (!category || row.category === category) &&
+        (!size || row.size === size);
+    });
+  }, [stockRows, search, category, size]);
 
   return (
-    <section className="catalog-summary-page">
+    <section className="inventory-summary-page">
       <PageHeader
-        description="Review every registered product and its stock position in your assigned locations."
-        eyebrow="Inventory overview"
-        title="Catalogue summary"
+        className="inventory-summary-header"
+        description="A clear, size-by-size view of the stock remaining across your assigned locations."
+        eyebrow="Stock at a glance"
+        title="Inventory summary"
       />
 
       {error ? (
@@ -77,41 +70,22 @@ export default function CatalogSummaryPage() {
           message={error.message}
           onRetry={reload}
           retrying={loading}
-          title="Unable to load catalogue summary"
+          title="Unable to load inventory summary"
         />
       ) : (
         <>
-          <section aria-label="Catalogue totals" className="catalog-summary-stats">
-            <article className="panel catalog-summary-stat">
-              <span>Registered products</span>
-              <strong>{totals.registeredProducts ?? 0}</strong>
-            </article>
-            <article className="panel catalog-summary-stat">
-              <span>Bale-based products</span>
-              <strong>{totals.baleBasedProducts ?? 0}</strong>
-            </article>
-            <article className="panel catalog-summary-stat">
-              <span>Piece-based products</span>
-              <strong>{totals.pieceBasedProducts ?? 0}</strong>
-            </article>
-            <article className="panel catalog-summary-stat">
-              <span>Stock entries recorded</span>
-              <strong>{totals.stockEntries ?? 0}</strong>
-            </article>
-          </section>
-
-          <section aria-label="Catalogue summary filters" className="panel catalog-summary-filters">
-            <label className="catalog-summary-search">
-              <Search aria-hidden="true" size={17} />
-              <span className="sr-only">Search products</span>
+          <section aria-label="Inventory summary filters" className="panel inventory-summary-filters">
+            <label className="inventory-summary-search">
+              <Search aria-hidden="true" size={18} />
+              <span className="sr-only">Search item name or size</span>
               <Input
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search product name"
+                placeholder="Search item name or size"
                 type="search"
                 value={search}
               />
             </label>
-            <label className="catalog-summary-filter">
+            <label className="inventory-summary-filter">
               <span>Category</span>
               <Select
                 onChange={(event) => setCategory(event.target.value)}
@@ -123,70 +97,48 @@ export default function CatalogSummaryPage() {
                 ))}
               </Select>
             </label>
-            <label className="catalog-summary-filter">
-              <span>Inventory unit</span>
+            <label className="inventory-summary-filter">
+              <span>Size</span>
               <Select
-                onChange={(event) => setUnit(event.target.value)}
-                value={unit}
+                onChange={(event) => setSize(event.target.value)}
+                value={size}
               >
-                <option value="">All units</option>
-                <option value="PCS">Pieces</option>
-                <option value="BALE">Bales</option>
-                <option value="KG">Kilograms</option>
-              </Select>
-            </label>
-            <label className="catalog-summary-filter">
-              <span>Sort by</span>
-              <Select
-                onChange={(event) => setSort(event.target.value)}
-                value={sort}
-              >
-                <option value="name">Product name</option>
-                <option value="category">Category</option>
-                <option value="remaining">Remaining stock</option>
+                <option value="">All sizes</option>
+                {sizes.map((entry) => (
+                  <option key={entry} value={entry}>{entry}</option>
+                ))}
               </Select>
             </label>
           </section>
 
-          <section aria-label="Product summaries" className="panel catalog-summary-table-panel">
+          <section aria-label="Stock by item and size" className="panel inventory-summary-table-panel">
             {loading ? (
-              <LoadingState label="Loading product summaries" rows={6} />
-            ) : visibleProducts.length ? (
+              <LoadingState label="Loading inventory summary" rows={6} />
+            ) : visibleRows.length ? (
               <div className="table-scroll">
-                <table className="data-table catalog-summary-table">
+                <table className="data-table inventory-summary-table">
                   <thead>
                     <tr>
-                      <th scope="col">No.</th>
-                      <th scope="col">Product Name</th>
+                      <th scope="col">Item Name</th>
                       <th scope="col">Category</th>
-                      <th scope="col">Inventory Unit</th>
-                      <th scope="col">Pieces per Bale</th>
-                      <th scope="col">Total Stock In</th>
-                      <th scope="col">Total Stock Out</th>
-                      <th scope="col">Remaining Stock</th>
-                      <th scope="col">Equivalent Pieces</th>
-                      <th scope="col">Total Entries</th>
-                      <th scope="col">Last Transaction</th>
+                      <th scope="col">Size</th>
+                      <th scope="col">Total Stock Left</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleProducts.map((product, index) => (
-                      <tr key={product.id}>
-                        <td>{index + 1}</td>
-                        <td className="catalog-summary-product">{product.productName}</td>
-                        <td>{product.category}</td>
-                        <td>{unitName(product.inventoryUnit)}</td>
-                        <td>{product.piecesPerBale ?? "–"}</td>
-                        <td>{formatQuantity(product.totalStockIn)} {unitName(product.inventoryUnit)}</td>
-                        <td>{formatQuantity(product.totalStockOut)} {unitName(product.inventoryUnit)}</td>
-                        <td>{formatQuantity(product.remainingStock)} {unitName(product.inventoryUnit)}</td>
+                    {visibleRows.map((row) => (
+                      <tr key={row.id}>
+                        <td className="inventory-summary-item">{row.itemName}</td>
+                        <td>{row.category}</td>
                         <td>
-                          {product.equivalentPieces == null
-                            ? "–"
-                            : `${formatQuantity(product.equivalentPieces)} Pieces`}
+                          <span className="inventory-summary-size">{row.size}</span>
                         </td>
-                        <td>{product.totalEntries}</td>
-                        <td>{product.lastTransactionDate ? formatDate(product.lastTransactionDate) : "–"}</td>
+                        <td>
+                          <span className="inventory-summary-stock">
+                            <strong>{formatQuantity(row.remainingStock)}</strong>
+                            <span>{unitName(row.inventoryUnit, row.remainingStock)}</span>
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -195,14 +147,14 @@ export default function CatalogSummaryPage() {
             ) : (
               <EmptyState
                 description={
-                  products.length
-                    ? "Try changing the search text or filters."
-                    : "Registered products will appear here."
+                  stockRows.length
+                    ? "Try another search or clear the selected filters."
+                    : "Item sizes and their current stock will appear here."
                 }
                 title={
-                  products.length
-                    ? "No products match these filters"
-                    : "No products in the catalogue"
+                  stockRows.length
+                    ? "No stock matches these filters"
+                    : "No inventory to summarize"
                 }
               />
             )}
