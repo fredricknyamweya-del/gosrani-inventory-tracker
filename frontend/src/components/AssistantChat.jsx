@@ -262,10 +262,14 @@ export default function AssistantChat({ compact = false }) {
                                   <span className="assistant-quantity-in">
                                     <strong>Quantity In</strong>
                                     {record.quantityIn ?? "–"}
+                                    {record.quantityIn != null &&
+                                      ` ${record.enteredUnit ?? "PCS"}`}
                                   </span>
                                   <span className="assistant-quantity-out">
                                     <strong>Quantity Out</strong>
                                     {record.quantityOut ?? "–"}
+                                    {record.quantityOut != null &&
+                                      ` ${record.enteredUnit ?? "PCS"}`}
                                   </span>
                                 </div>
                                 {record.details && (

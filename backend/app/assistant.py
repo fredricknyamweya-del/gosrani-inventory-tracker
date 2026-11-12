@@ -376,6 +376,7 @@ def query_assistant():
             "size": specification_label,
             "quantityIn": json_number(record.qty_in),
             "quantityOut": json_number(record.qty_out),
+            "enteredUnit": record.entered_unit.value,
             "details": record.details or "",
         }
         for record, category_name, item_name, specification_label in rows

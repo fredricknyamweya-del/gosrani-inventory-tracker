@@ -29,7 +29,6 @@ from app.models import (
     Location,
     RecordStatus,
     Specification,
-    StockUnit,
     User,
     UserRole,
     v_stock,
@@ -57,16 +56,19 @@ def _stock_display(
     if unit == InventoryUnit.KG:
         return f"{format_number(quantity)} kg"
     if unit == InventoryUnit.BALE and pieces_per_bale:
-        bale_count = int(quantity // pieces_per_bale)
-        remaining_pieces = quantity - bale_count * pieces_per_bale
+        negative = quantity < 0
+        absolute_quantity = abs(quantity)
+        bale_count = int(absolute_quantity // pieces_per_bale)
+        remaining_pieces = absolute_quantity - bale_count * pieces_per_bale
+        sign = "-" if negative else ""
         parts = []
         if bale_count:
             parts.append(
-                f"{format_number(Decimal(bale_count))} {'bale' if bale_count == 1 else 'bales'}"
+                f"{sign}{format_number(Decimal(bale_count))} {'bale' if bale_count == 1 else 'bales'}"
             )
         if remaining_pieces:
             parts.append(
-                f"{format_number(remaining_pieces)} {'pc' if remaining_pieces == 1 else 'pcs'}"
+                f"{sign}{format_number(remaining_pieces)} {'pc' if remaining_pieces == 1 else 'pcs'}"
             )
         return " + ".join(parts) or "0 bales"
     if pack_size and quantity > 0:
