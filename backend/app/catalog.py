@@ -29,6 +29,7 @@ from app.models import (
     StockUnit,
     User,
     UserRole,
+    v_stock,
 )
 
 catalog_bp = Blueprint("catalog", __name__, url_prefix="/api/catalog")
@@ -232,6 +233,42 @@ def get_catalog():
 def get_catalog_summary():
     user = current_user()
     location_ids = user_location_ids(user.id)
+    stock_statement = (
+        select(
+            v_stock.c.specification_id,
+            func.coalesce(func.sum(v_stock.c.stock), 0),
+        )
+        .where(v_stock.c.location_id.in_(location_ids) if location_ids else False)
+        .group_by(v_stock.c.specification_id)
+    )
+    stock_by_specification = {
+        row[0]: row[1] for row in db.session.execute(stock_statement).all()
+    }
+    specifications = db.session.execute(
+        select(Specification, Item, Category.name)
+        .join(Item, Item.id == Specification.item_id)
+        .join(Category, Category.id == Item.category_id)
+        .order_by(Category.sort_order, Category.name, Item.name, Specification.label)
+    ).all()
+    stock_summaries = []
+    for specification, item, category_name in specifications:
+        normalized_stock = stock_by_specification.get(specification.id, 0)
+        conversion = (
+            item.pieces_per_bale
+            if item.inventory_unit == InventoryUnit.BALE
+            else 1
+        )
+        stock_summaries.append(
+            {
+                "id": str(specification.id),
+                "itemName": item.name,
+                "category": category_name,
+                "size": specification.label,
+                "inventoryUnit": item.inventory_unit.value,
+                "remainingStock": float(normalized_stock) / conversion,
+            }
+        )
+
     items = db.session.execute(
         select(Item, Category.name)
         .join(Category, Category.id == Item.category_id)
@@ -305,6 +342,7 @@ def get_catalog_summary():
         {
             "data": {
                 "products": product_summaries,
+                "stockBySpecification": stock_summaries,
                 "totals": {
                     "registeredProducts": len(items),
                     "baleBasedProducts": sum(

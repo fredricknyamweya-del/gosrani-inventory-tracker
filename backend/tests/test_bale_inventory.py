@@ -368,3 +368,38 @@ def test_catalogue_summary_is_location_scoped(client):
     )
     assert configured["remainingStock"] == 0
     assert configured["totalEntries"] == 0
+
+
+def test_catalogue_summary_reports_size_level_stock_in_inventory_units(client):
+    admin, _, _, _, item, specification, _, _ = create_case()
+    second_specification = Specification(item_id=item.id, label="5x7")
+    db.session.add(second_specification)
+    db.session.commit()
+
+    received = client.post(
+        "/api/inventory",
+        json=transaction_payload("Configured Duvet", "4x6", quantityIn=3),
+        headers=authorization(admin),
+    )
+    assert received.status_code == 201
+
+    response = client.get(
+        "/api/catalog/summary",
+        headers=authorization(admin),
+    )
+
+    assert response.status_code == 200
+    sizes = {
+        row["size"]: row
+        for row in response.json["data"]["stockBySpecification"]
+        if row["itemName"] == item.name
+    }
+    assert sizes["4x6"] == {
+        "id": str(specification.id),
+        "itemName": "Configured Duvet",
+        "category": "Bedding",
+        "size": "4x6",
+        "inventoryUnit": "BALE",
+        "remainingStock": 3,
+    }
+    assert sizes["5x7"]["remainingStock"] == 0
