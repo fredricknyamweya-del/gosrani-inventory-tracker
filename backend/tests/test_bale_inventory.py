@@ -170,6 +170,14 @@ def test_catalogue_summary_includes_products_without_entries_and_converts_bales(
         headers=authorization(admin),
     )
     assert response.status_code == 201
+    piece_response = client.post(
+        "/api/inventory",
+        json=transaction_payload("Pillow Kiss Case", "Standard", quantityIn=2),
+        headers=authorization(admin),
+    )
+    assert piece_response.status_code == 201
+    assert piece_response.json["data"][0]["enteredUnit"] == "PCS"
+    assert piece_response.json["data"][0]["normalizedQuantityIn"] == 2
 
     summary = client.get(
         "/api/catalog/summary",
@@ -183,7 +191,7 @@ def test_catalogue_summary_includes_products_without_entries_and_converts_bales(
     assert products["Configured Duvet"]["equivalentPieces"] == 15
     assert products["Configured Duvet"]["piecesPerBale"] == 5
     assert products["Configured Duvet"]["totalEntries"] == 1
-    assert products["Pillow Kiss Case"]["remainingStock"] == 0
+    assert products["Pillow Kiss Case"]["remainingStock"] == 2
     assert products["Pillow Kiss Case"]["inventoryUnit"] == "PCS"
     assert summary.json["data"]["totals"]["registeredProducts"] == 2
     assert ordinary_item.inventory_unit == InventoryUnit.PCS
