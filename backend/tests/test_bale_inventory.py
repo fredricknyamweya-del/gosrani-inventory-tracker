@@ -205,6 +205,18 @@ def test_admin_must_configure_pillow_conversion_and_users_cannot_edit_it(client)
     db.session.add(pillow_specification)
     db.session.commit()
 
+    unconfigured_bale_transaction = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Pillow",
+            "Standard",
+            quantityIn=1,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(user),
+    )
+    assert unconfigured_bale_transaction.status_code == 422
+
     invalid_update = client.patch(
         f"/api/catalog/items/{pillow.id}",
         json={"inventoryUnit": "BALE"},
@@ -236,6 +248,46 @@ def test_admin_must_configure_pillow_conversion_and_users_cannot_edit_it(client)
     assert transaction.status_code == 201
     assert transaction.json["data"][0]["enteredUnit"] == "BALE"
     assert transaction.json["data"][0]["normalizedQuantityIn"] == 20
+
+
+def test_conversion_changes_do_not_rewrite_historical_transactions(client):
+    admin, _, _, _, item, _, _, _ = create_case()
+    received = client.post(
+        "/api/inventory",
+        json=transaction_payload("Configured Duvet", "4x6", quantityIn=2),
+        headers=authorization(admin),
+    )
+    assert received.status_code == 201
+    record_id = received.json["data"][0]["id"]
+
+    updated = client.patch(
+        f"/api/catalog/items/{item.id}",
+        json={"inventoryUnit": "BALE", "piecesPerBale": 10},
+        headers=authorization(admin),
+    )
+    assert updated.status_code == 200
+
+    record = client.get(
+        f"/api/inventory/{record_id}",
+        headers=authorization(admin),
+    )
+    assert record.status_code == 200
+    assert record.json["data"]["quantityIn"] == 2
+    assert record.json["data"]["enteredUnit"] == "BALE"
+    assert record.json["data"]["piecesPerUnit"] == 5
+    assert record.json["data"]["normalizedQuantityIn"] == 10
+
+    summary = client.get(
+        "/api/catalog/summary",
+        headers=authorization(admin),
+    )
+    configured = next(
+        row
+        for row in summary.json["data"]["products"]
+        if row["productName"] == item.name
+    )
+    assert configured["remainingStock"] == 1
+    assert configured["equivalentPieces"] == 10
 
 
 def test_catalog_create_requires_positive_whole_bale_rate(client):
