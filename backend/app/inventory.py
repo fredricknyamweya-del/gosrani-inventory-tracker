@@ -555,11 +555,16 @@ def validate_inventory():
             "size": values["specification"].label,
             "quantityIn": json_number(values["quantityIn"]),
             "quantityOut": json_number(values["quantityOut"]),
+            "normalizedQuantityIn": json_number(values["normalizedQuantityIn"]),
+            "normalizedQuantityOut": json_number(values["normalizedQuantityOut"]),
             "quantityInDisplay": (
                 format_quantity_display(
                     values["normalizedQuantityIn"],
                     values["item"].unit,
                     values["specification"].pack_size,
+                    entry_unit=values["item"].entry_unit,
+                    entered_unit=values["enteredUnit"],
+                    pieces_per_bale=values["piecesPerBale"],
                 )[0]
                 if values["normalizedQuantityIn"] is not None
                 else None
@@ -569,6 +574,9 @@ def validate_inventory():
                     values["normalizedQuantityIn"],
                     values["item"].unit,
                     values["specification"].pack_size,
+                    entry_unit=values["item"].entry_unit,
+                    entered_unit=values["enteredUnit"],
+                    pieces_per_bale=values["piecesPerBale"],
                 )[1]
                 if values["normalizedQuantityIn"] is not None
                 else None
@@ -578,6 +586,9 @@ def validate_inventory():
                     values["normalizedQuantityOut"],
                     values["item"].unit,
                     values["specification"].pack_size,
+                    entry_unit=values["item"].entry_unit,
+                    entered_unit=values["enteredUnit"],
+                    pieces_per_bale=values["piecesPerBale"],
                 )[0]
                 if values["normalizedQuantityOut"] is not None
                 else None
@@ -587,12 +598,17 @@ def validate_inventory():
                     values["normalizedQuantityOut"],
                     values["item"].unit,
                     values["specification"].pack_size,
+                    entry_unit=values["item"].entry_unit,
+                    entered_unit=values["enteredUnit"],
+                    pieces_per_bale=values["piecesPerBale"],
                 )[1]
                 if values["normalizedQuantityOut"] is not None
                 else None
             ),
             "handledBy": values["handledBy"],
             "enteredUnit": values["enteredUnit"],
+            "entryUnit": values["item"].entry_unit,
+            "piecesPerBale": values["piecesPerBale"],
             "details": values["details"],
         })
     if errors:
