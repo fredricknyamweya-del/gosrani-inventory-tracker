@@ -328,6 +328,27 @@ export default function EntryFormPage() {
             ? `${savedEntries[0].item} has been added to the inventory.`
             : `${savedEntries.length} entries have been added to the inventory.`}
         </p>
+        <ul className="entry-success-list">
+          {savedEntries.map((entry) => (
+            <li key={entry.id}>
+              <strong>{entry.item}</strong>
+              <div>
+                <span>In</span>
+                <QuantityDisplay
+                  display={entry.quantityInDisplay}
+                  secondary={entry.quantityInSecondaryDisplay}
+                />
+              </div>
+              <div>
+                <span>Out</span>
+                <QuantityDisplay
+                  display={entry.quantityOutDisplay}
+                  secondary={entry.quantityOutSecondaryDisplay}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
         <Link className="btn btn-primary" to="/inventory">
           Back to inventory
         </Link>

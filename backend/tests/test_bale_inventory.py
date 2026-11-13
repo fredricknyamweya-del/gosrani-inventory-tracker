@@ -216,6 +216,50 @@ def test_bale_and_piece_entries_store_base_units_and_share_stock_display(client)
     }
 
 
+def test_piece_items_can_be_entered_as_bales_with_a_custom_conversion(client):
+    admin, _, _, _, _, _, _, _ = create_case()
+
+    received = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Pillow Kiss Case",
+            "Standard",
+            quantityIn=2,
+            enteredUnit="BALE",
+            piecesPerBale=12,
+        ),
+        headers=authorization(admin),
+    )
+
+    assert received.status_code == 201
+    record = received.json["data"][0]
+    assert record["enteredUnit"] == "BALE"
+    assert record["piecesPerBale"] == 12
+    assert record["normalizedQuantityIn"] == 24
+
+
+def test_piece_items_cannot_be_entered_in_kilograms(client):
+    admin, _, _, _, _, _, _, _ = create_case()
+    payload = transaction_payload(
+        "Pillow Kiss Case",
+        "Standard",
+        enteredUnit="KG",
+        quantityIn=1.5,
+    )
+
+    response = client.post(
+        "/api/inventory/validate",
+        json=[payload],
+        headers=authorization(admin),
+    )
+
+    assert response.status_code == 422
+    assert any(
+        error["field"] == "rows.0.enteredUnit"
+        for error in response.json["errors"]
+    )
+
+
 def test_editing_entered_unit_reconverts_to_base_once(client):
     admin, _, _, _, _, _, _, _ = create_case()
     received = client.post(
