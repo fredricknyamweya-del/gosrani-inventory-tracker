@@ -201,6 +201,14 @@ Stock-out quantities are validated against the normalized available balance.
 - `422`: Invalid configuration, or an incompatible kilogram/piece unit change
   after stock transactions exist.
 
+### `DELETE /api/catalog/items/{id}`
+
+- Auth: Active administrator
+- `200`: Permanently deletes the item and its specifications.
+- `404`: Item does not exist.
+- `409`: The item has inventory history, catalog requests, or another linked
+  record. Deactivate the item to retain its history.
+
 ## User management
 
 ### `GET /api/locations`
