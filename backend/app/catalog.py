@@ -22,6 +22,7 @@ from app.models import (
     AuditAction,
     AuditEntity,
     Category,
+    EnteredUnit,
     InventoryRecord,
     InventoryUnit,
     Item,
@@ -29,7 +30,6 @@ from app.models import (
     Location,
     RequestStatus,
     Specification,
-    EnteredUnit,
     StockUnit,
     User,
     UserRole,
@@ -219,6 +219,89 @@ def _inventory_configuration(
             "inventoryUnit", "Change the item's stock unit before leaving kilogram inventory."
         )
     return inventory_unit, None
+
+
+def _entry_unit(
+    payload: dict,
+    *,
+    stock_unit: StockUnit,
+    current: EnteredUnit | None = None,
+) -> EnteredUnit:
+    fallback = current or (
+        EnteredUnit.KG if stock_unit == StockUnit.KG else EnteredUnit.PCS
+    )
+    if "entryUnit" in payload:
+        value = payload["entryUnit"]
+    elif current is None and "inventoryUnit" in payload:
+        value = payload["inventoryUnit"]
+    else:
+        value = fallback.value
+    try:
+        entry_unit = EnteredUnit(value)
+    except (TypeError, ValueError):
+        raise ApiValidationError(
+            "entryUnit", "Entered unit must be BALE, PCS, or KG."
+        ) from None
+    if (entry_unit == EnteredUnit.KG) != (stock_unit == StockUnit.KG):
+        raise ApiValidationError(
+            "entryUnit",
+            "KG entry units require KG stock; BALE and PCS require piece stock.",
+        )
+    return entry_unit
+
+
+def _specification_pack_sizes(
+    value: object,
+    labels: list[str],
+    entry_unit: EnteredUnit,
+) -> dict[str, int | None]:
+    if value is None:
+        return {}
+    if not isinstance(value, list):
+        raise ApiValidationError(
+            "specificationPackSizes",
+            "Specification pack sizes must be a list.",
+        )
+    normalized: dict[str, int | None] = {}
+    label_lookup = {label.casefold(): label for label in labels}
+    for row in value:
+        if not isinstance(row, dict):
+            raise ApiValidationError(
+                "specificationPackSizes",
+                "Each specification pack size must include a label and packSize.",
+            )
+        label = row.get("label")
+        if not isinstance(label, str) or label.casefold() not in label_lookup:
+            raise ApiValidationError(
+                "specificationPackSizes",
+                "Pack sizes must refer to a specification in this item.",
+            )
+        key = label_lookup[label.casefold()]
+        if key.casefold() in {entry.casefold() for entry in normalized}:
+            raise ApiValidationError(
+                "specificationPackSizes", f'Specification "{key}" is duplicated.'
+            )
+        raw_size = row.get("packSize")
+        if raw_size in (None, ""):
+            pack_size = None
+        elif (
+            isinstance(raw_size, bool)
+            or not isinstance(raw_size, int)
+            or not 1 <= raw_size <= 10_000
+        ):
+            raise ApiValidationError(
+                "specificationPackSizes",
+                "Pieces per bale must be a whole number from 1 to 10000.",
+            )
+        else:
+            pack_size = raw_size
+        if pack_size is not None and entry_unit != EnteredUnit.BALE:
+            raise ApiValidationError(
+                "specificationPackSizes",
+                "Only BALE items can have specification pack sizes.",
+            )
+        normalized[key] = pack_size
+    return normalized
 
 
 @catalog_bp.get("")
@@ -479,20 +562,40 @@ def create_item():
             unit = StockUnit(unit_value)
         except (TypeError, ValueError):
             raise ApiValidationError("unit", "Unit must be PCS or KG.") from None
-        inventory_unit, pieces_per_bale = _inventory_configuration(
-            payload, stock_unit=unit
+        entry_unit = _entry_unit(payload, stock_unit=unit)
+        if "inventoryUnit" in payload or (
+            "piecesPerBale" in payload
+            and "specificationPackSizes" not in payload
+        ):
+            inventory_unit, pieces_per_bale = _inventory_configuration(
+                payload, stock_unit=unit
+            )
+        else:
+            inventory_unit = InventoryUnit(entry_unit.value)
+            pieces_per_bale = None
+        specification_pack_sizes = _specification_pack_sizes(
+            payload.get("specificationPackSizes"),
+            specifications,
+            entry_unit,
         )
         item = Item(
             category_id=category.id,
             name=name,
             unit=unit,
+            entry_unit=entry_unit,
             inventory_unit=inventory_unit,
             pieces_per_bale=pieces_per_bale,
         )
         db.session.add(item)
         db.session.flush()
         for label in specifications:
-            db.session.add(Specification(item_id=item.id, label=label))
+            db.session.add(
+                Specification(
+                    item_id=item.id,
+                    label=label,
+                    pack_size=specification_pack_sizes.get(label),
+                )
+            )
         audit(
             AuditEntity.ITEM,
             item.id,
@@ -524,6 +627,43 @@ def update_item(item_id: int):
         return validation_error([{"field": "body", "message": "A JSON object is required."}])
     before = _serialize_item(item)
     try:
+        if "entryUnit" in payload:
+            entry_unit = _entry_unit(
+                payload,
+                stock_unit=item.unit,
+                current=item.entry_unit,
+            )
+            if entry_unit != item.entry_unit:
+                has_inventory = db.session.scalar(
+                    select(InventoryRecord.id)
+                    .join(
+                        Specification,
+                        Specification.id == InventoryRecord.specification_id,
+                    )
+                    .where(Specification.item_id == item.id)
+                    .limit(1)
+                )
+                if has_inventory:
+                    db.session.rollback()
+                    return error_response(
+                        409,
+                        "An item's entered unit cannot be changed after inventory records exist.",
+                        "item_entry_unit_immutable",
+                    )
+            if entry_unit != EnteredUnit.BALE and db.session.scalar(
+                select(Specification.id)
+                .where(
+                    Specification.item_id == item.id,
+                    Specification.pack_size.is_not(None),
+                )
+                .limit(1)
+            ):
+                raise ApiValidationError(
+                    "entryUnit",
+                    "PCS and KG items cannot have specification pack sizes.",
+                )
+            item.entry_unit = entry_unit
+
         if "name" in payload:
             item.name = _required_text(payload, "name", "Item name", 120)
         if "active" in payload:
@@ -577,17 +717,62 @@ def update_item(item_id: int):
                 raise ApiValidationError("removeSpecifications", "Specifications to remove must be a list of names.")
             removal_set = {value.strip().lower() for value in removals}
             desired = [label for label in desired if label.lower() not in removal_set]
+        specification_pack_sizes = (
+            _specification_pack_sizes(
+                payload["specificationPackSizes"],
+                desired,
+                item.entry_unit,
+            )
+            if "specificationPackSizes" in payload
+            else {}
+        )
         desired_keys = {label.lower() for label in desired}
         for specification in active_specs:
             specification.active = specification.label.lower() in desired_keys
         for label in desired:
             existing = by_name.get(label.lower())
             if existing is None:
-                db.session.add(Specification(item_id=item.id, label=label))
+                db.session.add(
+                    Specification(
+                        item_id=item.id,
+                        label=label,
+                        pack_size=specification_pack_sizes.get(label),
+                    )
+                )
             else:
                 existing.label = label
                 existing.active = True
+                if label in specification_pack_sizes:
+                    requested_pack_size = specification_pack_sizes[label]
+                    if requested_pack_size != existing.pack_size:
+                        has_inventory = db.session.scalar(
+                            select(InventoryRecord.id)
+                            .where(
+                                InventoryRecord.specification_id == existing.id
+                            )
+                            .limit(1)
+                        )
+                        if has_inventory:
+                            db.session.rollback()
+                            return error_response(
+                                409,
+                                "A specification pack size cannot be changed after inventory records exist.",
+                                "specification_pack_size_immutable",
+                            )
+                        existing.pack_size = requested_pack_size
         db.session.flush()
+        if item.entry_unit != EnteredUnit.BALE and db.session.scalar(
+            select(Specification.id)
+            .where(
+                Specification.item_id == item.id,
+                Specification.pack_size.is_not(None),
+            )
+            .limit(1)
+        ):
+            raise ApiValidationError(
+                "specificationPackSizes",
+                "PCS and KG items cannot have specification pack sizes.",
+            )
         after = _serialize_item(item)
         audit(AuditEntity.ITEM, item.id, AuditAction.UPDATE, user.id, before=before, after=after)
         db.session.commit()

@@ -83,3 +83,21 @@ export function formatEntryQuantityPreview(
   );
   return [display, secondary].filter(Boolean).join(" ");
 }
+
+export function calculateTotalPieces(quantity, piecesPerBale) {
+  if (quantity === "" || quantity == null || piecesPerBale === "" || piecesPerBale == null) {
+    return null;
+  }
+  const bales = Number(quantity);
+  const pieces = Number(piecesPerBale);
+  if (
+    !Number.isInteger(bales) ||
+    bales < 0 ||
+    !Number.isInteger(pieces) ||
+    pieces < 1 ||
+    pieces > 10_000
+  ) {
+    return null;
+  }
+  return bales * pieces;
+}

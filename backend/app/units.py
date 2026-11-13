@@ -44,6 +44,8 @@ def format_quantity_display(
     if pieces_per_bale is not None and pieces_per_bale <= 0:
         raise ValueError("Pieces per bale must be positive.")
     if quantity == 0:
+        if entry_unit is None and entered_unit is None and bales is None:
+            return "0", None
         if unit == StockUnit.KG:
             return "0 kg", None
         if entered_unit == EnteredUnit.BALE:
@@ -65,8 +67,10 @@ def format_quantity_display(
         bale_label = "bale" if abs(bale_quantity) == 1 else "bales"
         piece_label = "pc" if abs(quantity) == 1 else "pcs"
         return (
-            f"{_format_number(bale_quantity)} {bale_label} x "
-            f"{pieces_per_bale} pcs = {_format_number(quantity)} {piece_label}",
+            (
+                f"{_format_number(bale_quantity)} {bale_label} x "
+                f"{pieces_per_bale} pcs = {_format_number(quantity)} {piece_label}"
+            ),
             None,
         )
 
@@ -75,8 +79,10 @@ def format_quantity_display(
         bale_label = "bale" if abs(bale_quantity) == 1 else "bales"
         piece_label = "pc" if abs(quantity) == 1 else "pcs"
         return (
-            f"{_format_number(bale_quantity)} {bale_label} "
-            f"({_format_number(quantity)} {piece_label})",
+            (
+                f"{_format_number(bale_quantity)} {bale_label} "
+                f"({_format_number(quantity)} {piece_label})"
+            ),
             None,
         )
 
