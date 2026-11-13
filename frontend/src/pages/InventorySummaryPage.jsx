@@ -44,7 +44,7 @@ export default function InventorySummaryPage() {
     [stockRows],
   );
   const units = useMemo(
-    () => [...new Set(stockRows.map((row) => row.inventoryUnit))].sort(
+    () => [...new Set(stockRows.map((row) => row.entryUnit))].sort(
       (left, right) => left.localeCompare(right),
     ),
     [stockRows],
@@ -57,7 +57,7 @@ export default function InventorySummaryPage() {
       return matchesSearch &&
         (!category || row.category === category) &&
         (!size || row.size === size) &&
-        (!unit || row.inventoryUnit === unit);
+        (!unit || row.entryUnit === unit);
     });
   }, [stockRows, search, category, size, unit]);
 

@@ -26,21 +26,27 @@ import { formatDate, formatDateTime } from "../utils/format"
 import { calculateTotalPieces } from "../utils/units"
 
 function recordForm(record) {
+  const entryUnit = record.entryUnit ?? record.enteredUnit
+  const piecesPerBale = record.piecesPerBale ?? record.packSize ?? ""
+  const toBales = (quantity, recordedUnit, bales) => {
+    if (entryUnit !== "BALE") return quantity ?? ""
+    if (recordedUnit === "BALE") return bales ?? ""
+    const converted = Number(quantity) / Number(piecesPerBale)
+    return piecesPerBale && Number.isInteger(converted) ? converted : ""
+  }
   return {
     date: record.date,
     category: record.category,
     item: record.item,
     size: record.size,
-    quantityIn:
-      record.enteredUnit === "BALE" ? record.balesIn ?? "" : record.quantityIn ?? "",
-    quantityOut:
-      record.enteredUnit === "BALE" ? record.balesOut ?? "" : record.quantityOut ?? "",
+    quantityIn: toBales(record.quantityIn, record.enteredUnit, record.balesIn),
+    quantityOut: toBales(record.quantityOut, record.enteredUnit, record.balesOut),
     handledBy: record.handledBy ?? "",
     details: record.details ?? "",
     status: record.status,
-    enteredUnit: record.enteredUnit,
-    entryUnit: record.entryUnit,
-    piecesPerBale: record.piecesPerBale ?? record.packSize ?? "",
+    enteredUnit: entryUnit,
+    entryUnit,
+    piecesPerBale,
   }
 }
 

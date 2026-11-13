@@ -501,13 +501,13 @@ def get_catalog_summary():
                 "totals": {
                     "registeredProducts": len(items),
                     "baleBasedProducts": sum(
-                        item.inventory_unit == InventoryUnit.BALE for item, _ in items
+                        item.entry_unit == EnteredUnit.BALE for item, _ in items
                     ),
                     "pieceBasedProducts": sum(
-                        item.inventory_unit == InventoryUnit.PCS for item, _ in items
+                        item.entry_unit == EnteredUnit.PCS for item, _ in items
                     ),
                     "kilogramBasedProducts": sum(
-                        item.inventory_unit == InventoryUnit.KG for item, _ in items
+                        item.entry_unit == EnteredUnit.KG for item, _ in items
                     ),
                     "stockEntries": sum(
                         summary["totalEntries"] for summary in product_summaries
@@ -650,18 +650,6 @@ def update_item(item_id: int):
                         "An item's entered unit cannot be changed after inventory records exist.",
                         "item_entry_unit_immutable",
                     )
-            if entry_unit != EnteredUnit.BALE and db.session.scalar(
-                select(Specification.id)
-                .where(
-                    Specification.item_id == item.id,
-                    Specification.pack_size.is_not(None),
-                )
-                .limit(1)
-            ):
-                raise ApiValidationError(
-                    "entryUnit",
-                    "PCS and KG items cannot have specification pack sizes.",
-                )
             item.entry_unit = entry_unit
 
         if "name" in payload:

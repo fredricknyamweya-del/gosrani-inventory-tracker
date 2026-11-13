@@ -22,8 +22,8 @@ export default function AddItemModal({
   const [categoryId, setCategoryId] = useState(initialCategoryId);
   const [name, setName] = useState("");
   const [specifications, setSpecifications] = useState([""]);
-  const [inventoryUnit, setInventoryUnit] = useState("PCS");
-  const [piecesPerBale, setPiecesPerBale] = useState("");
+  const [entryUnit, setEntryUnit] = useState("PCS");
+  const [specificationPackSizes, setSpecificationPackSizes] = useState([""]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -32,8 +32,8 @@ export default function AddItemModal({
     setCategoryId(initialCategoryId);
     setName("");
     setSpecifications([""]);
-    setInventoryUnit("PCS");
-    setPiecesPerBale("");
+    setEntryUnit("PCS");
+    setSpecificationPackSizes([""]);
     setError("");
   }, [open, initialCategoryId]);
 
@@ -50,6 +50,15 @@ export default function AddItemModal({
     setSpecifications((current) =>
       current.map((specification, currentIndex) =>
         currentIndex === index ? value : specification,
+      ),
+    );
+    setError("");
+  }
+
+  function updatePackSize(index, value) {
+    setSpecificationPackSizes((current) =>
+      current.map((packSize, currentIndex) =>
+        currentIndex === index ? value : packSize,
       ),
     );
     setError("");
@@ -78,10 +87,14 @@ export default function AddItemModal({
       return;
     }
     if (
-      inventoryUnit === "BALE" &&
-      (!Number.isInteger(Number(piecesPerBale)) || Number(piecesPerBale) <= 0)
+      entryUnit === "BALE" &&
+      specificationPackSizes.some((packSize) => {
+        if (!packSize) return false;
+        const value = Number(packSize);
+        return !Number.isInteger(value) || value < 1 || value > 10000;
+      })
     ) {
-      setError("Enter a positive whole number of pieces per bale.");
+      setError("Standard pieces per bale must be a whole number from 1 to 10000.");
       return;
     }
 
@@ -92,10 +105,21 @@ export default function AddItemModal({
         categoryId,
         name,
         specifications: cleanSpecifications,
-        unit: inventoryUnit === "KG" ? "KG" : "PCS",
-        inventoryUnit,
-        piecesPerBale:
-          inventoryUnit === "BALE" ? Number(piecesPerBale) : null,
+        unit: entryUnit === "KG" ? "KG" : "PCS",
+        entryUnit,
+        specificationPackSizes: cleanSpecifications.map((label) => {
+          const index = specifications.findIndex(
+            (specification) => specification.trim() === label,
+          );
+          const rawSize = specificationPackSizes[index];
+          return {
+            label,
+            packSize:
+              entryUnit === "BALE" && rawSize !== ""
+                ? Number(rawSize)
+                : null,
+          };
+        }),
       });
       await onCreated?.(response.data);
       onClose();
@@ -159,34 +183,19 @@ export default function AddItemModal({
             value={name}
           />
         </Field>
-        <Field label="Inventory unit" required>
+        <Field label="Entered in" required>
           <Select
             onChange={(event) => {
-              setInventoryUnit(event.target.value);
-              setPiecesPerBale("");
+              setEntryUnit(event.target.value);
               setError("");
             }}
-            value={inventoryUnit}
+            value={entryUnit}
           >
             <option value="PCS">Pieces</option>
             <option value="BALE">Bales</option>
             <option value="KG">Kilograms</option>
           </Select>
         </Field>
-        {inventoryUnit === "BALE" && (
-          <Field label="Number of Pieces per Bale" required>
-            <Input
-              min="1"
-              onChange={(event) => {
-                setPiecesPerBale(event.target.value);
-                setError("");
-              }}
-              step="1"
-              type="number"
-              value={piecesPerBale}
-            />
-          </Field>
-        )}
         {exactMatch ? (
           <p className="catalog-inline-error" role="alert">
             An item named “{nearMatch}” already exists in this category.
@@ -200,7 +209,10 @@ export default function AddItemModal({
           <div className="catalog-specification-heading">
             <strong>Specifications</strong>
             <Button
-              onClick={() => setSpecifications((current) => [...current, ""])}
+              onClick={() => {
+                setSpecifications((current) => [...current, ""]);
+                setSpecificationPackSizes((current) => [...current, ""]);
+              }}
               variant="secondary"
             >
               <Plus aria-hidden="true" size={16} />
@@ -226,15 +238,35 @@ export default function AddItemModal({
                 <button
                   aria-label={`Remove specification ${index + 1}`}
                   className="icon-btn"
-                  onClick={() =>
+                  onClick={() => {
                     setSpecifications((current) =>
                       current.filter((_, currentIndex) => currentIndex !== index),
-                    )
-                  }
+                    );
+                    setSpecificationPackSizes((current) =>
+                      current.filter((_, currentIndex) => currentIndex !== index),
+                    );
+                  }}
                   type="button"
                 >
                   <X aria-hidden="true" size={17} />
                 </button>
+              )}
+              {entryUnit === "BALE" && (
+                <Field
+                  label={`Standard pieces per bale for specification ${index + 1}`}
+                >
+                  <Input
+                    max="10000"
+                    min="1"
+                    onChange={(event) =>
+                      updatePackSize(index, event.target.value)
+                    }
+                    placeholder="Optional"
+                    step="1"
+                    type="number"
+                    value={specificationPackSizes[index] ?? ""}
+                  />
+                </Field>
               )}
             </div>
           ))}

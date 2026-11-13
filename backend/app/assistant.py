@@ -18,6 +18,7 @@ from app.extensions import db
 from app.models import (
     AssistantQuery,
     Category,
+    EnteredUnit,
     InventoryRecord,
     Item,
     Location,
@@ -26,7 +27,7 @@ from app.models import (
     UserRole,
     v_stock,
 )
-from app.units import format_quantity_display
+from app.units import effective_pieces_per_bale, format_quantity_display
 
 assistant_bp = Blueprint("assistant", __name__, url_prefix="/api/assistant")
 
@@ -254,7 +255,19 @@ def _query_item_stock(
     item_id: int,
     location_ids: list[int],
     specification_id: int | None = None,
-) -> list[tuple[int, str, int, str, int | None, StockUnit, Decimal]]:
+) -> list[
+    tuple[
+        int,
+        str,
+        int,
+        str,
+        int | None,
+        StockUnit,
+        EnteredUnit,
+        Decimal,
+        Decimal | None,
+    ]
+]:
     if not location_ids:
         return []
     statement = (
@@ -265,7 +278,9 @@ def _query_item_stock(
             Specification.label,
             Specification.pack_size,
             Item.unit,
+            Item.entry_unit,
             func.coalesce(v_stock.c.stock, 0),
+            v_stock.c.stock_bales,
         )
         .select_from(Location)
         .join(Specification, true())
@@ -294,7 +309,9 @@ def _query_item_stock(
             row[3],
             row[4],
             row[5],
-            Decimal(str(row[6])),
+            row[6],
+            Decimal(str(row[7])),
+            Decimal(str(row[8])) if row[8] is not None else None,
         )
         for row in db.session.execute(statement).all()
     ]
@@ -307,6 +324,7 @@ def _serialize_assistant_record(
     specification_label: str,
     unit: StockUnit,
     pack_size: int | None,
+    entry_unit: EnteredUnit,
 ) -> dict[str, object]:
     base_quantity_in = (
         record.qty_in_normalized
@@ -318,18 +336,33 @@ def _serialize_assistant_record(
         if record.qty_out_normalized is not None
         else record.qty_out
     )
-    conversion = (
-        Decimal(record.pieces_per_unit)
-        if record.entered_unit.value == "BALE"
-        else Decimal(1)
+    pieces_per_bale = effective_pieces_per_bale(
+        record.entered_unit,
+        record.pieces_per_bale,
+        pack_size,
+        record.pieces_per_unit,
     )
     quantity_in_display = (
-        format_quantity_display(base_quantity_in, unit, pack_size)
+        format_quantity_display(
+            base_quantity_in,
+            unit,
+            pack_size,
+            entry_unit=entry_unit,
+            entered_unit=record.entered_unit,
+            pieces_per_bale=pieces_per_bale,
+        )
         if base_quantity_in is not None
         else (None, None)
     )
     quantity_out_display = (
-        format_quantity_display(base_quantity_out, unit, pack_size)
+        format_quantity_display(
+            base_quantity_out,
+            unit,
+            pack_size,
+            entry_unit=entry_unit,
+            entered_unit=record.entered_unit,
+            pieces_per_bale=pieces_per_bale,
+        )
         if base_quantity_out is not None
         else (None, None)
     )
@@ -339,21 +372,25 @@ def _serialize_assistant_record(
         "category": category_name,
         "item": item_name,
         "size": specification_label,
-        "quantityIn": (
-            json_number(base_quantity_in / conversion)
-            if base_quantity_in is not None
-            else None
-        ),
-        "quantityOut": (
-            json_number(base_quantity_out / conversion)
-            if base_quantity_out is not None
-            else None
-        ),
+        "quantityIn": json_number(base_quantity_in),
+        "quantityOut": json_number(base_quantity_out),
         "quantityInDisplay": quantity_in_display[0],
         "quantityInSecondaryDisplay": quantity_in_display[1],
         "quantityOutDisplay": quantity_out_display[0],
         "quantityOutSecondaryDisplay": quantity_out_display[1],
         "enteredUnit": record.entered_unit.value,
+        "entryUnit": entry_unit.value,
+        "piecesPerBale": record.pieces_per_bale,
+        "balesIn": (
+            json_number(base_quantity_in / Decimal(pieces_per_bale))
+            if pieces_per_bale is not None and base_quantity_in is not None
+            else None
+        ),
+        "balesOut": (
+            json_number(base_quantity_out / Decimal(pieces_per_bale))
+            if pieces_per_bale is not None and base_quantity_out is not None
+            else None
+        ),
         "details": record.details or "",
     }
 
@@ -565,6 +602,7 @@ def query_assistant():
             Item.name,
             Specification.label,
             Item.unit,
+            Item.entry_unit,
             Specification.pack_size,
         )
         .join(InventoryRecord.specification)
@@ -586,10 +624,16 @@ def query_assistant():
             specification_label,
             pack_size,
             unit,
+            entry_unit,
             balance,
+            stock_bales,
         ) in balances:
             display, secondary = format_quantity_display(
-                balance, unit, pack_size
+                balance,
+                unit,
+                pack_size,
+                entry_unit=entry_unit,
+                bales=stock_bales,
             )
             stock_display = (
                 f"{display} {secondary}" if secondary else display
@@ -631,6 +675,7 @@ def query_assistant():
             specification_label,
             unit,
             pack_size,
+            entry_unit,
         )
         for (
             record,
@@ -638,6 +683,7 @@ def query_assistant():
             item_name,
             specification_label,
             unit,
+            entry_unit,
             pack_size,
         ) in rows
     ]

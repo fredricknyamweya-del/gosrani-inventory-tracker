@@ -750,7 +750,7 @@ export default function EntryFormPage() {
                         <div className="entry-quantity-fields">
                           <Field
                             error={entryErrors.piecesPerBale}
-                            label="Pieces per bale"
+                            label={entries.length > 1 ? "Pcs per bale" : "Pieces per bale"}
                             required
                           >
                             <Input
@@ -770,7 +770,7 @@ export default function EntryFormPage() {
                           </Field>
                           <div className="entry-bale-totals" aria-live="polite">
                             <div>
-                              <span>Total pieces in</span>
+                              <span>Total pcs in</span>
                               <strong>
                                 {totalPiecesIn == null
                                   ? "–"
@@ -778,7 +778,7 @@ export default function EntryFormPage() {
                               </strong>
                             </div>
                             <div>
-                              <span>Total pieces out</span>
+                              <span>Total pcs out</span>
                               <strong>
                                 {totalPiecesOut == null
                                   ? "–"

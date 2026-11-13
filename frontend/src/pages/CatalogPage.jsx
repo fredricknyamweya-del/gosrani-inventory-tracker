@@ -78,7 +78,7 @@ export default function CatalogPage() {
   const [addItemCategoryId, setAddItemCategoryId] = useState("");
   const [inventoryConfigTarget, setInventoryConfigTarget] = useState(null);
   const [inventoryConfigUnit, setInventoryConfigUnit] = useState("PCS");
-  const [inventoryConfigRate, setInventoryConfigRate] = useState("");
+  const [inventoryConfigPackSizes, setInventoryConfigPackSizes] = useState({});
   const [inventoryConfigError, setInventoryConfigError] = useState("");
   const [renameTarget, setRenameTarget] = useState(null);
   const [renameName, setRenameName] = useState("");
@@ -159,26 +159,47 @@ export default function CatalogPage() {
 
   function openInventoryConfig(item) {
     setInventoryConfigTarget(item);
-    setInventoryConfigUnit(item.inventoryUnit ?? item.unit ?? "PCS");
-    setInventoryConfigRate(item.piecesPerBale ?? "");
+    setInventoryConfigUnit(item.entryUnit ?? "PCS");
+    setInventoryConfigPackSizes(
+      Object.fromEntries(
+        (item.specificationPackSizes ?? []).map(({ label, packSize }) => [
+          label,
+          packSize ?? "",
+        ]),
+      ),
+    );
     setInventoryConfigError("");
   }
 
   function closeInventoryConfig() {
     setInventoryConfigTarget(null);
-    setInventoryConfigRate("");
+    setInventoryConfigPackSizes({});
     setInventoryConfigError("");
   }
 
   async function saveInventoryConfig(event) {
     event.preventDefault();
     if (!inventoryConfigTarget) return;
-    const rate = Number(inventoryConfigRate);
-    if (
-      inventoryConfigUnit === "BALE" &&
-      (!Number.isInteger(rate) || rate <= 0)
-    ) {
-      setInventoryConfigError("Enter a positive whole number of pieces per bale.");
+    const specificationPackSizes = (
+      inventoryConfigTarget.specificationPackSizes ?? []
+    ).map(({ label }) => {
+      const rawSize = inventoryConfigPackSizes[label];
+      return {
+        label,
+        packSize:
+          rawSize === "" || rawSize == null ? null : Number(rawSize),
+      };
+    });
+    if (inventoryConfigUnit !== "BALE" &&
+        specificationPackSizes.some(({ packSize }) => packSize != null)) {
+      setInventoryConfigError("PCS and KG items cannot have standard pack sizes.");
+      return;
+    }
+    if (specificationPackSizes.some(
+      ({ packSize }) => packSize != null &&
+        (!Number.isInteger(packSize) || packSize < 1 || packSize > 10000),
+    )) {
+      setInventoryConfigError("Pieces per bale must be a whole number from 1 to 10000.");
       return;
     }
 
@@ -186,12 +207,12 @@ export default function CatalogPage() {
     setInventoryConfigError("");
     try {
       await api.updateCatalogItem(inventoryConfigTarget.id, {
-        inventoryUnit: inventoryConfigUnit,
-        piecesPerBale: inventoryConfigUnit === "BALE" ? rate : null,
+        entryUnit: inventoryConfigUnit,
+        specificationPackSizes,
       });
       await reloadCatalog();
       closeInventoryConfig();
-      setToast({ message: "Inventory configuration updated." });
+      setToast({ message: "Entry unit and standard packs updated." });
     } catch (error) {
       setInventoryConfigError(error.message);
     } finally {
@@ -550,12 +571,12 @@ export default function CatalogPage() {
                               </div>
                               <div className="catalog-item-actions">
                                 <Button
-                                  aria-label={`Configure inventory unit for ${item.name}`}
+                                  aria-label={`Configure entered unit for ${item.name}`}
                                   onClick={() => openInventoryConfig(item)}
                                   variant="ghost"
                                 >
                                   <Pencil aria-hidden="true" size={15} />
-                                  Inventory unit
+                                  Entered in
                                 </Button>
                                 <Button
                                   aria-label={`Rename ${item.name}`}
@@ -605,10 +626,10 @@ export default function CatalogPage() {
                               </div>
                             </div>
                             <p className="catalog-item-unit">
-                              {item.inventoryUnit === "BALE"
-                                ? `Bales · ${item.piecesPerBale} pieces per bale`
-                                : item.inventoryUnit === "KG"
-                                  ? "Kilograms"
+                              Entered in: {item.entryUnit === "BALE"
+                                ? "Bales"
+                                : item.entryUnit === "KG"
+                                  ? "Kg"
                                   : "Pieces"}
                             </p>
                             <div
@@ -921,7 +942,7 @@ export default function CatalogPage() {
       />
 
       <Modal
-        description="New stock transactions use this saved product unit. Historical transactions retain their original quantities and conversion."
+        description="New entries use the selected unit. Historical records and quantities are not changed."
         footer={
           <>
             <Button onClick={closeInventoryConfig} variant="secondary">
@@ -938,23 +959,25 @@ export default function CatalogPage() {
         }
         onClose={closeInventoryConfig}
         open={Boolean(inventoryConfigTarget)}
-        title={`Inventory unit · ${inventoryConfigTarget?.name ?? ""}`}
+        title={`Entered in · ${inventoryConfigTarget?.name ?? ""}`}
       >
         <form
           className="catalog-dialog-form"
           id="edit-inventory-config-form"
           onSubmit={saveInventoryConfig}
         >
-          <Field label="Inventory unit" required>
+          <Field label="Entered in" required>
             <Select
               disabled={inventoryConfigTarget?.unit === "KG"}
               onChange={(event) => {
                 setInventoryConfigUnit(event.target.value);
                 if (event.target.value !== "BALE") {
-                  setInventoryConfigRate("");
-                } else {
-                  setInventoryConfigRate(
-                    inventoryConfigTarget?.piecesPerBale ?? "",
+                  setInventoryConfigPackSizes(
+                    Object.fromEntries(
+                      (inventoryConfigTarget?.specificationPackSizes ?? []).map(
+                        ({ label }) => [label, ""],
+                      ),
+                    ),
                   );
                 }
                 setInventoryConfigError("");
@@ -969,18 +992,30 @@ export default function CatalogPage() {
             </Select>
           </Field>
           {inventoryConfigUnit === "BALE" && (
-            <Field label="Number of Pieces per Bale" required>
-              <Input
-                min="1"
-                onChange={(event) => {
-                  setInventoryConfigRate(event.target.value);
-                  setInventoryConfigError("");
-                }}
-                step="1"
-                type="number"
-                value={inventoryConfigRate}
-              />
-            </Field>
+            <div className="catalog-specification-fields">
+              <strong>Standard pieces per bale (optional)</strong>
+              {(inventoryConfigTarget?.specificationPackSizes ?? []).map(
+                ({ label }) => (
+                  <Field key={label} label={label}>
+                    <Input
+                      max="10000"
+                      min="1"
+                      onChange={(event) => {
+                        setInventoryConfigPackSizes((current) => ({
+                          ...current,
+                          [label]: event.target.value,
+                        }));
+                        setInventoryConfigError("");
+                      }}
+                      placeholder="No standard"
+                      step="1"
+                      type="number"
+                      value={inventoryConfigPackSizes[label] ?? ""}
+                    />
+                  </Field>
+                ),
+              )}
+            </div>
           )}
           {inventoryConfigTarget?.unit === "KG" && (
             <p className="catalog-hint">
