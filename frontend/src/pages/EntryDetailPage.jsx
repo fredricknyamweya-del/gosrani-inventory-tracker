@@ -40,7 +40,11 @@ function recordForm(record) {
     item: record.item,
     size: record.size,
     quantityIn: toBales(record.quantityIn, record.enteredUnit, record.balesIn),
-    quantityOut: toBales(record.quantityOut, record.enteredUnit, record.balesOut),
+    quantityOut: toBales(
+      record.quantityOut,
+      record.enteredUnit,
+      record.balesOut,
+    ),
     handledBy: record.handledBy ?? "",
     details: record.details ?? "",
     status: record.status,
@@ -59,7 +63,11 @@ function unitLabel(unit) {
 function StockFigure({ stock, loading, error, onRetry, context = false }) {
   if (loading) {
     return (
-      <span aria-label="Loading stock" className="entry-stock-skeleton" role="status">
+      <span
+        aria-label="Loading stock"
+        className="entry-stock-skeleton"
+        role="status"
+      >
         <span aria-hidden="true" className="skeleton" />
       </span>
     )
@@ -69,11 +77,7 @@ function StockFigure({ stock, loading, error, onRetry, context = false }) {
     return (
       <span aria-live="polite" className="entry-stock-error" role="status">
         <span>Stock unavailable</span>
-        <button
-          className="entry-stock-retry"
-          onClick={onRetry}
-          type="button"
-        >
+        <button className="entry-stock-retry" onClick={onRetry} type="button">
           Retry
         </button>
       </span>
@@ -92,9 +96,7 @@ function StockFigure({ stock, loading, error, onRetry, context = false }) {
     >
       <strong>{stock.display}</strong>
       {stock.secondaryDisplay && <small>{stock.secondaryDisplay}</small>}
-      {isNegative && (
-        <small>Stock is below zero. Check recent entries.</small>
-      )}
+      {isNegative && <small>Stock is below zero. Check recent entries.</small>}
       {isZero && <small>Out of stock</small>}
       {context && (
         <>
@@ -103,9 +105,7 @@ function StockFigure({ stock, loading, error, onRetry, context = false }) {
             {stock.sizeLabel ? ` . ${stock.sizeLabel}` : ""} at{" "}
             {stock.locationName}
           </small>
-          <small>
-            As of {formatDateTime(stock.asOf).replace(" at ", " ")}
-          </small>
+          <small>As of {formatDateTime(stock.asOf).replace(" at ", " ")}</small>
         </>
       )}
     </span>
@@ -221,7 +221,8 @@ export default function EntryDetailPage() {
       key === "item"
         ? categoryItems.find((entry) => entry.name === value)
         : item
-    const selectedSize = key === "size" ? value : key === "item" ? "" : form.size
+    const selectedSize =
+      key === "size" ? value : key === "item" ? "" : form.size
     const selectedPackSize = selectedItem?.specificationPackSizes?.find(
       (specification) => specification.label === selectedSize,
     )?.packSize
@@ -425,7 +426,10 @@ export default function EntryDetailPage() {
               />
             </Field>
             {form.entryUnit === "BALE" && (
-              <section className="entry-bale-contents" aria-label="Bale contents">
+              <section
+                className="entry-bale-contents"
+                aria-label="Bale contents"
+              >
                 <h3>Bale contents</h3>
                 {selectedSpecification?.packSize != null && (
                   <small>
@@ -507,7 +511,10 @@ export default function EntryDetailPage() {
           </div>
         </form>
       ) : (
-        <section aria-label="Inventory record details" className="panel entry-record-card">
+        <section
+          aria-label="Inventory record details"
+          className="panel entry-record-card"
+        >
           <header className="entry-record-hero">
             <div className="entry-record-hero-meta">
               <span className="entry-record-category">{record.category}</span>
@@ -538,7 +545,10 @@ export default function EntryDetailPage() {
             </div>
             <p>{record.size || "No specification or size recorded"}</p>
           </header>
-          <dl aria-label="Quantity movement" className="entry-record-quantities">
+          <dl
+            aria-label="Quantity movement"
+            className="entry-record-quantities"
+          >
             <div className="entry-record-quantity-in">
               <dt>Quantity In</dt>
               <dd>
@@ -571,7 +581,7 @@ export default function EntryDetailPage() {
               <div>
                 <dt>Pieces per bale</dt>
                 <dd>
-                  {record.piecesPerBale ?? record.packSize
+                  {(record.piecesPerBale ?? record.packSize)
                     ? `${record.piecesPerBale ?? record.packSize} pcs`
                     : "Not recorded"}
                 </dd>

@@ -1,10 +1,10 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import assert from "node:assert/strict"
+import test from "node:test"
 import {
   calculateTotalPieces,
   formatEntryQuantityPreview,
   formatQuantityDisplay,
-} from "./units.js";
+} from "./units.js"
 
 const goldenCases = [
   [8300, "PCS", 20, ["415 bales", "(8,300 pcs)"]],
@@ -20,36 +20,33 @@ const goldenCases = [
   [22816, "KG", null, ["22,816 kg", null]],
   [22.8165, "KG", null, ["22.816 kg", null]],
   [0, "KG", null, ["0", null]],
-];
+]
 
 for (const [quantity, unit, packSize, expected] of goldenCases) {
   test(`formats ${quantity} ${unit} with pack size ${packSize}`, () => {
-    assert.deepEqual(
-      formatQuantityDisplay(quantity, unit, packSize),
-      expected,
-    );
-  });
+    assert.deepEqual(formatQuantityDisplay(quantity, unit, packSize), expected)
+  })
 }
 
 test("previews bale entry in base pieces with the specification pack size", () => {
   assert.equal(
     formatEntryQuantityPreview(2, "BALE", "PCS", 20),
     "2 bales (40 pcs)",
-  );
-});
+  )
+})
 
 test("does not preview a bale entry without a specification pack size", () => {
-  assert.equal(formatEntryQuantityPreview(2, "BALE", "PCS", null), null);
-});
+  assert.equal(formatEntryQuantityPreview(2, "BALE", "PCS", null), null)
+})
 
 test("rejects invalid pack sizes", () => {
-  assert.throws(() => formatQuantityDisplay(1, "PCS", 0), /positive whole/);
-});
+  assert.throws(() => formatQuantityDisplay(1, "PCS", 0), /positive whole/)
+})
 
 test("calculates bale totals from the entered bale count and contents", () => {
-  assert.equal(calculateTotalPieces(10, 20), 200);
-  assert.equal(calculateTotalPieces(0, 20), 0);
-  assert.equal(calculateTotalPieces(2, 24), 48);
-  assert.equal(calculateTotalPieces(2.5, 20), null);
-  assert.equal(calculateTotalPieces(2, null), null);
-});
+  assert.equal(calculateTotalPieces(10, 20), 200)
+  assert.equal(calculateTotalPieces(0, 20), 0)
+  assert.equal(calculateTotalPieces(2, 24), 48)
+  assert.equal(calculateTotalPieces(2.5, 20), null)
+  assert.equal(calculateTotalPieces(2, null), null)
+})
