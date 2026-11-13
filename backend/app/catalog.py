@@ -250,6 +250,7 @@ def get_catalog_summary():
         select(
             v_stock.c.location_id,
             v_stock.c.specification_id,
+            v_stock.c.stock,
         )
         .where(v_stock.c.location_id.in_(location_ids) if location_ids else False)
     )

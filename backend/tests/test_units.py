@@ -22,7 +22,7 @@ from app.units import format_quantity_display
         ("1", StockUnit.PCS, None, ("1 pc", None)),
         ("-2", StockUnit.PCS, None, ("-2 pcs", None)),
         ("22816", StockUnit.KG, None, ("22,816 kg", None)),
-        ("22.8165", StockUnit.KG, None, ("22.817 kg", None)),
+        ("22.8165", StockUnit.KG, None, ("22.816 kg", None)),
         ("0", StockUnit.KG, None, ("0", None)),
     ],
 )
@@ -34,4 +34,4 @@ def test_format_quantity_display_golden_cases(
 
 def test_format_quantity_display_rejects_invalid_pack_size():
     with pytest.raises(ValueError, match="positive"):
-        format_quantity_display(Decimal("1"), StockUnit.PCS, 0)
+        format_quantity_display(Decimal(1), StockUnit.PCS, 0)

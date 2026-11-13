@@ -15,8 +15,8 @@ from app.models import (
     AssistantQuery,
     Category,
     EnteredUnit,
-    InventoryUnit,
     InventoryRecord,
+    InventoryUnit,
     Item,
     Location,
     RecordStatus,
@@ -109,7 +109,7 @@ def test_assistant_returns_matching_records_and_audits_query(client):
 
     assert response.status_code == 200
     assert response.json["data"]["answer"] == (
-        "Recorded stock for Vivo Mattress (72*60*6) is 8."
+        "Recorded stock for Vivo Mattress is 72*60*6 at Eldoret: 8 pcs."
     )
     assert response.json["data"]["records"][0]["details"] == "Supplier delivery"
     assert response.json["data"]["totalMatches"] == 1
@@ -164,7 +164,7 @@ def test_assistant_limits_stock_to_assigned_locations(client):
 
     assert response.status_code == 200
     assert response.json["data"]["answer"] == (
-        "Recorded stock for Vivo Mattress (72*60*6) is 10."
+        "Recorded stock for Vivo Mattress is 72*60*6 at Eldoret: 10 pcs."
     )
 
 
@@ -227,7 +227,8 @@ def test_assistant_queries_item_stock_across_all_specifications(client):
 
     assert response.status_code == 200
     assert response.json["data"]["answer"] == (
-        "Recorded stock for HDF is 18 across its specifications."
+        "Recorded stock for HDF by specification and location: "
+        "36x4 at Eldoret: 10 pcs; 48x4 at Eldoret: 8 pcs."
     )
 
 
@@ -357,7 +358,7 @@ def test_assistant_asks_for_item_before_querying_stock(client):
     assert response.status_code == 200
     assert "needsClarification" not in response.json["data"]
     assert response.json["data"]["answer"] == (
-        "Recorded stock for Vivo Mattress is 8 across its specifications."
+        "Recorded stock for Vivo Mattress is 72*60*6 at Eldoret: 8 pcs."
     )
 
 

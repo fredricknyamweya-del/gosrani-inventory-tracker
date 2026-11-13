@@ -11,8 +11,8 @@ from app.models import (
     AuditEntity,
     AuditLog,
     Category,
-    InventoryUnit,
     InventoryRecord,
+    InventoryUnit,
     Item,
     ItemRequest,
     Location,
@@ -169,7 +169,10 @@ def test_bale_and_piece_entries_store_base_units_and_share_stock_display(client)
         bale_entry.json["data"][0]["quantityInSecondaryDisplay"] == "(10 pcs)"
     )
     assert piece_entry.status_code == 201
-    assert piece_entry.json["data"][0]["quantityInDisplay"] == "5 pcs"
+    assert piece_entry.json["data"][0]["quantityInDisplay"] == "1 bale"
+    assert (
+        piece_entry.json["data"][0]["quantityInSecondaryDisplay"] == "(5 pcs)"
+    )
 
     stock = client.get(
         f"/api/inventory/{bale_entry.json['data'][0]['id']}/stock",
@@ -236,7 +239,8 @@ def test_editing_entered_unit_reconverts_to_base_once(client):
     assert updated.status_code == 200
     assert updated.json["data"]["enteredUnit"] == "PCS"
     assert updated.json["data"]["quantityIn"] == 7
-    assert updated.json["data"]["quantityInDisplay"] == "7 pcs"
+    assert updated.json["data"]["quantityInDisplay"] == "1 bale + 2 pcs"
+    assert updated.json["data"]["quantityInSecondaryDisplay"] == "(7 pcs)"
     record = db.session.get(InventoryRecord, record_id)
     assert record.qty_in == 7
     assert record.qty_in_normalized == 7
@@ -267,6 +271,43 @@ def test_bale_entry_without_specification_pack_size_returns_422(client):
 
     assert response.status_code == 422
     assert "no pack size" in response.json["errors"][0]["message"]
+
+
+def test_validate_and_stock_endpoint_display_415_bales_as_base_pieces(client):
+    admin, _, _, _, _, _, _, _ = create_case(pieces_per_bale=20)
+    payload = transaction_payload(
+        "Configured Duvet",
+        "4x6",
+        quantityIn=415,
+        enteredUnit="BALE",
+    )
+
+    review = client.post(
+        "/api/inventory/validate",
+        json=payload,
+        headers=authorization(admin),
+    )
+
+    assert review.status_code == 200
+    reviewed_row = review.json["data"]["rows"][0]
+    assert reviewed_row["quantityInDisplay"] == "415 bales"
+    assert reviewed_row["quantityInSecondaryDisplay"] == "(8,300 pcs)"
+
+    received = client.post(
+        "/api/inventory",
+        json=payload,
+        headers=authorization(admin),
+    )
+    assert received.status_code == 201
+    record = db.session.get(InventoryRecord, received.json["data"][0]["id"])
+    assert record.qty_in == 8300
+    assert received.json["data"][0]["quantityInDisplay"] == "415 bales"
+    stock = client.get(
+        f"/api/inventory/{received.json['data'][0]['id']}/stock",
+        headers=authorization(admin),
+    )
+    assert stock.json["data"]["display"] == "415 bales"
+    assert stock.json["data"]["secondaryDisplay"] == "(8,300 pcs)"
 
 
 def test_bale_and_piece_units_are_allowed_and_stock_out_cannot_exceed_balance(client):
@@ -708,7 +749,7 @@ def test_catalog_create_requires_positive_whole_bale_rate(client):
 
 
 def test_catalogue_summary_is_location_scoped(client):
-    admin, user, location, category, item, specification, _, _ = create_case()
+    admin, user, _, _, item, specification, _, _ = create_case()
     unassigned_location = Location(code="NAK", name="Nakuru Godown")
     db.session.add(unassigned_location)
     db.session.flush()

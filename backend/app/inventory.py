@@ -140,10 +140,17 @@ def _resolve_record(
             }
         )
     elif entered_unit not in allowed_units:
+        unit_message = (
+            "This specification supports BALE or PCS transactions."
+            if stock_unit == StockUnit.PCS and pack_size is not None
+            else "This specification supports PCS transactions."
+            if stock_unit == StockUnit.PCS
+            else "This item is configured for KG transactions."
+        )
         errors.append(
             {
                 "field": "enteredUnit",
-                "message": "Choose a quantity unit supported by this item and specification.",
+                "message": unit_message,
             }
         )
     pieces_per_unit = (
@@ -313,6 +320,7 @@ def _accessible_location_ids() -> list[int]:
 def _warning_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     warnings = []
     today = date.today()
+    location_ids = _accessible_location_ids()
     for index, row in enumerate(rows):
         flags: list[dict[str, str]] = []
         qty_in = row["quantityIn"]
@@ -325,33 +333,13 @@ def _warning_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
         if qty_in is not None and qty_out is not None:
             flags.append({"field": "quantity", "message": "Both Quantity In and Quantity Out have values."})
 
-        locations = _accessible_location_ids()
-        if locations and qty_out is not None:
+        location_id = row.get("locationId")
+        if location_ids and location_id is not None and qty_out is not None:
             stock = db.session.scalar(
-                select(
-                    func.coalesce(
-                        func.sum(
-                            func.coalesce(
-                                InventoryRecord.qty_in_normalized,
-                                InventoryRecord.qty_in,
-                            )
-                        ),
-                        0,
-                    )
-                    - func.coalesce(
-                        func.sum(
-                            func.coalesce(
-                                InventoryRecord.qty_out_normalized,
-                                InventoryRecord.qty_out,
-                            )
-                        ),
-                        0,
-                    )
-                )
+                select(v_stock.c.stock)
                 .where(
-                    InventoryRecord.location_id.in_(locations),
-                    InventoryRecord.specification_id == row["specification"].id,
-                    InventoryRecord.deleted_at.is_(None),
+                    v_stock.c.location_id == location_id,
+                    v_stock.c.specification_id == row["specification"].id,
                 )
             ) or 0
             if row["normalizedQuantityOut"] > stock:
@@ -564,9 +552,26 @@ def validate_inventory():
     if errors:
         return validation_error(errors)
     # Warnings use the resolved specifications, so resolve once more after normalization.
+    user = current_user()
+    allowed_location_ids = user_location_ids(user.id)
     warning_inputs = []
-    for row in rows:
+    for index, row in enumerate(rows):
         values, _ = _resolve_record(row)
+        if values is None:
+            continue
+        location_id = _location_for_create(
+            row if isinstance(row, dict) else {},
+            user.id,
+        )
+        if location_id is None and allowed_location_ids:
+            location_id = allowed_location_ids[0]
+        if row.get("locationId") is not None and location_id is None:
+            return error_response(
+                403,
+                "You do not have access to the selected stock location.",
+                "location_forbidden",
+            )
+        values["locationId"] = location_id
         warning_inputs.append(values)
     return jsonify({"data": {"rows": normalized_rows, "warnings": _warning_rows(warning_inputs)}})
 
