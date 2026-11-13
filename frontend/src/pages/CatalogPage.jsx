@@ -1,15 +1,7 @@
-import {
-  Check,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router";
-import AddItemModal from "../components/AddItemModal";
+import { Check, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { Link, useSearchParams } from "react-router"
+import AddItemModal from "../components/AddItemModal"
 import {
   Button,
   EmptyState,
@@ -21,21 +13,21 @@ import {
   PageHeader,
   Select,
   Toast,
-} from "../components/ui";
-import { useApi } from "../hooks/useApi";
-import { api } from "../services/api";
-import { formatDate } from "../utils/format";
-import QuantityDisplay from "../components/QuantityDisplay";
+} from "../components/ui"
+import { useApi } from "../hooks/useApi"
+import { api } from "../services/api"
+import { formatDate } from "../utils/format"
+import QuantityDisplay from "../components/QuantityDisplay"
 
 function CatalogStatus({ active }) {
-  const status = active ? "Active" : "Inactive";
+  const status = active ? "Active" : "Inactive"
   return (
     <span
       className={`catalog-item-status${active ? " is-active" : " is-inactive"}`}
     >
       {status}
     </span>
-  );
+  )
 }
 
 function RequestStatus({ request }) {
@@ -47,283 +39,312 @@ function RequestStatus({ request }) {
         {request.status}
       </span>
       {request.processedBy && (
-        <span className="catalog-reviewer">Reviewed by {request.processedBy}</span>
+        <span className="catalog-reviewer">
+          Reviewed by {request.processedBy}
+        </span>
       )}
     </div>
-  );
+  )
 }
 
 function getRequestType(request) {
-  return (
-    request.requestType ?? (request.itemId ? "specification" : "product")
-  );
+  return request.requestType ?? (request.itemId ? "specification" : "product")
 }
 
 function getRequestName(request) {
   return getRequestType(request) === "category"
-    ? request.categoryName ?? request.category
-    : request.itemName;
+    ? (request.categoryName ?? request.category)
+    : request.itemName
 }
 
 export default function CatalogPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const activeTab = tabParam === "requests" ? "requests" : "catalog";
-  const [search, setSearch] = useState("");
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const [categoryName, setCategoryName] = useState("");
-  const [categoryError, setCategoryError] = useState("");
-  const [categorySaving, setCategorySaving] = useState(false);
-  const [addItemOpen, setAddItemOpen] = useState(false);
-  const [addItemCategoryId, setAddItemCategoryId] = useState("");
-  const [inventoryConfigTarget, setInventoryConfigTarget] = useState(null);
-  const [inventoryConfigUnit, setInventoryConfigUnit] = useState("PCS");
-  const [inventoryConfigRate, setInventoryConfigRate] = useState("");
-  const [inventoryConfigError, setInventoryConfigError] = useState("");
-  const [renameTarget, setRenameTarget] = useState(null);
-  const [renameName, setRenameName] = useState("");
-  const [dialogError, setDialogError] = useState("");
-  const [dialogSuggestion, setDialogSuggestion] = useState("");
-  const [deactivateTarget, setDeactivateTarget] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleteError, setDeleteError] = useState("");
-  const [approveTarget, setApproveTarget] = useState(null);
-  const [approveName, setApproveName] = useState("");
-  const [rejectTarget, setRejectTarget] = useState(null);
-  const [rejectReason, setRejectReason] = useState("");
-  const [requestError, setRequestError] = useState("");
-  const [requestStatus, setRequestStatus] = useState("Pending");
-  const [savingAction, setSavingAction] = useState(false);
-  const [busyItemId, setBusyItemId] = useState(null);
-  const [specificationItemId, setSpecificationItemId] = useState(null);
-  const [specificationDraft, setSpecificationDraft] = useState("");
-  const [toast, setToast] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get("tab")
+  const activeTab = tabParam === "requests" ? "requests" : "catalog"
+  const [search, setSearch] = useState("")
+  const [categoryOpen, setCategoryOpen] = useState(false)
+  const [categoryName, setCategoryName] = useState("")
+  const [categoryError, setCategoryError] = useState("")
+  const [categorySaving, setCategorySaving] = useState(false)
+  const [addItemOpen, setAddItemOpen] = useState(false)
+  const [addItemCategoryId, setAddItemCategoryId] = useState("")
+  const [inventoryConfigTarget, setInventoryConfigTarget] = useState(null)
+  const [inventoryConfigUnit, setInventoryConfigUnit] = useState("PCS")
+  const [inventoryConfigPackSizes, setInventoryConfigPackSizes] = useState({})
+  const [inventoryConfigError, setInventoryConfigError] = useState("")
+  const [renameTarget, setRenameTarget] = useState(null)
+  const [renameName, setRenameName] = useState("")
+  const [dialogError, setDialogError] = useState("")
+  const [dialogSuggestion, setDialogSuggestion] = useState("")
+  const [deactivateTarget, setDeactivateTarget] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteError, setDeleteError] = useState("")
+  const [approveTarget, setApproveTarget] = useState(null)
+  const [approveName, setApproveName] = useState("")
+  const [rejectTarget, setRejectTarget] = useState(null)
+  const [rejectReason, setRejectReason] = useState("")
+  const [requestError, setRequestError] = useState("")
+  const [requestStatus, setRequestStatus] = useState("Pending")
+  const [savingAction, setSavingAction] = useState(false)
+  const [busyItemId, setBusyItemId] = useState(null)
+  const [specificationItemId, setSpecificationItemId] = useState(null)
+  const [specificationDraft, setSpecificationDraft] = useState("")
+  const [toast, setToast] = useState(null)
 
   const {
     data: catalog,
     error: catalogError,
     loading: catalogLoading,
     reload: reloadCatalog,
-  } = useApi(() => api.getCatalog(), []);
+  } = useApi(() => api.getCatalog(), [])
   const {
     data: requests,
     error: requestsError,
     loading: requestsLoading,
     reload: reloadRequests,
-  } = useApi(() => api.getCatalogRequests(), []);
+  } = useApi(() => api.getCatalogRequests(), [])
   const {
     data: inventorySummary,
     error: inventorySummaryError,
     loading: inventorySummaryLoading,
     reload: reloadInventorySummary,
-  } = useApi(() => api.getInventorySummary(), []);
+  } = useApi(() => api.getInventorySummary(), [])
 
-  const categories = catalog?.categories ?? [];
-  const items = catalog?.items ?? [];
+  const categories = catalog?.categories ?? []
+  const items = catalog?.items ?? []
   const matchingItems = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
-    if (!query) return items;
+    const query = search.trim().toLocaleLowerCase()
+    if (!query) return items
     return items.filter((item) =>
       `${item.name} ${item.specifications.join(" ")}`
         .toLocaleLowerCase()
         .includes(query),
-    );
-  }, [items, search]);
+    )
+  }, [items, search])
   const filteredRequests = (requests ?? []).filter(
     (request) => requestStatus === "All" || request.status === requestStatus,
-  );
+  )
 
   useEffect(() => {
-    if (tabParam === "catalog" || tabParam === "requests") return;
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("tab", "catalog");
-    setSearchParams(nextParams, { replace: true });
-  }, [searchParams, setSearchParams, tabParam]);
+    if (tabParam === "catalog" || tabParam === "requests") return
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set("tab", "catalog")
+    setSearchParams(nextParams, { replace: true })
+  }, [searchParams, setSearchParams, tabParam])
 
   useEffect(() => {
-    if (!toast) return undefined;
-    const timeout = window.setTimeout(() => setToast(null), 4000);
-    return () => window.clearTimeout(timeout);
-  }, [toast]);
+    if (!toast) return undefined
+    const timeout = window.setTimeout(() => setToast(null), 4000)
+    return () => window.clearTimeout(timeout)
+  }, [toast])
 
   const closeCategoryModal = useCallback(() => {
-    setCategoryOpen(false);
-    setCategoryName("");
-    setCategoryError("");
-  }, []);
+    setCategoryOpen(false)
+    setCategoryName("")
+    setCategoryError("")
+  }, [])
 
   const closeAddItemModal = useCallback(() => {
-    setAddItemOpen(false);
-    setAddItemCategoryId("");
-  }, []);
+    setAddItemOpen(false)
+    setAddItemCategoryId("")
+  }, [])
 
   function openInventoryConfig(item) {
-    setInventoryConfigTarget(item);
-    setInventoryConfigUnit(item.inventoryUnit ?? item.unit ?? "PCS");
-    setInventoryConfigRate(item.piecesPerBale ?? "");
-    setInventoryConfigError("");
+    setInventoryConfigTarget(item)
+    setInventoryConfigUnit(item.entryUnit ?? "PCS")
+    setInventoryConfigPackSizes(
+      Object.fromEntries(
+        (item.specificationPackSizes ?? []).map(({ label, packSize }) => [
+          label,
+          packSize ?? "",
+        ]),
+      ),
+    )
+    setInventoryConfigError("")
   }
 
   function closeInventoryConfig() {
-    setInventoryConfigTarget(null);
-    setInventoryConfigRate("");
-    setInventoryConfigError("");
+    setInventoryConfigTarget(null)
+    setInventoryConfigPackSizes({})
+    setInventoryConfigError("")
   }
 
   async function saveInventoryConfig(event) {
-    event.preventDefault();
-    if (!inventoryConfigTarget) return;
-    const rate = Number(inventoryConfigRate);
+    event.preventDefault()
+    if (!inventoryConfigTarget) return
+    const specificationPackSizes = (
+      inventoryConfigTarget.specificationPackSizes ?? []
+    ).map(({ label }) => {
+      const rawSize = inventoryConfigPackSizes[label]
+      return {
+        label,
+        packSize: rawSize === "" || rawSize == null ? null : Number(rawSize),
+      }
+    })
     if (
-      inventoryConfigUnit === "BALE" &&
-      (!Number.isInteger(rate) || rate <= 0)
+      inventoryConfigUnit !== "BALE" &&
+      specificationPackSizes.some(({ packSize }) => packSize != null)
     ) {
-      setInventoryConfigError("Enter a positive whole number of pieces per bale.");
-      return;
+      setInventoryConfigError(
+        "PCS and KG items cannot have standard pack sizes.",
+      )
+      return
+    }
+    if (
+      specificationPackSizes.some(
+        ({ packSize }) =>
+          packSize != null &&
+          (!Number.isInteger(packSize) || packSize < 1 || packSize > 10000),
+      )
+    ) {
+      setInventoryConfigError(
+        "Pieces per bale must be a whole number from 1 to 10000.",
+      )
+      return
     }
 
-    setSavingAction(true);
-    setInventoryConfigError("");
+    setSavingAction(true)
+    setInventoryConfigError("")
     try {
       await api.updateCatalogItem(inventoryConfigTarget.id, {
-        inventoryUnit: inventoryConfigUnit,
-        piecesPerBale: inventoryConfigUnit === "BALE" ? rate : null,
-      });
-      await reloadCatalog();
-      closeInventoryConfig();
-      setToast({ message: "Inventory configuration updated." });
+        entryUnit: inventoryConfigUnit,
+        specificationPackSizes,
+      })
+      await reloadCatalog()
+      closeInventoryConfig()
+      setToast({ message: "Entry unit and standard packs updated." })
     } catch (error) {
-      setInventoryConfigError(error.message);
+      setInventoryConfigError(error.message)
     } finally {
-      setSavingAction(false);
+      setSavingAction(false)
     }
   }
 
   const closeRenameModal = useCallback(() => {
-    setRenameTarget(null);
-    setRenameName("");
-    setDialogError("");
-    setDialogSuggestion("");
-  }, []);
+    setRenameTarget(null)
+    setRenameName("")
+    setDialogError("")
+    setDialogSuggestion("")
+  }, [])
 
   const closeDeactivateModal = useCallback(() => {
-    setDeactivateTarget(null);
-  }, []);
+    setDeactivateTarget(null)
+  }, [])
 
   const closeDeleteModal = useCallback(() => {
-    setDeleteTarget(null);
-    setDeleteError("");
-  }, []);
+    setDeleteTarget(null)
+    setDeleteError("")
+  }, [])
 
   const closeApproveModal = useCallback(() => {
-    setApproveTarget(null);
-    setApproveName("");
-    setRequestError("");
-  }, []);
+    setApproveTarget(null)
+    setApproveName("")
+    setRequestError("")
+  }, [])
 
   const closeRejectModal = useCallback(() => {
-    setRejectTarget(null);
-    setRejectReason("");
-    setRequestError("");
-  }, []);
+    setRejectTarget(null)
+    setRejectReason("")
+    setRequestError("")
+  }, [])
 
   function selectTab(tab) {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("tab", tab);
-    setSearchParams(nextParams);
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set("tab", tab)
+    setSearchParams(nextParams)
   }
 
   async function createCategory(event) {
-    event.preventDefault();
-    setCategorySaving(true);
-    setCategoryError("");
+    event.preventDefault()
+    setCategorySaving(true)
+    setCategoryError("")
     try {
-      await api.createCatalogCategory({ name: categoryName });
-      await reloadCatalog();
-      closeCategoryModal();
-      setToast({ message: "Category added to the catalog." });
+      await api.createCatalogCategory({ name: categoryName })
+      await reloadCatalog()
+      closeCategoryModal()
+      setToast({ message: "Category added to the catalog." })
     } catch (error) {
-      setCategoryError(error.message);
+      setCategoryError(error.message)
     } finally {
-      setCategorySaving(false);
+      setCategorySaving(false)
     }
   }
 
   async function handleItemCreated() {
-    await reloadCatalog();
-    setToast({ message: "Item added to the catalog." });
+    await reloadCatalog()
+    setToast({ message: "Item added to the catalog." })
   }
 
   async function updateItem(item, changes, successMessage) {
-    setBusyItemId(item.id);
+    setBusyItemId(item.id)
     try {
-      await api.updateCatalogItem(item.id, changes);
-      await reloadCatalog();
-      setToast({ message: successMessage });
-      setSpecificationItemId(null);
-      setSpecificationDraft("");
+      await api.updateCatalogItem(item.id, changes)
+      await reloadCatalog()
+      setToast({ message: successMessage })
+      setSpecificationItemId(null)
+      setSpecificationDraft("")
     } catch (error) {
-      setToast({ tone: "error", message: error.message });
+      setToast({ tone: "error", message: error.message })
     } finally {
-      setBusyItemId(null);
+      setBusyItemId(null)
     }
   }
 
   async function saveRename(event) {
-    event.preventDefault();
-    if (!renameTarget) return;
-    setSavingAction(true);
-    setDialogError("");
-    setDialogSuggestion("");
+    event.preventDefault()
+    if (!renameTarget) return
+    setSavingAction(true)
+    setDialogError("")
+    setDialogSuggestion("")
     try {
-      await api.updateCatalogItem(renameTarget.id, { name: renameName });
-      await reloadCatalog();
-      closeRenameModal();
-      setToast({ message: "Item name updated." });
+      await api.updateCatalogItem(renameTarget.id, { name: renameName })
+      await reloadCatalog()
+      closeRenameModal()
+      setToast({ message: "Item name updated." })
     } catch (error) {
-      setDialogError(error.message);
-      setDialogSuggestion(error.suggestion ?? "");
+      setDialogError(error.message)
+      setDialogSuggestion(error.suggestion ?? "")
     } finally {
-      setSavingAction(false);
+      setSavingAction(false)
     }
   }
 
   async function confirmDeactivation() {
-    if (!deactivateTarget) return;
-    setSavingAction(true);
+    if (!deactivateTarget) return
+    setSavingAction(true)
     try {
-      await api.updateCatalogItem(deactivateTarget.id, { active: false });
-      await reloadCatalog();
-      closeDeactivateModal();
-      setToast({ message: `${deactivateTarget.name} was deactivated.` });
+      await api.updateCatalogItem(deactivateTarget.id, { active: false })
+      await reloadCatalog()
+      closeDeactivateModal()
+      setToast({ message: `${deactivateTarget.name} was deactivated.` })
     } catch (error) {
-      setToast({ tone: "error", message: error.message });
+      setToast({ tone: "error", message: error.message })
     } finally {
-      setSavingAction(false);
+      setSavingAction(false)
     }
   }
 
   async function confirmDelete() {
-    if (!deleteTarget) return;
-    setSavingAction(true);
-    setDeleteError("");
+    if (!deleteTarget) return
+    setSavingAction(true)
+    setDeleteError("")
     try {
-      await api.deleteCatalogItem(deleteTarget.id);
-      await reloadCatalog();
-      closeDeleteModal();
-      setToast({ message: `${deleteTarget.name} was permanently deleted.` });
+      await api.deleteCatalogItem(deleteTarget.id)
+      await reloadCatalog()
+      closeDeleteModal()
+      setToast({ message: `${deleteTarget.name} was permanently deleted.` })
     } catch (error) {
-      setDeleteError(error.message);
+      setDeleteError(error.message)
     } finally {
-      setSavingAction(false);
+      setSavingAction(false)
     }
   }
 
   async function reviewRequest(action) {
-    const target = action === "approve" ? approveTarget : rejectTarget;
-    if (!target) return;
-    setSavingAction(true);
-    setRequestError("");
+    const target = action === "approve" ? approveTarget : rejectTarget
+    if (!target) return
+    setSavingAction(true)
+    setRequestError("")
     try {
       await api.updateCatalogRequest(
         target.id,
@@ -332,40 +353,40 @@ export default function CatalogPage() {
             ? { action, categoryName: approveName }
             : { action, itemName: approveName }
           : { action, reason: rejectReason },
-      );
-      await Promise.all([reloadCatalog(), reloadRequests()]);
-      if (action === "approve") closeApproveModal();
-      else closeRejectModal();
+      )
+      await Promise.all([reloadCatalog(), reloadRequests()])
+      if (action === "approve") closeApproveModal()
+      else closeRejectModal()
       setToast({
         message:
           action === "approve"
             ? "Request approved and catalog updated."
             : "Request rejected.",
-      });
+      })
     } catch (error) {
-      setRequestError(error.message);
+      setRequestError(error.message)
     } finally {
-      setSavingAction(false);
+      setSavingAction(false)
     }
   }
 
   function openRename(item) {
-    setRenameTarget(item);
-    setRenameName(item.name);
-    setDialogError("");
-    setDialogSuggestion("");
+    setRenameTarget(item)
+    setRenameName(item.name)
+    setDialogError("")
+    setDialogSuggestion("")
   }
 
   function openApproval(request) {
-    setApproveTarget(request);
-    setApproveName(getRequestName(request));
-    setRequestError("");
+    setApproveTarget(request)
+    setApproveName(getRequestName(request))
+    setRequestError("")
   }
 
   function openRejection(request) {
-    setRejectTarget(request);
-    setRejectReason("");
-    setRequestError("");
+    setRejectTarget(request)
+    setRejectReason("")
+    setRequestError("")
   }
 
   return (
@@ -376,11 +397,17 @@ export default function CatalogPage() {
         title="Product catalog"
       />
 
-      <div aria-label="Product catalog sections" className="catalog-tabs" role="tablist">
+      <div
+        aria-label="Product catalog sections"
+        className="catalog-tabs"
+        role="tablist"
+      >
         <button
           aria-controls="catalog-tab-panel"
           aria-selected={activeTab === "catalog"}
-          className={`catalog-tab${activeTab === "catalog" ? " is-active" : ""}`}
+          className={`catalog-tab${
+            activeTab === "catalog" ? " is-active" : ""
+          }`}
           id="catalog-tab"
           onClick={() => selectTab("catalog")}
           role="tab"
@@ -391,7 +418,9 @@ export default function CatalogPage() {
         <button
           aria-controls="requests-tab-panel"
           aria-selected={activeTab === "requests"}
-          className={`catalog-tab${activeTab === "requests" ? " is-active" : ""}`}
+          className={`catalog-tab${
+            activeTab === "requests" ? " is-active" : ""
+          }`}
           id="requests-tab"
           onClick={() => selectTab("requests")}
           role="tab"
@@ -400,7 +429,10 @@ export default function CatalogPage() {
           Requests
           {requests && (
             <span className="catalog-tab-count">
-              {requests.filter((request) => request.status === "Pending").length}
+              {
+                requests.filter((request) => request.status === "Pending")
+                  .length
+              }
             </span>
           )}
         </button>
@@ -425,18 +457,15 @@ export default function CatalogPage() {
               />
             </label>
             <div className="catalog-toolbar-actions">
-              <Button
-                onClick={() => setCategoryOpen(true)}
-                variant="secondary"
-              >
+              <Button onClick={() => setCategoryOpen(true)} variant="secondary">
                 <Plus aria-hidden="true" size={17} />
                 Add category
               </Button>
               <Button
                 disabled={categories.length === 0}
                 onClick={() => {
-                  setAddItemCategoryId("");
-                  setAddItemOpen(true);
+                  setAddItemCategoryId("")
+                  setAddItemOpen(true)
                 }}
               >
                 <Plus aria-hidden="true" size={17} />
@@ -490,11 +519,11 @@ export default function CatalogPage() {
               {categories.map((category) => {
                 const categoryItems = items.filter(
                   (item) => item.categoryId === category.id,
-                );
+                )
                 const visibleItems = matchingItems.filter(
                   (item) => item.categoryId === category.id,
-                );
-                if (search.trim() && visibleItems.length === 0) return null;
+                )
+                if (search.trim() && visibleItems.length === 0) return null
 
                 return (
                   <section
@@ -512,8 +541,8 @@ export default function CatalogPage() {
                       <Button
                         aria-label={`Add item to ${category.name}`}
                         onClick={() => {
-                          setAddItemCategoryId(category.id);
-                          setAddItemOpen(true);
+                          setAddItemCategoryId(category.id)
+                          setAddItemOpen(true)
                         }}
                         variant="secondary"
                       >
@@ -550,12 +579,12 @@ export default function CatalogPage() {
                               </div>
                               <div className="catalog-item-actions">
                                 <Button
-                                  aria-label={`Configure inventory unit for ${item.name}`}
+                                  aria-label={`Configure entered unit for ${item.name}`}
                                   onClick={() => openInventoryConfig(item)}
                                   variant="ghost"
                                 >
                                   <Pencil aria-hidden="true" size={15} />
-                                  Inventory unit
+                                  Entered in
                                 </Button>
                                 <Button
                                   aria-label={`Rename ${item.name}`}
@@ -595,8 +624,8 @@ export default function CatalogPage() {
                                   aria-label={`Permanently delete ${item.name}`}
                                   className="icon-btn catalog-delete-action"
                                   onClick={() => {
-                                    setDeleteTarget(item);
-                                    setDeleteError("");
+                                    setDeleteTarget(item)
+                                    setDeleteError("")
                                   }}
                                   type="button"
                                 >
@@ -605,10 +634,11 @@ export default function CatalogPage() {
                               </div>
                             </div>
                             <p className="catalog-item-unit">
-                              {item.inventoryUnit === "BALE"
-                                ? `Bales · ${item.piecesPerBale} pieces per bale`
-                                : item.inventoryUnit === "KG"
-                                  ? "Kilograms"
+                              Entered in:{" "}
+                              {item.entryUnit === "BALE"
+                                ? "Bales"
+                                : item.entryUnit === "KG"
+                                  ? "Kg"
                                   : "Pieces"}
                             </p>
                             <div
@@ -627,7 +657,9 @@ export default function CatalogPage() {
                                     onClick={() =>
                                       updateItem(
                                         item,
-                                        { removeSpecifications: [specification] },
+                                        {
+                                          removeSpecifications: [specification],
+                                        },
                                         `${specification} was removed.`,
                                       )
                                     }
@@ -649,14 +681,18 @@ export default function CatalogPage() {
                                   aria-label={`${item.name} stock by specification and location`}
                                   className="catalog-stock-list"
                                 >
-                                  {(inventorySummary?.stockBySpecification ?? [])
+                                  {(
+                                    inventorySummary?.stockBySpecification ?? []
+                                  )
                                     .filter(
                                       (stock) =>
                                         stock.category === category.name &&
                                         stock.itemName === item.name,
                                     )
                                     .map((stock) => (
-                                      <li key={`${stock.id}-${stock.locationId}`}>
+                                      <li
+                                        key={`${stock.id}-${stock.locationId}`}
+                                      >
                                         <span>
                                           {stock.size} · {stock.locationName}
                                         </span>
@@ -672,13 +708,13 @@ export default function CatalogPage() {
                               <form
                                 className="catalog-add-specification"
                                 onSubmit={(event) => {
-                                  event.preventDefault();
-                                  if (!specificationDraft.trim()) return;
+                                  event.preventDefault()
+                                  if (!specificationDraft.trim()) return
                                   void updateItem(
                                     item,
                                     { addSpecifications: [specificationDraft] },
                                     "Specification added.",
-                                  );
+                                  )
                                 }}
                               >
                                 <Input
@@ -701,8 +737,8 @@ export default function CatalogPage() {
                                 <Button
                                   aria-label="Cancel adding specification"
                                   onClick={() => {
-                                    setSpecificationItemId(null);
-                                    setSpecificationDraft("");
+                                    setSpecificationItemId(null)
+                                    setSpecificationDraft("")
                                   }}
                                   variant="secondary"
                                 >
@@ -713,8 +749,8 @@ export default function CatalogPage() {
                               <Button
                                 className="catalog-add-specification-trigger"
                                 onClick={() => {
-                                  setSpecificationItemId(item.id);
-                                  setSpecificationDraft("");
+                                  setSpecificationItemId(item.id)
+                                  setSpecificationDraft("")
                                 }}
                                 variant="ghost"
                               >
@@ -727,7 +763,7 @@ export default function CatalogPage() {
                       </div>
                     )}
                   </section>
-                );
+                )
               })}
               {search.trim() && matchingItems.length === 0 && (
                 <section className="panel">
@@ -816,9 +852,7 @@ export default function CatalogPage() {
                         {getRequestType(request)[0].toLocaleUpperCase()}
                         {getRequestType(request).slice(1)}
                       </td>
-                      <td>
-                        {request.categoryName ?? request.category ?? "–"}
-                      </td>
+                      <td>{request.categoryName ?? request.category ?? "–"}</td>
                       <td>
                         {getRequestType(request) === "category"
                           ? "–"
@@ -897,8 +931,8 @@ export default function CatalogPage() {
             <Input
               autoComplete="off"
               onChange={(event) => {
-                setCategoryName(event.target.value);
-                setCategoryError("");
+                setCategoryName(event.target.value)
+                setCategoryError("")
               }}
               value={categoryName}
             />
@@ -921,7 +955,7 @@ export default function CatalogPage() {
       />
 
       <Modal
-        description="New stock transactions use this saved product unit. Historical transactions retain their original quantities and conversion."
+        description="New entries use the selected unit. Historical records and quantities are not changed."
         footer={
           <>
             <Button onClick={closeInventoryConfig} variant="secondary">
@@ -938,26 +972,28 @@ export default function CatalogPage() {
         }
         onClose={closeInventoryConfig}
         open={Boolean(inventoryConfigTarget)}
-        title={`Inventory unit · ${inventoryConfigTarget?.name ?? ""}`}
+        title={`Entered in · ${inventoryConfigTarget?.name ?? ""}`}
       >
         <form
           className="catalog-dialog-form"
           id="edit-inventory-config-form"
           onSubmit={saveInventoryConfig}
         >
-          <Field label="Inventory unit" required>
+          <Field label="Entered in" required>
             <Select
               disabled={inventoryConfigTarget?.unit === "KG"}
               onChange={(event) => {
-                setInventoryConfigUnit(event.target.value);
+                setInventoryConfigUnit(event.target.value)
                 if (event.target.value !== "BALE") {
-                  setInventoryConfigRate("");
-                } else {
-                  setInventoryConfigRate(
-                    inventoryConfigTarget?.piecesPerBale ?? "",
-                  );
+                  setInventoryConfigPackSizes(
+                    Object.fromEntries(
+                      (inventoryConfigTarget?.specificationPackSizes ?? []).map(
+                        ({ label }) => [label, ""],
+                      ),
+                    ),
+                  )
                 }
-                setInventoryConfigError("");
+                setInventoryConfigError("")
               }}
               value={inventoryConfigUnit}
             >
@@ -969,18 +1005,30 @@ export default function CatalogPage() {
             </Select>
           </Field>
           {inventoryConfigUnit === "BALE" && (
-            <Field label="Number of Pieces per Bale" required>
-              <Input
-                min="1"
-                onChange={(event) => {
-                  setInventoryConfigRate(event.target.value);
-                  setInventoryConfigError("");
-                }}
-                step="1"
-                type="number"
-                value={inventoryConfigRate}
-              />
-            </Field>
+            <div className="catalog-specification-fields">
+              <strong>Standard pieces per bale (optional)</strong>
+              {(inventoryConfigTarget?.specificationPackSizes ?? []).map(
+                ({ label }) => (
+                  <Field key={label} label={label}>
+                    <Input
+                      max="10000"
+                      min="1"
+                      onChange={(event) => {
+                        setInventoryConfigPackSizes((current) => ({
+                          ...current,
+                          [label]: event.target.value,
+                        }))
+                        setInventoryConfigError("")
+                      }}
+                      placeholder="No standard"
+                      step="1"
+                      type="number"
+                      value={inventoryConfigPackSizes[label] ?? ""}
+                    />
+                  </Field>
+                ),
+              )}
+            </div>
           )}
           {inventoryConfigTarget?.unit === "KG" && (
             <p className="catalog-hint">
@@ -1088,8 +1136,8 @@ export default function CatalogPage() {
       >
         <p>
           This action cannot be undone. Items with inventory history or linked
-          catalog requests cannot be permanently deleted; deactivate those
-          items instead.
+          catalog requests cannot be permanently deleted; deactivate those items
+          instead.
         </p>
         {deleteError && (
           <p className="catalog-inline-error" role="alert">
@@ -1199,5 +1247,5 @@ export default function CatalogPage() {
         tone={toast?.tone}
       />
     </section>
-  );
+  )
 }

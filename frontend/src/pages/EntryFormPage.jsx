@@ -1,9 +1,9 @@
-import { ArrowLeft, Check, Plus, Save, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import AddItemModal from "../components/AddItemModal";
-import QuantityDisplay from "../components/QuantityDisplay";
-import RequestItemModal from "../components/RequestItemModal";
+import { ArrowLeft, Check, Plus, Save, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { Link, useNavigate } from "react-router"
+import AddItemModal from "../components/AddItemModal"
+import QuantityDisplay from "../components/QuantityDisplay"
+import RequestItemModal from "../components/RequestItemModal"
 import {
   Button,
   EmptyState,
@@ -14,12 +14,12 @@ import {
   PageHeader,
   Select,
   Toast,
-} from "../components/ui";
-import { useAuth } from "../context/AuthContext";
-import { useApi } from "../hooks/useApi";
-import { api } from "../services/api";
-import { formatDate, todayIso } from "../utils/format";
-import { calculateTotalPieces } from "../utils/units";
+} from "../components/ui"
+import { useAuth } from "../context/AuthContext"
+import { useApi } from "../hooks/useApi"
+import { api } from "../services/api"
+import { formatDate, todayIso } from "../utils/format"
+import { calculateTotalPieces } from "../utils/units"
 
 function makeEntry(id) {
   return {
@@ -29,128 +29,121 @@ function makeEntry(id) {
     item: "",
     size: "",
     enteredUnit: "PCS",
-    entryUnit: "PCS",
     piecesPerBale: "",
     quantityIn: "",
     quantityOut: "",
     handledBy: "",
     details: "",
-  };
+  }
 }
 
 function unitLabel(unit, plural = true) {
-  if (unit === "BALE") return plural ? "bales" : "bale";
-  if (unit === "KG") return "kg";
-  return plural ? "pcs" : "pc";
+  if (unit === "BALE") return plural ? "bales" : "bale"
+  if (unit === "KG") return "kg"
+  return plural ? "pcs" : "pc"
 }
 
 function validateEntry(entry, item) {
-  const errors = {};
-  const allowsFractionalQuantity = item?.entryUnit === "KG";
+  const errors = {}
+  const allowsFractionalQuantity = entry.enteredUnit === "KG"
 
-  if (!entry.date) errors.date = "Entry date is required.";
-  if (!entry.category) errors.category = "Category is required.";
-  if (!entry.item) errors.item = "Name of Item is required.";
+  if (!entry.date) errors.date = "Entry date is required."
+  if (!entry.category) errors.category = "Category is required."
+  if (!entry.item) errors.item = "Name of Item is required."
   if (!entry.handledBy.trim()) {
-    errors.handledBy = "Name of the person who handled the stock is required.";
+    errors.handledBy = "Name of the person who handled the stock is required."
   }
   if (item?.specifications.length && !entry.size) {
-    errors.size = "Specifications/Size is required.";
+    errors.size = "Specifications/Size is required."
   }
   if (entry.quantityIn === "" && entry.quantityOut === "") {
-    errors.quantity = "Enter a value for Quantity In or Quantity Out.";
+    errors.quantity = "Enter a value for Quantity In or Quantity Out."
   }
-  if (item?.entryUnit === "BALE") {
-    const piecesPerBale = Number(entry.piecesPerBale);
+  if (entry.enteredUnit === "BALE") {
+    const piecesPerBale = Number(entry.piecesPerBale)
     if (
       !Number.isInteger(piecesPerBale) ||
       piecesPerBale < 1 ||
       piecesPerBale > 10_000
     ) {
       errors.piecesPerBale =
-        "Enter a whole number from 1 to 10000 pieces per bale.";
+        "Enter a whole number from 1 to 10000 pieces per bale."
     }
   }
   for (const key of ["quantityIn", "quantityOut"]) {
-    if (entry[key] === "") continue;
-    const quantity = Number(entry[key]);
+    if (entry[key] === "") continue
+    const quantity = Number(entry[key])
     const fractionalDigits =
-      entry[key].split(".")[1]?.replace(/0+$/, "").length ?? 0;
+      entry[key].split(".")[1]?.replace(/0+$/, "").length ?? 0
     if (
       !Number.isFinite(quantity) ||
       quantity < 0 ||
       (allowsFractionalQuantity
-        ? !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(entry[key]) ||
-          fractionalDigits > 3
+        ? !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(entry[key]) || fractionalDigits > 3
         : !Number.isInteger(quantity))
     ) {
       errors[key] = allowsFractionalQuantity
         ? "Use a non-negative number with no more than 3 decimal places."
-        : "Use a whole, non-negative number.";
+        : "Use a whole, non-negative number."
     }
   }
 
-  return errors;
+  return errors
 }
 
 export default function EntryFormPage() {
-  const { isAdmin } = useAuth();
-  const navigate = useNavigate();
-  const entryId = useRef(0);
-  const [entries, setEntries] = useState(() => [
-    makeEntry(++entryId.current),
-  ]);
-  const [errors, setErrors] = useState({});
-  const [reviewWarnings, setReviewWarnings] = useState([]);
-  const [stage, setStage] = useState("form");
-  const [verified, setVerified] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [pageError, setPageError] = useState(null);
-  const [savedEntries, setSavedEntries] = useState([]);
-  const [addItemEntryId, setAddItemEntryId] = useState(null);
-  const [requestItemEntryId, setRequestItemEntryId] = useState(null);
-  const [toast, setToast] = useState(null);
+  const { isAdmin } = useAuth()
+  const navigate = useNavigate()
+  const entryId = useRef(0)
+  const [entries, setEntries] = useState(() => [makeEntry(++entryId.current)])
+  const [errors, setErrors] = useState({})
+  const [reviewWarnings, setReviewWarnings] = useState([])
+  const [stage, setStage] = useState("form")
+  const [verified, setVerified] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [pageError, setPageError] = useState(null)
+  const [savedEntries, setSavedEntries] = useState([])
+  const [addItemEntryId, setAddItemEntryId] = useState(null)
+  const [requestItemEntryId, setRequestItemEntryId] = useState(null)
+  const [toast, setToast] = useState(null)
   const {
     data: catalog,
     error: catalogError,
     loading: catalogLoading,
     reload: reloadCatalog,
-  } = useApi(() => api.getCatalog(), []);
+  } = useApi(() => api.getCatalog(), [])
   const {
     data: myRequests,
     error: requestsError,
     loading: requestsLoading,
     reload: reloadMyRequests,
   } = useApi(
-    () =>
-      isAdmin
-        ? Promise.resolve({ data: [] })
-        : api.getCatalogRequests(),
+    () => (isAdmin ? Promise.resolve({ data: [] }) : api.getCatalogRequests()),
     [isAdmin],
-  );
+  )
 
-  const categories = catalog?.categories ?? [];
-  const ownRequests = myRequests ?? [];
-  const catalogItems = catalog?.items ?? [];
+  const categories = catalog?.categories ?? []
+  const ownRequests = myRequests ?? []
+  const catalogItems = catalog?.items ?? []
   const activeAddItemEntry = entries.find(
     (entry) => entry.id === addItemEntryId,
-  );
+  )
   const activeRequestItemEntry = entries.find(
     (entry) => entry.id === requestItemEntryId,
-  );
+  )
 
   useEffect(() => {
-    if (!toast) return undefined;
-    const timeout = window.setTimeout(() => setToast(null), 4000);
-    return () => window.clearTimeout(timeout);
-  }, [toast]);
+    if (!toast) return undefined
+    const timeout = window.setTimeout(() => setToast(null), 4000)
+    return () => window.clearTimeout(timeout)
+  }, [toast])
 
   function updateEntry(entryId, key, value) {
     setEntries((current) =>
       current.map((entry) =>
         entry.id === entryId ? { ...entry, [key]: value } : entry,
       ),
-    );
+    )
     setErrors((current) => ({
       ...current,
       [entryId]: {
@@ -158,44 +151,42 @@ export default function EntryFormPage() {
         [key]: "",
         quantity: "",
       },
-    }));
+    }))
   }
 
   function addEntry() {
-    const newEntry = makeEntry(++entryId.current);
-    setEntries((current) => [...current, newEntry]);
+    const newEntry = makeEntry(++entryId.current)
+    setEntries((current) => [...current, newEntry])
   }
 
   function removeEntry(entryId) {
-    setEntries((current) => current.filter((entry) => entry.id !== entryId));
+    setEntries((current) => current.filter((entry) => entry.id !== entryId))
     setErrors((current) => {
-      const next = { ...current };
-      delete next[entryId];
-      return next;
-    });
+      const next = { ...current }
+      delete next[entryId]
+      return next
+    })
   }
 
   async function handleItemCreated(item) {
-    await reloadCatalog();
-    if (!activeAddItemEntry) return;
+    await reloadCatalog()
+    if (!activeAddItemEntry) return
     setEntries((current) =>
       current.map((entry) =>
         entry.id === activeAddItemEntry.id
           ? {
               ...entry,
               category:
-                categories.find(
-                  (category) => category.id === item.categoryId,
-                )?.name ?? entry.category,
+                categories.find((category) => category.id === item.categoryId)
+                  ?.name ?? entry.category,
               item: item.name,
               enteredUnit: item.entryUnit ?? "PCS",
-              entryUnit: item.entryUnit ?? "PCS",
               piecesPerBale: "",
               size: "",
             }
           : entry,
       ),
-    );
+    )
     setErrors((current) => ({
       ...current,
       [activeAddItemEntry.id]: {
@@ -204,96 +195,91 @@ export default function EntryFormPage() {
         item: "",
         size: "",
       },
-    }));
+    }))
   }
 
   async function handleRequestCreated() {
-    await reloadMyRequests();
-    setToast({ message: "Request sent to an administrator" });
+    await reloadMyRequests()
+    setToast({ message: "Request sent to an administrator" })
   }
 
   async function review(event) {
-    event.preventDefault();
-    const nextErrors = {};
+    event.preventDefault()
+    const nextErrors = {}
     for (const entry of entries) {
       const category = categories.find(
         (candidate) => candidate.name === entry.category,
-      );
+      )
       const selectedItem = catalogItems.find(
         (item) =>
           item.active &&
           item.categoryId === category?.id &&
           item.name === entry.item,
-      );
-      const entryErrors = validateEntry(entry, selectedItem);
+      )
+      const entryErrors = validateEntry(entry, selectedItem)
       if (!category) {
-        entryErrors.category = "Choose a category from the catalog.";
+        entryErrors.category = "Choose a category from the catalog."
       }
       if (entry.item && !selectedItem) {
-        entryErrors.item = "Choose an item from the selected category.";
-      }
-      if (selectedItem && entry.enteredUnit !== selectedItem.entryUnit) {
-        entryErrors.enteredUnit =
-          `${selectedItem.name} is entered in ${unitLabel(selectedItem.entryUnit)}.`;
+        entryErrors.item = "Choose an item from the selected category."
       }
       if (Object.keys(entryErrors).length) {
-        nextErrors[entry.id] = entryErrors;
+        nextErrors[entry.id] = entryErrors
       }
     }
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length) return
 
-    setSubmitting(true);
-    setPageError(null);
+    setSubmitting(true)
+    setPageError(null)
     try {
       const payload = entries.map(({ id, ...entry }) => {
         const category = categories.find(
           (candidate) => candidate.name === entry.category,
-        );
+        )
         const selectedItem = catalogItems.find(
           (item) =>
             item.active &&
             item.categoryId === category?.id &&
             item.name === entry.item,
-        );
+        )
         return {
           ...entry,
           category: category.name,
           item: selectedItem.name,
-          enteredUnit: selectedItem.entryUnit,
-        };
-      });
-      const response = await api.validateInventory(payload);
+        }
+      })
+      const response = await api.validateInventory(payload)
       setEntries((current) =>
         current.map((entry, index) => ({
           ...entry,
           ...response.data.rows[index],
         })),
-      );
-      setReviewWarnings(response.data.warnings ?? []);
-      setStage("review");
-      setVerified(false);
+      )
+      setReviewWarnings(response.data.warnings ?? [])
+      setStage("review")
+      setVerified(false)
     } catch (error) {
-      setPageError(error);
+      setPageError(error)
     } finally {
-      setSubmitting(false);
+      setSubmitting(false)
     }
   }
 
   async function save() {
-    setSubmitting(true);
-    setPageError(null);
+    setSubmitting(true)
+    setPageError(null)
     try {
-      const payload = entries.map(({ id, ...entry }) => entry);
-      const response = await api.createInventory(payload);
+      const payload = entries.map(({ id, ...entry }) => entry)
+      const response = await api.createInventory(payload)
       setSavedEntries(
         Array.isArray(response.data) ? response.data : [response.data],
-      );
-      setStage("success");
+      )
+      setStage("success")
     } catch (error) {
-      setPageError(error);
+      setPageError(error)
     } finally {
-      setSubmitting(false);
+      setSubmitting(false)
     }
   }
 
@@ -305,7 +291,7 @@ export default function EntryFormPage() {
           <LoadingState label="Loading product catalog" rows={3} />
         </section>
       </>
-    );
+    )
   }
 
   if (catalogError) {
@@ -316,7 +302,7 @@ export default function EntryFormPage() {
         retrying={catalogLoading}
         title="Unable to load product catalog"
       />
-    );
+    )
   }
 
   if (stage === "success") {
@@ -335,11 +321,32 @@ export default function EntryFormPage() {
             ? `${savedEntries[0].item} has been added to the inventory.`
             : `${savedEntries.length} entries have been added to the inventory.`}
         </p>
+        <ul className="entry-success-list">
+          {savedEntries.map((entry) => (
+            <li key={entry.id}>
+              <strong>{entry.item}</strong>
+              <div>
+                <span>In</span>
+                <QuantityDisplay
+                  display={entry.quantityInDisplay}
+                  secondary={entry.quantityInSecondaryDisplay}
+                />
+              </div>
+              <div>
+                <span>Out</span>
+                <QuantityDisplay
+                  display={entry.quantityOutDisplay}
+                  secondary={entry.quantityOutSecondaryDisplay}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
         <Link className="btn btn-primary" to="/inventory">
           Back to inventory
         </Link>
       </section>
-    );
+    )
   }
 
   if (stage === "review") {
@@ -366,10 +373,10 @@ export default function EntryFormPage() {
           </div>
           <ol className="entry-review-entries">
             {entries.map((entry, index) => {
-              const enteredUnitLabel = unitLabel(entry.enteredUnit);
-                const entryWarning = reviewWarnings.find(
-                  (warning) => warning.index === index,
-                );
+              const enteredUnitLabel = unitLabel(entry.enteredUnit)
+              const entryWarning = reviewWarnings.find(
+                (warning) => warning.index === index,
+              )
               return (
                 <li className="entry-review-card" key={entry.id}>
                   <h3>Entry {index + 1}</h3>
@@ -408,7 +415,7 @@ export default function EntryFormPage() {
                         />
                       </dd>
                     </div>
-                    {entry.entryUnit === "BALE" && (
+                    {entry.enteredUnit === "BALE" && (
                       <div>
                         <dt>Bale contents</dt>
                         <dd>
@@ -445,7 +452,7 @@ export default function EntryFormPage() {
                     </ul>
                   )}
                 </li>
-              );
+              )
             })}
           </ol>
           {pageError && (
@@ -464,8 +471,8 @@ export default function EntryFormPage() {
           <div className="entry-form-actions">
             <Button
               onClick={() => {
-                setStage("form");
-                setPageError(null);
+                setStage("form")
+                setPageError(null)
               }}
               variant="secondary"
             >
@@ -479,7 +486,7 @@ export default function EntryFormPage() {
           </div>
         </section>
       </section>
-    );
+    )
   }
 
   return (
@@ -492,32 +499,32 @@ export default function EntryFormPage() {
       <form className="panel entry-form-panel" onSubmit={review}>
         <div className="entry-batch-list">
           {entries.map((entry, index) => {
-            const entryErrors = errors[entry.id] ?? {};
+            const entryErrors = errors[entry.id] ?? {}
             const selectedCategory = categories.find(
               (category) => category.name === entry.category,
-            );
+            )
             const availableItems = catalogItems.filter(
-              (item) =>
-                item.active && item.categoryId === selectedCategory?.id,
-            );
+              (item) => item.active && item.categoryId === selectedCategory?.id,
+            )
             const selectedItem = availableItems.find(
               (item) => item.name === entry.item,
-            );
-            const enteredUnitLabel = unitLabel(entry.enteredUnit);
-            const selectedSpecification = selectedItem?.specificationPackSizes?.find(
-              (specification) => specification.label === entry.size,
-            );
-            const packSize = selectedSpecification?.packSize ?? null;
-            const isBaleItem = selectedItem?.entryUnit === "BALE";
-            const quantityStep = selectedItem?.entryUnit === "KG" ? "0.001" : "1";
+            )
+            const enteredUnitLabel = unitLabel(entry.enteredUnit)
+            const selectedSpecification =
+              selectedItem?.specificationPackSizes?.find(
+                (specification) => specification.label === entry.size,
+              )
+            const packSize = selectedSpecification?.packSize ?? null
+            const isBaleUnit = entry.enteredUnit === "BALE"
+            const quantityStep = entry.enteredUnit === "KG" ? "0.001" : "1"
             const totalPiecesIn = calculateTotalPieces(
               entry.quantityIn,
               entry.piecesPerBale,
-            );
+            )
             const totalPiecesOut = calculateTotalPieces(
               entry.quantityOut,
               entry.piecesPerBale,
-            );
+            )
 
             return (
               <section className="entry-batch-row" key={entry.id}>
@@ -549,24 +556,15 @@ export default function EntryFormPage() {
                       }
                     />
                   </Field>
-                  <Field
-                    error={entryErrors.category}
-                    label="Category"
-                    required
-                  >
+                  <Field error={entryErrors.category} label="Category" required>
                     <Select
                       value={entry.category}
                       onChange={(event) => {
-                        updateEntry(
-                          entry.id,
-                          "category",
-                          event.target.value,
-                        );
-                        updateEntry(entry.id, "item", "");
-                        updateEntry(entry.id, "size", "");
-                        updateEntry(entry.id, "enteredUnit", "PCS");
-                        updateEntry(entry.id, "entryUnit", "PCS");
-                        updateEntry(entry.id, "piecesPerBale", "");
+                        updateEntry(entry.id, "category", event.target.value)
+                        updateEntry(entry.id, "item", "")
+                        updateEntry(entry.id, "size", "")
+                        updateEntry(entry.id, "enteredUnit", "PCS")
+                        updateEntry(entry.id, "piecesPerBale", "")
                       }}
                     >
                       <option value="">Select category</option>
@@ -589,20 +587,15 @@ export default function EntryFormPage() {
                         onChange={(event) => {
                           const nextItem = availableItems.find(
                             (item) => item.name === event.target.value,
-                          );
-                          updateEntry(entry.id, "item", event.target.value);
+                          )
+                          updateEntry(entry.id, "item", event.target.value)
                           updateEntry(
                             entry.id,
                             "enteredUnit",
                             nextItem?.entryUnit ?? "PCS",
-                          );
-                          updateEntry(
-                            entry.id,
-                            "entryUnit",
-                            nextItem?.entryUnit ?? "PCS",
-                          );
-                          updateEntry(entry.id, "size", "");
-                          updateEntry(entry.id, "piecesPerBale", "");
+                          )
+                          updateEntry(entry.id, "size", "")
+                          updateEntry(entry.id, "piecesPerBale", "")
                         }}
                       >
                         <option value="">Select item</option>
@@ -640,31 +633,19 @@ export default function EntryFormPage() {
                       disabled={!selectedItem}
                       value={entry.size}
                       onChange={(event) => {
-                        const nextSize = event.target.value;
+                        const nextSize = event.target.value
                         const nextPackSize =
                           selectedItem?.specificationPackSizes?.find(
-                            (specification) =>
-                              specification.label === nextSize,
-                          )?.packSize;
-                        updateEntry(entry.id, "size", nextSize);
-                        updateEntry(
-                          entry.id,
-                          "enteredUnit",
-                          selectedItem?.entryUnit ?? "PCS",
-                        );
-                        updateEntry(
-                          entry.id,
-                          "entryUnit",
-                          selectedItem?.entryUnit ?? "PCS",
-                        );
-                        updateEntry(
-                          entry.id,
-                          "piecesPerBale",
-                          selectedItem?.entryUnit === "BALE" &&
-                            nextPackSize != null
-                            ? String(nextPackSize)
-                            : "",
-                        );
+                            (specification) => specification.label === nextSize,
+                          )?.packSize
+                        updateEntry(entry.id, "size", nextSize)
+                        if (entry.enteredUnit === "BALE") {
+                          updateEntry(
+                            entry.id,
+                            "piecesPerBale",
+                            nextPackSize != null ? String(nextPackSize) : "",
+                          )
+                        }
                       }}
                     >
                       <option value="">Select specifications/size</option>
@@ -678,6 +659,9 @@ export default function EntryFormPage() {
                     </Select>
                   </Field>
                   <div className="entry-quantity-section">
+                    <div className="entry-quantity-unit">
+                      Entered in: <strong>{enteredUnitLabel}</strong>
+                    </div>
                     <div className="entry-quantity-fields">
                       <Field
                         error={entryErrors.quantityIn || entryErrors.quantity}
@@ -698,9 +682,7 @@ export default function EntryFormPage() {
                         />
                       </Field>
                       <Field
-                        error={
-                          entryErrors.quantityOut || entryErrors.quantity
-                        }
+                        error={entryErrors.quantityOut || entryErrors.quantity}
                         label={`Quantity Out (${enteredUnitLabel})`}
                       >
                         <Input
@@ -718,8 +700,11 @@ export default function EntryFormPage() {
                         />
                       </Field>
                     </div>
-                    {isBaleItem && (
-                      <section className="entry-bale-contents" aria-label="Bale contents">
+                    {isBaleUnit && (
+                      <section
+                        className="entry-bale-contents"
+                        aria-label="Bale contents"
+                      >
                         <h3>Bale contents</h3>
                         {packSize != null && (
                           <small>Standard pack: {packSize} pcs</small>
@@ -727,7 +712,11 @@ export default function EntryFormPage() {
                         <div className="entry-quantity-fields">
                           <Field
                             error={entryErrors.piecesPerBale}
-                            label="Pieces per bale"
+                            label={
+                              entries.length > 1
+                                ? "Pcs per bale"
+                                : "Pieces per bale"
+                            }
                             required
                           >
                             <Input
@@ -747,7 +736,7 @@ export default function EntryFormPage() {
                           </Field>
                           <div className="entry-bale-totals" aria-live="polite">
                             <div>
-                              <span>Total pieces in</span>
+                              <span>Total pcs in</span>
                               <strong>
                                 {totalPiecesIn == null
                                   ? "–"
@@ -755,7 +744,7 @@ export default function EntryFormPage() {
                               </strong>
                             </div>
                             <div>
-                              <span>Total pieces out</span>
+                              <span>Total pcs out</span>
                               <strong>
                                 {totalPiecesOut == null
                                   ? "–"
@@ -798,7 +787,7 @@ export default function EntryFormPage() {
                   </Field>
                 </div>
               </section>
-            );
+            )
           })}
         </div>
         {pageError && (
@@ -819,7 +808,8 @@ export default function EntryFormPage() {
             Cancel
           </Button>
           <Button loading={submitting} type="submit">
-            Review {entries.length === 1 ? "entry" : `${entries.length} entries`}
+            Review{" "}
+            {entries.length === 1 ? "entry" : `${entries.length} entries`}
           </Button>
         </div>
       </form>
@@ -845,7 +835,9 @@ export default function EntryFormPage() {
         <details className="panel entry-own-requests">
           <summary>
             <span>My catalog requests</span>
-            <span className="entry-own-request-count">{ownRequests.length}</span>
+            <span className="entry-own-request-count">
+              {ownRequests.length}
+            </span>
           </summary>
           {requestsLoading ? (
             <LoadingState label="Loading your item requests" rows={2} />
@@ -906,8 +898,7 @@ export default function EntryFormPage() {
           items={catalogItems}
           initialCategoryId={
             categories.find(
-              (category) =>
-                category.name === activeAddItemEntry?.category,
+              (category) => category.name === activeAddItemEntry?.category,
             )?.id ?? ""
           }
           onClose={() => setAddItemEntryId(null)}
@@ -920,8 +911,7 @@ export default function EntryFormPage() {
           items={catalogItems}
           initialCategoryId={
             categories.find(
-              (category) =>
-                category.name === activeRequestItemEntry?.category,
+              (category) => category.name === activeRequestItemEntry?.category,
             )?.id ?? ""
           }
           initialItemName={activeRequestItemEntry?.item ?? ""}
@@ -936,5 +926,5 @@ export default function EntryFormPage() {
         tone={toast?.tone}
       />
     </>
-  );
+  )
 }

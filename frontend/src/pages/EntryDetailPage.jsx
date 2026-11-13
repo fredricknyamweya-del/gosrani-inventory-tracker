@@ -23,26 +23,51 @@ import { useAuth } from "../context/AuthContext"
 import { useApi } from "../hooks/useApi"
 import { api } from "../services/api"
 import { formatDate, formatDateTime } from "../utils/format"
+import { calculateTotalPieces } from "../utils/units"
 
 function recordForm(record) {
+  const entryUnit = record.entryUnit ?? record.enteredUnit
+  const piecesPerBale = record.piecesPerBale ?? record.packSize ?? ""
+  const toBales = (quantity, recordedUnit, bales) => {
+    if (entryUnit !== "BALE") return quantity ?? ""
+    if (recordedUnit === "BALE") return bales ?? ""
+    const converted = Number(quantity) / Number(piecesPerBale)
+    return piecesPerBale && Number.isInteger(converted) ? converted : ""
+  }
   return {
     date: record.date,
     category: record.category,
     item: record.item,
     size: record.size,
-    quantityIn: record.quantityIn ?? "",
-    quantityOut: record.quantityOut ?? "",
+    quantityIn: toBales(record.quantityIn, record.enteredUnit, record.balesIn),
+    quantityOut: toBales(
+      record.quantityOut,
+      record.enteredUnit,
+      record.balesOut,
+    ),
     handledBy: record.handledBy ?? "",
     details: record.details ?? "",
     status: record.status,
-    enteredUnit: record.enteredUnit,
+    enteredUnit: entryUnit,
+    entryUnit,
+    piecesPerBale,
   }
+}
+
+function unitLabel(unit) {
+  if (unit === "BALE") return "bales"
+  if (unit === "KG") return "kg"
+  return "pcs"
 }
 
 function StockFigure({ stock, loading, error, onRetry, context = false }) {
   if (loading) {
     return (
-      <span aria-label="Loading stock" className="entry-stock-skeleton" role="status">
+      <span
+        aria-label="Loading stock"
+        className="entry-stock-skeleton"
+        role="status"
+      >
         <span aria-hidden="true" className="skeleton" />
       </span>
     )
@@ -52,11 +77,7 @@ function StockFigure({ stock, loading, error, onRetry, context = false }) {
     return (
       <span aria-live="polite" className="entry-stock-error" role="status">
         <span>Stock unavailable</span>
-        <button
-          className="entry-stock-retry"
-          onClick={onRetry}
-          type="button"
-        >
+        <button className="entry-stock-retry" onClick={onRetry} type="button">
           Retry
         </button>
       </span>
@@ -75,9 +96,7 @@ function StockFigure({ stock, loading, error, onRetry, context = false }) {
     >
       <strong>{stock.display}</strong>
       {stock.secondaryDisplay && <small>{stock.secondaryDisplay}</small>}
-      {isNegative && (
-        <small>Stock is below zero. Check recent entries.</small>
-      )}
+      {isNegative && <small>Stock is below zero. Check recent entries.</small>}
       {isZero && <small>Out of stock</small>}
       {context && (
         <>
@@ -86,9 +105,7 @@ function StockFigure({ stock, loading, error, onRetry, context = false }) {
             {stock.sizeLabel ? ` . ${stock.sizeLabel}` : ""} at{" "}
             {stock.locationName}
           </small>
-          <small>
-            As of {formatDateTime(stock.asOf).replace(" at ", " ")}
-          </small>
+          <small>As of {formatDateTime(stock.asOf).replace(" at ", " ")}</small>
         </>
       )}
     </span>
@@ -187,37 +204,62 @@ export default function EntryDetailPage() {
   const selectedSpecification = item?.specificationPackSizes?.find(
     (specification) => specification.label === form.size,
   )
-  const supportsBales = selectedSpecification?.packSize != null
   const isOriginalItem =
     form.category === record.category && form.item === record.item
   const selectedSizeIsAvailable = specifications.includes(form.size)
+  const totalPiecesIn = calculateTotalPieces(
+    form.quantityIn,
+    form.piecesPerBale,
+  )
+  const totalPiecesOut = calculateTotalPieces(
+    form.quantityOut,
+    form.piecesPerBale,
+  )
 
   function update(key, value) {
     const selectedItem =
       key === "item"
         ? categoryItems.find((entry) => entry.name === value)
         : item
-    const selectedSize = key === "size" ? value : key === "item" ? "" : form.size
+    const selectedSize =
+      key === "size" ? value : key === "item" ? "" : form.size
     const selectedPackSize = selectedItem?.specificationPackSizes?.find(
       (specification) => specification.label === selectedSize,
     )?.packSize
-    const defaultUnit =
-      selectedPackSize != null && selectedItem?.inventoryUnit === "BALE"
-        ? "BALE"
-        : selectedItem?.unit ?? "PCS"
+    const defaultUnit = selectedItem?.entryUnit ?? "PCS"
     setForm((current) => ({
       ...current,
       [key]: value,
       ...(key === "category"
-        ? { item: "", size: "", enteredUnit: "PCS" }
+        ? {
+            item: "",
+            size: "",
+            entryUnit: "PCS",
+            enteredUnit: "PCS",
+            piecesPerBale: "",
+          }
         : {}),
       ...(key === "item"
         ? {
             size: "",
+            entryUnit: defaultUnit,
             enteredUnit: defaultUnit,
+            piecesPerBale:
+              defaultUnit === "BALE" && selectedPackSize != null
+                ? String(selectedPackSize)
+                : "",
           }
         : {}),
-      ...(key === "size" ? { enteredUnit: defaultUnit } : {}),
+      ...(key === "size"
+        ? {
+            entryUnit: defaultUnit,
+            enteredUnit: defaultUnit,
+            piecesPerBale:
+              defaultUnit === "BALE" && selectedPackSize != null
+                ? String(selectedPackSize)
+                : "",
+          }
+        : {}),
     }))
     setSaveError("")
   }
@@ -365,24 +407,68 @@ export default function EntryDetailPage() {
                 ))}
               </Select>
             </Field>
-            <Field label={`Quantity In (${form.enteredUnit})`}>
+            <Field label={`Quantity In (${unitLabel(form.entryUnit)})`}>
               <Input
                 min="0"
                 onChange={(event) => update("quantityIn", event.target.value)}
-                step={form.enteredUnit === "BALE" || isBaleItem ? "1" : "0.001"}
+                step={form.entryUnit === "KG" ? "0.001" : "1"}
                 type="number"
                 value={form.quantityIn}
               />
             </Field>
-            <Field label={`Quantity Out (${form.enteredUnit})`}>
+            <Field label={`Quantity Out (${unitLabel(form.entryUnit)})`}>
               <Input
                 min="0"
                 onChange={(event) => update("quantityOut", event.target.value)}
-                step={form.enteredUnit === "BALE" || isBaleItem ? "1" : "0.001"}
+                step={form.entryUnit === "KG" ? "0.001" : "1"}
                 type="number"
                 value={form.quantityOut}
               />
             </Field>
+            {form.entryUnit === "BALE" && (
+              <section
+                className="entry-bale-contents"
+                aria-label="Bale contents"
+              >
+                <h3>Bale contents</h3>
+                {selectedSpecification?.packSize != null && (
+                  <small>
+                    Standard pack: {selectedSpecification.packSize} pcs
+                  </small>
+                )}
+                <Field label="Pieces per bale" required>
+                  <Input
+                    max="10000"
+                    min="1"
+                    onChange={(event) =>
+                      update("piecesPerBale", event.target.value)
+                    }
+                    required
+                    step="1"
+                    type="number"
+                    value={form.piecesPerBale}
+                  />
+                </Field>
+                <div className="entry-bale-totals" aria-live="polite">
+                  <div>
+                    <span>Total pieces in</span>
+                    <strong>
+                      {totalPiecesIn == null
+                        ? "–"
+                        : `${totalPiecesIn.toLocaleString("en-US")} pcs`}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Total pieces out</span>
+                    <strong>
+                      {totalPiecesOut == null
+                        ? "–"
+                        : `${totalPiecesOut.toLocaleString("en-US")} pcs`}
+                    </strong>
+                  </div>
+                </div>
+              </section>
+            )}
             <Field label="Received / dispatched by" required>
               <Input
                 autoComplete="name"
@@ -391,22 +477,6 @@ export default function EntryDetailPage() {
                 required
                 value={form.handledBy}
               />
-            </Field>
-            <Field label="Quantity unit">
-              <Select
-                disabled={!supportsBales}
-                onChange={(event) => update("enteredUnit", event.target.value)}
-                value={form.enteredUnit}
-              >
-                {supportsBales ? (
-                  <>
-                    <option value="BALE">Bales</option>
-                    <option value="PCS">Pieces</option>
-                  </>
-                ) : (
-                  <option value={form.enteredUnit}>{form.enteredUnit}</option>
-                )}
-              </Select>
             </Field>
             <Field label="Status">
               <Select
@@ -441,7 +511,10 @@ export default function EntryDetailPage() {
           </div>
         </form>
       ) : (
-        <section aria-label="Inventory record details" className="panel entry-record-card">
+        <section
+          aria-label="Inventory record details"
+          className="panel entry-record-card"
+        >
           <header className="entry-record-hero">
             <div className="entry-record-hero-meta">
               <span className="entry-record-category">{record.category}</span>
@@ -472,7 +545,10 @@ export default function EntryDetailPage() {
             </div>
             <p>{record.size || "No specification or size recorded"}</p>
           </header>
-          <dl aria-label="Quantity movement" className="entry-record-quantities">
+          <dl
+            aria-label="Quantity movement"
+            className="entry-record-quantities"
+          >
             <div className="entry-record-quantity-in">
               <dt>Quantity In</dt>
               <dd>
@@ -499,8 +575,18 @@ export default function EntryDetailPage() {
             </div>
             <div>
               <dt>Entered unit</dt>
-              <dd>{record.enteredUnit}</dd>
+              <dd>{unitLabel(record.entryUnit)}</dd>
             </div>
+            {record.entryUnit === "BALE" && (
+              <div>
+                <dt>Pieces per bale</dt>
+                <dd>
+                  {(record.piecesPerBale ?? record.packSize)
+                    ? `${record.piecesPerBale ?? record.packSize} pcs`
+                    : "Not recorded"}
+                </dd>
+              </div>
+            )}
             <div>
               <dt>Added by</dt>
               <dd>{record.addedBy}</dd>

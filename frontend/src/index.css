@@ -1484,6 +1484,33 @@
   font-size: 12px;
 }
 
+.entry-success-list {
+  display: grid;
+  width: min(100%, 560px);
+  gap: 10px;
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.entry-success-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(100px, auto));
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+.entry-success-list li > div {
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+}
+
 .entry-remove-row {
   min-height: 34px;
   padding: 6px 9px;
@@ -1532,6 +1559,15 @@
   grid-column: 1 / -1;
   gap: 20px;
   width: 75%;
+}
+
+.entry-quantity-unit {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.entry-quantity-unit strong {
+  color: var(--text);
 }
 
 .entry-quantity-fields {

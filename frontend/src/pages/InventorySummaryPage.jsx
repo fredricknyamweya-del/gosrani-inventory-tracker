@@ -1,5 +1,5 @@
-import { Download, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Download, Search } from "lucide-react"
+import { useMemo, useState } from "react"
 import {
   Button,
   EmptyState,
@@ -8,58 +8,62 @@ import {
   LoadingState,
   PageHeader,
   Select,
-} from "../components/ui";
-import QuantityDisplay from "../components/QuantityDisplay";
-import { useApi } from "../hooks/useApi";
-import { api } from "../services/api";
+} from "../components/ui"
+import QuantityDisplay from "../components/QuantityDisplay"
+import { useApi } from "../hooks/useApi"
+import { api } from "../services/api"
 
 function csvCell(value) {
-  const text = String(value ?? "");
-  const safeText = /^[\u0000-\u0020]*[=+\-@]/.test(text)
-    ? `'${text}`
-    : text;
-  return `"${safeText.replace(/"/g, '""')}"`;
+  const text = String(value ?? "")
+  const safeText = /^[\u0000-\u0020]*[=+\-@]/.test(text) ? `'${text}` : text
+  return `"${safeText.replace(/"/g, '""')}"`
 }
 
 export default function InventorySummaryPage() {
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [size, setSize] = useState("");
-  const [unit, setUnit] = useState("");
+  const [search, setSearch] = useState("")
+  const [category, setCategory] = useState("")
+  const [size, setSize] = useState("")
+  const [unit, setUnit] = useState("")
   const { data, error, loading, reload } = useApi(
     () => api.getInventorySummary(),
     [],
-  );
-  const stockRows = data?.stockBySpecification ?? [];
+  )
+  const stockRows = data?.stockBySpecification ?? []
   const categories = useMemo(
-    () => [...new Set(stockRows.map((row) => row.category))].sort(
-      (left, right) => left.localeCompare(right),
-    ),
+    () =>
+      [...new Set(stockRows.map((row) => row.category))].sort((left, right) =>
+        left.localeCompare(right),
+      ),
     [stockRows],
-  );
+  )
   const sizes = useMemo(
-    () => [...new Set(stockRows.map((row) => row.size))].sort(
-      (left, right) => left.localeCompare(right),
-    ),
+    () =>
+      [...new Set(stockRows.map((row) => row.size))].sort((left, right) =>
+        left.localeCompare(right),
+      ),
     [stockRows],
-  );
+  )
   const units = useMemo(
-    () => [...new Set(stockRows.map((row) => row.inventoryUnit))].sort(
-      (left, right) => left.localeCompare(right),
-    ),
+    () =>
+      [...new Set(stockRows.map((row) => row.entryUnit))].sort((left, right) =>
+        left.localeCompare(right),
+      ),
     [stockRows],
-  );
+  )
   const visibleRows = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
+    const query = search.trim().toLocaleLowerCase()
     return stockRows.filter((row) => {
-      const matchesSearch = !query ||
-        `${row.itemName} ${row.size}`.toLocaleLowerCase().includes(query);
-      return matchesSearch &&
+      const matchesSearch =
+        !query ||
+        `${row.itemName} ${row.size}`.toLocaleLowerCase().includes(query)
+      return (
+        matchesSearch &&
         (!category || row.category === category) &&
         (!size || row.size === size) &&
-        (!unit || row.inventoryUnit === unit);
-    });
-  }, [stockRows, search, category, size, unit]);
+        (!unit || row.entryUnit === unit)
+      )
+    })
+  }, [stockRows, search, category, size, unit])
 
   function exportCsv() {
     const rows = [
@@ -70,19 +74,18 @@ export default function InventorySummaryPage() {
         row.size,
         [row.display, row.secondaryDisplay].filter(Boolean).join(" "),
       ]),
-    ];
-    const csvRows = rows.map((row) => row.map(csvCell).join(","));
-    const csv = `\uFEFF${csvRows.join("\r\n")}`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download =
-      `inventory-summary-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    ]
+    const csvRows = rows.map((row) => row.map(csvCell).join(","))
+    const csv = `\uFEFF${csvRows.join("\r\n")}`
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `inventory-summary-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.append(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 0)
   }
 
   return (
@@ -113,7 +116,10 @@ export default function InventorySummaryPage() {
         />
       ) : (
         <>
-          <section aria-label="Inventory summary filters" className="panel inventory-summary-filters">
+          <section
+            aria-label="Inventory summary filters"
+            className="panel inventory-summary-filters"
+          >
             <label className="inventory-summary-search">
               <Search aria-hidden="true" size={18} />
               <span className="sr-only">Search item name or size</span>
@@ -132,7 +138,9 @@ export default function InventorySummaryPage() {
               >
                 <option value="">All categories</option>
                 {categories.map((entry) => (
-                  <option key={entry} value={entry}>{entry}</option>
+                  <option key={entry} value={entry}>
+                    {entry}
+                  </option>
                 ))}
               </Select>
             </label>
@@ -144,7 +152,9 @@ export default function InventorySummaryPage() {
               >
                 <option value="">All sizes</option>
                 {sizes.map((entry) => (
-                  <option key={entry} value={entry}>{entry}</option>
+                  <option key={entry} value={entry}>
+                    {entry}
+                  </option>
                 ))}
               </Select>
             </label>
@@ -168,7 +178,10 @@ export default function InventorySummaryPage() {
             </label>
           </section>
 
-          <section aria-label="Stock by item and size" className="panel inventory-summary-table-panel">
+          <section
+            aria-label="Stock by item and size"
+            className="panel inventory-summary-table-panel"
+          >
             {loading ? (
               <LoadingState label="Loading inventory summary" rows={6} />
             ) : visibleRows.length ? (
@@ -185,10 +198,14 @@ export default function InventorySummaryPage() {
                   <tbody>
                     {visibleRows.map((row) => (
                       <tr key={row.id}>
-                        <td className="inventory-summary-item">{row.itemName}</td>
+                        <td className="inventory-summary-item">
+                          {row.itemName}
+                        </td>
                         <td>{row.category}</td>
                         <td>
-                          <span className="inventory-summary-size">{row.size}</span>
+                          <span className="inventory-summary-size">
+                            {row.size}
+                          </span>
                         </td>
                         <td>
                           <QuantityDisplay
@@ -219,5 +236,5 @@ export default function InventorySummaryPage() {
         </>
       )}
     </section>
-  );
+  )
 }

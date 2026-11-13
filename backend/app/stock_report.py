@@ -12,7 +12,6 @@ from sqlalchemy import and_, func, select
 from app.extensions import db
 from app.models import (
     Category,
-    InventoryUnit,
     Item,
     Location,
     Specification,
@@ -88,14 +87,6 @@ def _missing_pack_warnings(rows: list[dict[str, object]]) -> list[str]:
                     f"{row['category']} / {row['item']} / {row['size']}: "
                     f"expected pack size {expected_pack_size}, found {found}."
                 )
-        elif (
-            row["inventory_unit"] == InventoryUnit.BALE
-            and row["pack_size"] is None
-        ):
-            warnings.append(
-                f"{row['category']} / {row['item']} / {row['size']}: "
-                "configured as BALE but has no specification pack size."
-            )
 
     for key, expected_pack_size in expected.items():
         if key not in matched_expected:
@@ -138,8 +129,10 @@ def stock_report_command(csv_output: bool) -> None:
             Specification.label.label("size"),
             Specification.pack_size.label("pack_size"),
             Item.unit.label("unit"),
-            Item.inventory_unit.label("inventory_unit"),
+            Item.entry_unit.label("entry_unit"),
             func.coalesce(v_stock.c.stock, 0).label("stock"),
+            v_stock.c.stock_pieces.label("stock_pieces"),
+            v_stock.c.stock_bales.label("stock_bales"),
         )
         .select_from(Specification)
         .join(Item, Item.id == Specification.item_id)
@@ -165,8 +158,10 @@ def stock_report_command(csv_output: bool) -> None:
             "size": result.size,
             "pack_size": result.pack_size,
             "unit": result.unit,
-            "inventory_unit": result.inventory_unit,
+            "entry_unit": result.entry_unit,
             "stock": Decimal(result.stock),
+            "stock_pieces": result.stock_pieces,
+            "stock_bales": result.stock_bales,
         }
         for result in db.session.execute(statement)
     ]
@@ -182,7 +177,15 @@ def stock_report_command(csv_output: bool) -> None:
     report_rows = []
     for row in rows:
         display, secondary = format_quantity_display(
-            row["stock"], row["unit"], row["pack_size"]
+            row["stock"],
+            row["unit"],
+            row["pack_size"],
+            entry_unit=row["entry_unit"],
+            bales=(
+                Decimal(row["stock_bales"])
+                if row["stock_bales"] is not None
+                else None
+            ),
         )
         report_rows.append(
             [

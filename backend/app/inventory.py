@@ -132,10 +132,20 @@ def _resolve_record(
 
     pieces_per_bale = None
     if entered_unit == EnteredUnit.BALE:
+        existing_pieces_per_bale = (
+            effective_pieces_per_bale(
+                existing_record.entered_unit,
+                existing_record.pieces_per_bale,
+                pack_size,
+                existing_record.pieces_per_unit,
+            )
+            if same_specification and existing_record is not None
+            else None
+        )
         raw_pieces_per_bale = payload.get(
             "piecesPerBale",
-            existing_record.pieces_per_bale
-            if same_specification and existing_record is not None
+            existing_pieces_per_bale
+            if same_specification
             else pack_size,
         )
         try:
@@ -785,28 +795,47 @@ def update_inventory(record_id: int):
     current_item = db.session.get(Item, current_specification.item_id)
     current_category = db.session.get(Category, current_item.category_id)
     serialized_record = _serialize(record)
+    edit_entry_unit = current_item.entry_unit
+    edit_pieces_per_bale = (
+        record.pieces_per_bale or current_specification.pack_size
+        if edit_entry_unit == EnteredUnit.BALE
+        else None
+    )
+    existing_base_in = (
+        record.qty_in_normalized
+        if record.qty_in_normalized is not None
+        else record.qty_in
+    )
+    existing_base_out = (
+        record.qty_out_normalized
+        if record.qty_out_normalized is not None
+        else record.qty_out
+    )
     merged = {
         "date": record.record_date.isoformat(),
         "category": current_category.name,
         "item": current_item.name,
         "size": current_specification.label,
         "quantityIn": (
-            serialized_record["balesIn"]
-            if record.entered_unit == EnteredUnit.BALE
+            (
+                Decimal(existing_base_in) / Decimal(edit_pieces_per_bale)
+                if existing_base_in is not None and edit_pieces_per_bale
+                else serialized_record["balesIn"]
+            )
+            if edit_entry_unit == EnteredUnit.BALE
             else serialized_record["quantityIn"]
         ),
         "quantityOut": (
-            serialized_record["balesOut"]
-            if record.entered_unit == EnteredUnit.BALE
+            (
+                Decimal(existing_base_out) / Decimal(edit_pieces_per_bale)
+                if existing_base_out is not None and edit_pieces_per_bale
+                else serialized_record["balesOut"]
+            )
+            if edit_entry_unit == EnteredUnit.BALE
             else serialized_record["quantityOut"]
         ),
-        "piecesPerBale": effective_pieces_per_bale(
-            record.entered_unit,
-            record.pieces_per_bale,
-            current_specification.pack_size,
-            record.pieces_per_unit,
-        ),
-        "enteredUnit": record.entered_unit.value,
+        "piecesPerBale": edit_pieces_per_bale,
+        "enteredUnit": edit_entry_unit.value,
         "handledBy": record.handled_by or "",
         "details": record.details or "",
         **payload,

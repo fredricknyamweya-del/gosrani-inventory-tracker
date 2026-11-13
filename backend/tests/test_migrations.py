@@ -87,6 +87,8 @@ def test_entry_unit_migration_round_trip_preserves_stock(app):
         assert stock.stock == 200
         assert stock.stock_pieces == 200
         assert stock.stock_bales == 10
+        assert stock.stock_bales_in == 10
+        assert stock.stock_bales_out == 0
 
         db.session.delete(migrated_record)
         db.session.delete(db.session.get(Specification, specification_id))

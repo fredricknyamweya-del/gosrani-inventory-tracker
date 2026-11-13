@@ -26,12 +26,50 @@ def _create_stock_view() -> None:
                     ELSE NULL
                END AS stock_pieces,
                CASE WHEN items.entry_unit = 'BALE'
+                         AND SUM(
+                             CASE
+                                 WHEN records.effective_pieces_per_bale IS NULL
+                                      AND (records.qty_in_base <> 0 OR records.qty_out_base <> 0)
+                                 THEN 1
+                                 ELSE 0
+                             END
+                         ) = 0
                     THEN SUM(
                         1.0 * (records.qty_in_base - records.qty_out_base)
                         / records.effective_pieces_per_bale
                     )
                     ELSE NULL
-               END AS stock_bales
+               END AS stock_bales,
+               CASE WHEN items.entry_unit = 'BALE'
+                         AND SUM(
+                             CASE
+                                 WHEN records.effective_pieces_per_bale IS NULL
+                                      AND records.qty_in_base <> 0
+                                 THEN 1
+                                 ELSE 0
+                             END
+                         ) = 0
+                    THEN SUM(
+                        1.0 * records.qty_in_base
+                        / records.effective_pieces_per_bale
+                    )
+                    ELSE NULL
+               END AS stock_bales_in,
+               CASE WHEN items.entry_unit = 'BALE'
+                         AND SUM(
+                             CASE
+                                 WHEN records.effective_pieces_per_bale IS NULL
+                                      AND records.qty_out_base <> 0
+                                 THEN 1
+                                 ELSE 0
+                             END
+                         ) = 0
+                    THEN SUM(
+                        1.0 * records.qty_out_base
+                        / records.effective_pieces_per_bale
+                    )
+                    ELSE NULL
+               END AS stock_bales_out
         FROM (
             SELECT inventory_records.location_id,
                    inventory_records.specification_id,

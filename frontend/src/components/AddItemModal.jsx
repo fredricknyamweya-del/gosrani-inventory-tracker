@@ -1,14 +1,17 @@
-import { Plus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Plus, X } from "lucide-react"
+import { useEffect, useState } from "react"
 import {
   findCatalogNearMatch,
   getCatalogSpecificationExample,
   api,
-} from "../services/api";
-import { Button, Field, Input, Modal, Select } from "./ui";
+} from "../services/api"
+import { Button, Field, Input, Modal, Select } from "./ui"
 
 function normalize(value) {
-  return String(value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase()
 }
 
 export default function AddItemModal({
@@ -19,90 +22,112 @@ export default function AddItemModal({
   initialCategoryId = "",
   onCreated,
 }) {
-  const [categoryId, setCategoryId] = useState(initialCategoryId);
-  const [name, setName] = useState("");
-  const [specifications, setSpecifications] = useState([""]);
-  const [inventoryUnit, setInventoryUnit] = useState("PCS");
-  const [piecesPerBale, setPiecesPerBale] = useState("");
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [categoryId, setCategoryId] = useState(initialCategoryId)
+  const [name, setName] = useState("")
+  const [specifications, setSpecifications] = useState([""])
+  const [entryUnit, setEntryUnit] = useState("PCS")
+  const [specificationPackSizes, setSpecificationPackSizes] = useState([""])
+  const [error, setError] = useState("")
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (!open) return;
-    setCategoryId(initialCategoryId);
-    setName("");
-    setSpecifications([""]);
-    setInventoryUnit("PCS");
-    setPiecesPerBale("");
-    setError("");
-  }, [open, initialCategoryId]);
+    if (!open) return
+    setCategoryId(initialCategoryId)
+    setName("")
+    setSpecifications([""])
+    setEntryUnit("PCS")
+    setSpecificationPackSizes([""])
+    setError("")
+  }, [open, initialCategoryId])
 
-  const nearMatch = categoryId && name.trim()
-    ? findCatalogNearMatch(name, categoryId, items)
-    : null;
-  const exactMatch = nearMatch && normalize(nearMatch) === normalize(name);
-  const specificationExample = getCatalogSpecificationExample(
-    items,
-    categoryId,
-  );
+  const nearMatch =
+    categoryId && name.trim()
+      ? findCatalogNearMatch(name, categoryId, items)
+      : null
+  const exactMatch = nearMatch && normalize(nearMatch) === normalize(name)
+  const specificationExample = getCatalogSpecificationExample(items, categoryId)
 
   function updateSpecification(index, value) {
     setSpecifications((current) =>
       current.map((specification, currentIndex) =>
         currentIndex === index ? value : specification,
       ),
-    );
-    setError("");
+    )
+    setError("")
+  }
+
+  function updatePackSize(index, value) {
+    setSpecificationPackSizes((current) =>
+      current.map((packSize, currentIndex) =>
+        currentIndex === index ? value : packSize,
+      ),
+    )
+    setError("")
   }
 
   async function submit(event) {
-    event.preventDefault();
+    event.preventDefault()
     const cleanSpecifications = specifications
       .map((specification) => specification.trim())
-      .filter(Boolean);
+      .filter(Boolean)
 
     if (!categoryId) {
-      setError("Choose a category.");
-      return;
+      setError("Choose a category.")
+      return
     }
     if (!name.trim()) {
-      setError("Item name is required.");
-      return;
+      setError("Item name is required.")
+      return
     }
     if (exactMatch) {
-      setError(`An item named "${nearMatch}" already exists in this category.`);
-      return;
+      setError(`An item named "${nearMatch}" already exists in this category.`)
+      return
     }
     if (cleanSpecifications.length === 0) {
-      setError("Add at least one specification.");
-      return;
+      setError("Add at least one specification.")
+      return
     }
     if (
-      inventoryUnit === "BALE" &&
-      (!Number.isInteger(Number(piecesPerBale)) || Number(piecesPerBale) <= 0)
+      entryUnit === "BALE" &&
+      specificationPackSizes.some((packSize) => {
+        if (!packSize) return false
+        const value = Number(packSize)
+        return !Number.isInteger(value) || value < 1 || value > 10000
+      })
     ) {
-      setError("Enter a positive whole number of pieces per bale.");
-      return;
+      setError(
+        "Standard pieces per bale must be a whole number from 1 to 10000.",
+      )
+      return
     }
 
-    setSaving(true);
-    setError("");
+    setSaving(true)
+    setError("")
     try {
       const response = await api.createCatalogItem({
         categoryId,
         name,
         specifications: cleanSpecifications,
-        unit: inventoryUnit === "KG" ? "KG" : "PCS",
-        inventoryUnit,
-        piecesPerBale:
-          inventoryUnit === "BALE" ? Number(piecesPerBale) : null,
-      });
-      await onCreated?.(response.data);
-      onClose();
+        unit: entryUnit === "KG" ? "KG" : "PCS",
+        entryUnit,
+        specificationPackSizes: cleanSpecifications.map((label) => {
+          const index = specifications.findIndex(
+            (specification) => specification.trim() === label,
+          )
+          const rawSize = specificationPackSizes[index]
+          return {
+            label,
+            packSize:
+              entryUnit === "BALE" && rawSize !== "" ? Number(rawSize) : null,
+          }
+        }),
+      })
+      await onCreated?.(response.data)
+      onClose()
     } catch (requestError) {
-      setError(requestError.message);
+      setError(requestError.message)
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
   }
 
@@ -136,8 +161,8 @@ export default function AddItemModal({
         <Field label="Category" required>
           <Select
             onChange={(event) => {
-              setCategoryId(event.target.value);
-              setError("");
+              setCategoryId(event.target.value)
+              setError("")
             }}
             value={categoryId}
           >
@@ -153,54 +178,40 @@ export default function AddItemModal({
           <Input
             autoComplete="off"
             onChange={(event) => {
-              setName(event.target.value);
-              setError("");
+              setName(event.target.value)
+              setError("")
             }}
             value={name}
           />
         </Field>
-        <Field label="Inventory unit" required>
+        <Field label="Entered in" required>
           <Select
             onChange={(event) => {
-              setInventoryUnit(event.target.value);
-              setPiecesPerBale("");
-              setError("");
+              setEntryUnit(event.target.value)
+              setError("")
             }}
-            value={inventoryUnit}
+            value={entryUnit}
           >
             <option value="PCS">Pieces</option>
             <option value="BALE">Bales</option>
             <option value="KG">Kilograms</option>
           </Select>
         </Field>
-        {inventoryUnit === "BALE" && (
-          <Field label="Number of Pieces per Bale" required>
-            <Input
-              min="1"
-              onChange={(event) => {
-                setPiecesPerBale(event.target.value);
-                setError("");
-              }}
-              step="1"
-              type="number"
-              value={piecesPerBale}
-            />
-          </Field>
-        )}
         {exactMatch ? (
           <p className="catalog-inline-error" role="alert">
             An item named “{nearMatch}” already exists in this category.
           </p>
         ) : (
-          nearMatch && (
-            <p className="catalog-hint">Did you mean {nearMatch}?</p>
-          )
+          nearMatch && <p className="catalog-hint">Did you mean {nearMatch}?</p>
         )}
         <div className="catalog-specification-fields">
           <div className="catalog-specification-heading">
             <strong>Specifications</strong>
             <Button
-              onClick={() => setSpecifications((current) => [...current, ""])}
+              onClick={() => {
+                setSpecifications((current) => [...current, ""])
+                setSpecificationPackSizes((current) => [...current, ""])
+              }}
               variant="secondary"
             >
               <Plus aria-hidden="true" size={16} />
@@ -226,15 +237,39 @@ export default function AddItemModal({
                 <button
                   aria-label={`Remove specification ${index + 1}`}
                   className="icon-btn"
-                  onClick={() =>
+                  onClick={() => {
                     setSpecifications((current) =>
-                      current.filter((_, currentIndex) => currentIndex !== index),
+                      current.filter(
+                        (_, currentIndex) => currentIndex !== index,
+                      ),
                     )
-                  }
+                    setSpecificationPackSizes((current) =>
+                      current.filter(
+                        (_, currentIndex) => currentIndex !== index,
+                      ),
+                    )
+                  }}
                   type="button"
                 >
                   <X aria-hidden="true" size={17} />
                 </button>
+              )}
+              {entryUnit === "BALE" && (
+                <Field
+                  label={`Standard pieces per bale for specification ${index + 1}`}
+                >
+                  <Input
+                    max="10000"
+                    min="1"
+                    onChange={(event) =>
+                      updatePackSize(index, event.target.value)
+                    }
+                    placeholder="Optional"
+                    step="1"
+                    type="number"
+                    value={specificationPackSizes[index] ?? ""}
+                  />
+                </Field>
               )}
             </div>
           ))}
@@ -246,5 +281,5 @@ export default function AddItemModal({
         )}
       </form>
     </Modal>
-  );
+  )
 }

@@ -26,7 +26,7 @@ export default function AssistantPage() {
         }
         description="Ask questions about recorded stock and inventory movements."
         eyebrow="ADMIN WORKSPACE"
-        title="Assistance"
+        title="Assistant"
       />
       <AssistantChat />
     </section>

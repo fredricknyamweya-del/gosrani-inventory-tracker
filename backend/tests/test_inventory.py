@@ -62,7 +62,19 @@ def create_stock_case(*, unit=StockUnit.PCS, pack_size=None):
     category = Category(name="Cushions")
     db.session.add_all([admin, user, location, other_location, category])
     db.session.flush()
-    item = Item(category_id=category.id, name="V SHD Cushion", unit=unit)
+    entry_unit = (
+        EnteredUnit.KG
+        if unit == StockUnit.KG
+        else EnteredUnit.BALE
+        if pack_size is not None
+        else EnteredUnit.PCS
+    )
+    item = Item(
+        category_id=category.id,
+        name="V SHD Cushion",
+        unit=unit,
+        entry_unit=entry_unit,
+    )
     db.session.add(item)
     db.session.flush()
     specification = Specification(
@@ -88,7 +100,7 @@ def add_record(user, location, specification, *, quantity_in=None, quantity_out=
         specification_id=specification.id,
         qty_in=Decimal(str(quantity_in)) if quantity_in is not None else None,
         qty_out=Decimal(str(quantity_out)) if quantity_out is not None else None,
-        entered_unit=EnteredUnit.PCS,
+        entered_unit=db.session.get(Item, specification.item_id).entry_unit,
         status=RecordStatus.LOCKED,
         created_by=user.id,
         deleted_at=deleted_at,
@@ -156,12 +168,15 @@ def test_stock_endpoint_scopes_totals_to_record_location_and_specification(clien
     assert response.json["data"] == {
         "quantity": 700.0,
         "unit": "PCS",
+        "entryUnit": "BALE",
         "normalizedQuantity": 700.0,
+        "stockPieces": 700.0,
+        "stockBales": 70.0,
         "equivalentPieces": 700.0,
         "packSize": 10,
         "piecesPerBale": None,
-        "display": "70 bales",
-        "secondaryDisplay": "(700 pcs)",
+        "display": "70 bales (700 pcs)",
+        "secondaryDisplay": None,
         "locationId": str(location.id),
         "locationName": "Eldoret Godown",
         "specificationId": str(specification.id),
@@ -180,13 +195,14 @@ def test_stock_endpoint_formats_packs_kilograms_negative_and_zero(client):
         f"/api/inventory/{record.id}/stock",
         headers=authorization(admin),
     )
-    assert response.json["data"]["display"] == "99 bales + 8 pcs"
-    assert response.json["data"]["secondaryDisplay"] == "(998 pcs)"
+    assert response.json["data"]["display"] == "99.8 bales (998 pcs)"
+    assert response.json["data"]["secondaryDisplay"] is None
 
     kg_item = Item(
         category_id=item.category_id,
         name="Cotton",
         unit=StockUnit.KG,
+        entry_unit=EnteredUnit.KG,
         inventory_unit="KG",
     )
     db.session.add(kg_item)
@@ -223,7 +239,7 @@ def test_stock_endpoint_formats_packs_kilograms_negative_and_zero(client):
         headers=authorization(admin),
     )
     assert zero_response.json["data"]["quantity"] == 0.0
-    assert zero_response.json["data"]["display"] == "0"
+    assert zero_response.json["data"]["display"] == "0 bales (0 pcs)"
 
 
 def test_stock_endpoint_restricts_users_and_hides_unknown_or_deleted_records(client):
@@ -281,8 +297,12 @@ def test_record_detail_response_includes_transaction_unit_metadata(client):
         "quantityOutDisplay",
         "quantityOutSecondaryDisplay",
         "piecesPerUnit",
+        "piecesPerBale",
+        "balesIn",
+        "balesOut",
         "handledBy",
         "enteredUnit",
+        "entryUnit",
         "unit",
         "packSize",
         "details",
