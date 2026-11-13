@@ -160,7 +160,8 @@ def test_stock_endpoint_scopes_totals_to_record_location_and_specification(clien
         "equivalentPieces": None,
         "packSize": 10,
         "piecesPerBale": None,
-        "display": "700 PCS",
+        "display": "70 bales",
+        "secondaryDisplay": "(700 pcs)",
         "locationId": str(location.id),
         "locationName": "Eldoret Godown",
         "specificationId": str(specification.id),
@@ -179,7 +180,8 @@ def test_stock_endpoint_formats_packs_kilograms_negative_and_zero(client):
         f"/api/inventory/{record.id}/stock",
         headers=authorization(admin),
     )
-    assert response.json["data"]["display"] == "998 PCS"
+    assert response.json["data"]["display"] == "99 bales + 8 pcs"
+    assert response.json["data"]["secondaryDisplay"] == "(998 pcs)"
 
     kg_item = Item(
         category_id=item.category_id,
@@ -221,7 +223,7 @@ def test_stock_endpoint_formats_packs_kilograms_negative_and_zero(client):
         headers=authorization(admin),
     )
     assert zero_response.json["data"]["quantity"] == 0.0
-    assert zero_response.json["data"]["display"] == "0 PCS"
+    assert zero_response.json["data"]["display"] == "0"
 
 
 def test_stock_endpoint_restricts_users_and_hides_unknown_or_deleted_records(client):

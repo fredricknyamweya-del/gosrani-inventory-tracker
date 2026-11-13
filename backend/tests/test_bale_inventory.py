@@ -355,9 +355,29 @@ def test_admin_must_configure_pillow_conversion_and_users_cannot_edit_it(client)
     assert configured.json["data"]["inventoryUnit"] == "BALE"
     assert configured.json["data"]["piecesPerBale"] == 10
 
+    still_unconfigured = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Pillow",
+            "Standard",
+            quantityIn=1,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(user),
+    )
+    assert still_unconfigured.status_code == 422
+    assert "no pack size" in still_unconfigured.json["errors"][0]["message"]
+
+    baled_specification = Specification(
+        item_id=pillow.id,
+        label="Baled",
+        pack_size=10,
+    )
+    db.session.add(baled_specification)
+    db.session.commit()
     transaction = client.post(
         "/api/inventory",
-        json=transaction_payload("Pillow", "Standard", quantityIn=2),
+        json=transaction_payload("Pillow", "Baled", quantityIn=2),
         headers=authorization(user),
     )
     assert transaction.status_code == 201
@@ -596,7 +616,9 @@ def test_catalogue_summary_is_location_scoped(client):
 
 def test_catalogue_summary_reports_size_level_stock_in_inventory_units(client):
     admin, _, location, _, item, specification, _, _ = create_case()
-    second_specification = Specification(item_id=item.id, label="5x7")
+    second_specification = Specification(
+        item_id=item.id, label="5x7", pack_size=5
+    )
     db.session.add(second_specification)
     db.session.commit()
 
