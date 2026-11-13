@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, Save, X } from "lucide-react"
+import { ArrowLeft, Pencil, Save, Trash2, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import {
   Link,
@@ -13,6 +13,7 @@ import {
   Field,
   Input,
   LoadingState,
+  Modal,
   PageHeader,
   Select,
   StatusBadge,
@@ -123,6 +124,9 @@ export default function EntryDetailPage() {
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState("")
+  const [deleteRequested, setDeleteRequested] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState("")
 
   useEffect(() => {
     if (!record) return
@@ -177,6 +181,7 @@ export default function EntryDetailPage() {
   const category = categories.find((entry) => entry.name === form.category)
   const categoryItems = items.filter((item) => item.categoryId === category?.id)
   const item = categoryItems.find((entry) => entry.name === form.item)
+  const isBaleItem = item?.inventoryUnit === "BALE"
   const specifications = item?.specifications ?? []
   const isOriginalItem =
     form.category === record.category && form.item === record.item
@@ -241,15 +246,43 @@ export default function EntryDetailPage() {
     }
   }
 
+  async function deleteRecord() {
+    setDeleting(true)
+    setDeleteError("")
+    try {
+      await api.deleteInventory(id)
+      navigate("/inventory", { replace: true })
+    } catch (requestError) {
+      setDeleteError(requestError.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <section className="entry-detail-page">
       <PageHeader
         actions={
-          isAdmin && !editing ? (
-            <Button onClick={() => setEditing(true)}>
-              <Pencil aria-hidden="true" size={16} />
-              Edit record
-            </Button>
+          isAdmin ? (
+            <>
+              {!editing && (
+                <Button onClick={() => setEditing(true)}>
+                  <Pencil aria-hidden="true" size={16} />
+                  Edit record
+                </Button>
+              )}
+              <Button
+                disabled={saving}
+                onClick={() => {
+                  setDeleteError("")
+                  setDeleteRequested(true)
+                }}
+                variant="destructive"
+              >
+                <Trash2 aria-hidden="true" size={16} />
+                Delete record
+              </Button>
+            </>
           ) : null
         }
         description={`Record #${record.id} · Added by ${record.addedBy}`}
@@ -322,7 +355,7 @@ export default function EntryDetailPage() {
               <Input
                 min="0"
                 onChange={(event) => update("quantityIn", event.target.value)}
-                step={form.enteredUnit === "BALE" ? "1" : "0.001"}
+                step={form.enteredUnit === "BALE" || isBaleItem ? "1" : "0.001"}
                 type="number"
                 value={form.quantityIn}
               />
@@ -331,7 +364,7 @@ export default function EntryDetailPage() {
               <Input
                 min="0"
                 onChange={(event) => update("quantityOut", event.target.value)}
-                step={form.enteredUnit === "BALE" ? "1" : "0.001"}
+                step={form.enteredUnit === "BALE" || isBaleItem ? "1" : "0.001"}
                 type="number"
                 value={form.quantityOut}
               />
@@ -345,12 +378,20 @@ export default function EntryDetailPage() {
                 value={form.handledBy}
               />
             </Field>
-            <Field label="Entered unit">
+            <Field label="Quantity unit">
               <Select
-                disabled
+                disabled={!isBaleItem}
+                onChange={(event) => update("enteredUnit", event.target.value)}
                 value={form.enteredUnit}
               >
-                <option value={form.enteredUnit}>{form.enteredUnit}</option>
+                {isBaleItem ? (
+                  <>
+                    <option value="BALE">Bales</option>
+                    <option value="PCS">Pieces</option>
+                  </>
+                ) : (
+                  <option value={form.enteredUnit}>{form.enteredUnit}</option>
+                )}
               </Select>
             </Field>
             <Field label="Status">
@@ -479,6 +520,41 @@ export default function EntryDetailPage() {
         <ArrowLeft aria-hidden="true" size={16} />
         Back to inventory
       </Link>
+      <Modal
+        description="This removes the inventory record. This action cannot be undone."
+        footer={
+          <>
+            <Button
+              disabled={deleting}
+              onClick={() => setDeleteRequested(false)}
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+            <Button
+              loading={deleting}
+              onClick={deleteRecord}
+              variant="destructive"
+            >
+              Delete record
+            </Button>
+          </>
+        }
+        onClose={() => {
+          if (!deleting) setDeleteRequested(false)
+        }}
+        open={deleteRequested}
+        title="Delete inventory record?"
+      >
+        <p>
+          Delete <strong>{record.item}</strong> from {formatDate(record.date)}?
+        </p>
+        {deleteError && (
+          <p className="entry-form-error" role="alert">
+            {deleteError}
+          </p>
+        )}
+      </Modal>
     </section>
   )
 }
