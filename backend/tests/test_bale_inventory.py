@@ -401,8 +401,14 @@ def test_conversion_changes_do_not_rewrite_historical_transactions(client):
         for row in summary.json["data"]["products"]
         if row["productName"] == item.name
     )
-    assert configured["remainingStock"] == 1
-    assert configured["equivalentPieces"] == 10
+    assert configured["totalEntries"] == 1
+    size_stock = next(
+        row
+        for row in summary.json["data"]["stockBySpecification"]
+        if row["itemName"] == item.name
+    )
+    assert size_stock["remainingStock"] == 10
+    assert size_stock["display"] == "2 bales"
 
 
 def test_catalog_item_can_be_permanently_deleted_when_unreferenced(client):
