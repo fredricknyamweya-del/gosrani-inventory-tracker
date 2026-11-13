@@ -26,6 +26,7 @@ from app.models import (
     InventoryUnit,
     Item,
     ItemRequest,
+    Location,
     RequestStatus,
     Specification,
     StockUnit,
@@ -33,6 +34,7 @@ from app.models import (
     UserRole,
     v_stock,
 )
+from app.units import format_quantity_display
 
 catalog_bp = Blueprint("catalog", __name__, url_prefix="/api/catalog")
 
@@ -56,6 +58,10 @@ def _serialize_item(item: Item) -> dict[str, object]:
         "piecesPerBale": item.pieces_per_bale,
         "active": item.active,
         "specifications": [specification.label for specification in specifications],
+        "specificationPackSizes": [
+            {"label": specification.label, "packSize": specification.pack_size}
+            for specification in specifications
+        ],
     }
 
 
@@ -235,75 +241,117 @@ def get_catalog():
 def get_catalog_summary():
     user = current_user()
     location_ids = user_location_ids(user.id)
+    locations = db.session.execute(
+        select(Location.id, Location.name)
+        .where(Location.id.in_(location_ids) if location_ids else False)
+        .order_by(Location.name)
+    ).all()
     stock_statement = (
         select(
+            v_stock.c.location_id,
             v_stock.c.specification_id,
-            func.coalesce(func.sum(v_stock.c.stock), 0),
         )
         .where(v_stock.c.location_id.in_(location_ids) if location_ids else False)
-        .group_by(v_stock.c.specification_id)
     )
     stock_by_specification = {
-        row[0]: row[1] for row in db.session.execute(stock_statement).all()
+        (row.location_id, row.specification_id): row.stock
+        for row in db.session.execute(stock_statement).all()
+    }
+    totals_statement = (
+        select(
+            InventoryRecord.location_id,
+            InventoryRecord.specification_id,
+            func.coalesce(
+                func.sum(
+                    func.coalesce(
+                        InventoryRecord.qty_in_normalized,
+                        InventoryRecord.qty_in,
+                    )
+                ),
+                0,
+            ),
+            func.coalesce(
+                func.sum(
+                    func.coalesce(
+                        InventoryRecord.qty_out_normalized,
+                        InventoryRecord.qty_out,
+                    )
+                ),
+                0,
+            ),
+        )
+        .where(
+            InventoryRecord.deleted_at.is_(None),
+            InventoryRecord.location_id.in_(location_ids) if location_ids else False,
+        )
+        .group_by(InventoryRecord.location_id, InventoryRecord.specification_id)
+    )
+    totals_by_location_and_specification = {
+        (row[0], row[1]): (Decimal(row[2]), Decimal(row[3]))
+        for row in db.session.execute(totals_statement).all()
     }
     specifications = db.session.execute(
         select(Specification, Item, Category.name)
         .join(Item, Item.id == Specification.item_id)
         .join(Category, Category.id == Item.category_id)
+        .where(Specification.active.is_(True))
         .order_by(Category.sort_order, Category.name, Item.name, Specification.label)
     ).all()
     stock_summaries = []
     for specification, item, category_name in specifications:
-        normalized_stock = Decimal(
-            stock_by_specification.get(specification.id, 0)
-        )
-        conversion = (
-            item.pieces_per_bale
-            if item.inventory_unit == InventoryUnit.BALE
-            else 1
-        )
-        stock_summaries.append(
-            {
-                "id": str(specification.id),
-                "itemName": item.name,
-                "category": category_name,
-                "size": specification.label,
-                "inventoryUnit": item.inventory_unit.value,
-                "remainingStock": json_number(
-                    normalized_stock / Decimal(conversion)
-                ),
-                "equivalentPieces": (
-                    json_number(normalized_stock)
-                    if item.inventory_unit == InventoryUnit.BALE
-                    else None
-                ),
-            }
-        )
+        for location_id, location_name in locations:
+            normalized_in, normalized_out = totals_by_location_and_specification.get(
+                (location_id, specification.id), (Decimal(0), Decimal(0))
+            )
+            normalized_stock = Decimal(
+                stock_by_specification.get((location_id, specification.id), 0)
+            )
+            in_display, in_secondary = format_quantity_display(
+                normalized_in, item.unit, specification.pack_size
+            )
+            out_display, out_secondary = format_quantity_display(
+                normalized_out, item.unit, specification.pack_size
+            )
+            stock_display, stock_secondary = format_quantity_display(
+                normalized_stock, item.unit, specification.pack_size
+            )
+            stock_summaries.append(
+                {
+                    "id": str(specification.id),
+                    "itemName": item.name,
+                    "category": category_name,
+                    "size": specification.label,
+                    "unit": item.unit.value,
+                    "inventoryUnit": item.inventory_unit.value,
+                    "packSize": specification.pack_size,
+                    "locationId": str(location_id),
+                    "locationName": location_name,
+                    "totalStockIn": json_number(normalized_in),
+                    "totalStockInDisplay": in_display,
+                    "totalStockInSecondaryDisplay": in_secondary,
+                    "totalStockOut": json_number(normalized_out),
+                    "totalStockOutDisplay": out_display,
+                    "totalStockOutSecondaryDisplay": out_secondary,
+                    "remainingStock": json_number(normalized_stock),
+                    "display": stock_display,
+                    "secondaryDisplay": stock_secondary,
+                    "equivalentPieces": (
+                        json_number(normalized_stock)
+                        if item.unit == StockUnit.PCS
+                        and specification.pack_size is not None
+                        else None
+                    ),
+                }
+            )
 
     items = db.session.execute(
         select(Item, Category.name)
         .join(Category, Category.id == Item.category_id)
         .order_by(Category.sort_order, Category.name, Item.name)
     ).all()
-    totals_statement = (
+    item_entries_statement = (
         select(
             Item.id,
-            func.coalesce(
-                func.sum(
-                    func.coalesce(
-                        InventoryRecord.qty_in_normalized, InventoryRecord.qty_in
-                    )
-                ),
-                0,
-            ),
-            func.coalesce(
-                func.sum(
-                    func.coalesce(
-                        InventoryRecord.qty_out_normalized, InventoryRecord.qty_out
-                    )
-                ),
-                0,
-            ),
             func.count(InventoryRecord.id),
             func.max(InventoryRecord.record_date),
         )
@@ -315,21 +363,14 @@ def get_catalog_summary():
         )
         .group_by(Item.id)
     )
-    totals_by_item = {
-        row[0]: row[1:] for row in db.session.execute(totals_statement).all()
+    entries_by_item = {
+        row[0]: (row[1], row[2])
+        for row in db.session.execute(item_entries_statement).all()
     }
 
     product_summaries = []
     for item, category_name in items:
-        normalized_in, normalized_out, entry_count, last_date = totals_by_item.get(
-            item.id, (0, 0, 0, None)
-        )
-        conversion = item.pieces_per_bale if item.inventory_unit == InventoryUnit.BALE else 1
-        normalized_in = Decimal(normalized_in)
-        normalized_out = Decimal(normalized_out)
-        quantity_in = normalized_in / Decimal(conversion)
-        quantity_out = normalized_out / Decimal(conversion)
-        remaining = quantity_in - quantity_out
+        entry_count, last_date = entries_by_item.get(item.id, (0, None))
         product_summaries.append(
             {
                 "id": str(item.id),
@@ -337,15 +378,6 @@ def get_catalog_summary():
                 "category": category_name,
                 "inventoryUnit": item.inventory_unit.value,
                 "piecesPerBale": item.pieces_per_bale,
-                "totalStockIn": json_number(quantity_in),
-                "totalStockOut": json_number(quantity_out),
-                "remainingStock": json_number(remaining),
-                "equivalentPieces": (
-                    json_number(normalized_in - normalized_out)
-                    if item.inventory_unit
-                    in {InventoryUnit.BALE, InventoryUnit.PCS}
-                    else None
-                ),
                 "totalEntries": entry_count,
                 "lastTransactionDate": last_date.isoformat() if last_date else None,
             }
