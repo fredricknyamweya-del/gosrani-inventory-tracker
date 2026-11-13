@@ -761,6 +761,18 @@ def update_item(item_id: int):
                             )
                         existing.pack_size = requested_pack_size
         db.session.flush()
+        if item.entry_unit != EnteredUnit.BALE and db.session.scalar(
+            select(Specification.id)
+            .where(
+                Specification.item_id == item.id,
+                Specification.pack_size.is_not(None),
+            )
+            .limit(1)
+        ):
+            raise ApiValidationError(
+                "specificationPackSizes",
+                "PCS and KG items cannot have specification pack sizes.",
+            )
         after = _serialize_item(item)
         audit(AuditEntity.ITEM, item.id, AuditAction.UPDATE, user.id, before=before, after=after)
         db.session.commit()
