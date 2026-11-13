@@ -67,8 +67,10 @@ def format_quantity_display(
         bale_label = "bale" if abs(bale_quantity) == 1 else "bales"
         piece_label = "pc" if abs(quantity) == 1 else "pcs"
         return (
-            f"{_format_number(bale_quantity)} {bale_label} x "
-            f"{pieces_per_bale} pcs = {_format_number(quantity)} {piece_label}",
+            (
+                f"{_format_number(bale_quantity)} {bale_label} x "
+                f"{pieces_per_bale} pcs = {_format_number(quantity)} {piece_label}"
+            ),
             None,
         )
 
@@ -77,8 +79,10 @@ def format_quantity_display(
         bale_label = "bale" if abs(bale_quantity) == 1 else "bales"
         piece_label = "pc" if abs(quantity) == 1 else "pcs"
         return (
-            f"{_format_number(bale_quantity)} {bale_label} "
-            f"({_format_number(quantity)} {piece_label})",
+            (
+                f"{_format_number(bale_quantity)} {bale_label} "
+                f"({_format_number(quantity)} {piece_label})"
+            ),
             None,
         )
 

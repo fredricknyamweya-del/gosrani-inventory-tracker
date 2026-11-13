@@ -100,7 +100,6 @@ def _resolve_record(
             item.id,
         )
 
-    stock_unit = item.unit if item is not None else StockUnit.PCS
     pack_size = specification.pack_size if specification is not None else None
     same_specification = (
         existing_record is not None
@@ -800,7 +799,12 @@ def update_inventory(record_id: int):
             if record.entered_unit == EnteredUnit.BALE
             else serialized_record["quantityOut"]
         ),
-        "piecesPerBale": record.pieces_per_bale,
+        "piecesPerBale": effective_pieces_per_bale(
+            record.entered_unit,
+            record.pieces_per_bale,
+            current_specification.pack_size,
+            record.pieces_per_unit,
+        ),
         "enteredUnit": record.entered_unit.value,
         "handledBy": record.handled_by or "",
         "details": record.details or "",
