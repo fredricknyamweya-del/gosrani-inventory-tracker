@@ -3039,6 +3039,17 @@
   font-size: 13px;
 }
 
+.catalog-item-inventory-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.catalog-item-inventory-link:hover {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .catalog-item-status,
 .catalog-request-badge {
   display: inline-flex;
