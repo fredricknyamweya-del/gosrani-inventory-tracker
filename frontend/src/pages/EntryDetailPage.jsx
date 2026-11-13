@@ -30,13 +30,23 @@ function recordForm(record) {
     category: record.category,
     item: record.item,
     size: record.size,
-    quantityIn: record.quantityIn ?? "",
-    quantityOut: record.quantityOut ?? "",
+    quantityIn:
+      record.enteredUnit === "BALE" ? record.balesIn ?? "" : record.quantityIn ?? "",
+    quantityOut:
+      record.enteredUnit === "BALE" ? record.balesOut ?? "" : record.quantityOut ?? "",
     handledBy: record.handledBy ?? "",
     details: record.details ?? "",
     status: record.status,
     enteredUnit: record.enteredUnit,
+    entryUnit: record.entryUnit,
+    piecesPerBale: record.piecesPerBale ?? record.packSize ?? "",
   }
+}
+
+function unitLabel(unit) {
+  if (unit === "BALE") return "bales"
+  if (unit === "KG") return "kg"
+  return "pcs"
 }
 
 function StockFigure({ stock, loading, error, onRetry, context = false }) {
@@ -187,7 +197,6 @@ export default function EntryDetailPage() {
   const selectedSpecification = item?.specificationPackSizes?.find(
     (specification) => specification.label === form.size,
   )
-  const supportsBales = selectedSpecification?.packSize != null
   const isOriginalItem =
     form.category === record.category && form.item === record.item
   const selectedSizeIsAvailable = specifications.includes(form.size)
@@ -201,23 +210,40 @@ export default function EntryDetailPage() {
     const selectedPackSize = selectedItem?.specificationPackSizes?.find(
       (specification) => specification.label === selectedSize,
     )?.packSize
-    const defaultUnit =
-      selectedPackSize != null && selectedItem?.inventoryUnit === "BALE"
-        ? "BALE"
-        : selectedItem?.unit ?? "PCS"
+    const defaultUnit = selectedItem?.entryUnit ?? "PCS"
     setForm((current) => ({
       ...current,
       [key]: value,
       ...(key === "category"
-        ? { item: "", size: "", enteredUnit: "PCS" }
+        ? {
+            item: "",
+            size: "",
+            entryUnit: "PCS",
+            enteredUnit: "PCS",
+            piecesPerBale: "",
+          }
         : {}),
       ...(key === "item"
         ? {
             size: "",
+            entryUnit: defaultUnit,
             enteredUnit: defaultUnit,
+            piecesPerBale:
+              defaultUnit === "BALE" && selectedPackSize != null
+                ? String(selectedPackSize)
+                : "",
           }
         : {}),
-      ...(key === "size" ? { enteredUnit: defaultUnit } : {}),
+      ...(key === "size"
+        ? {
+            entryUnit: defaultUnit,
+            enteredUnit: defaultUnit,
+            piecesPerBale:
+              defaultUnit === "BALE" && selectedPackSize != null
+                ? String(selectedPackSize)
+                : "",
+          }
+        : {}),
     }))
     setSaveError("")
   }
