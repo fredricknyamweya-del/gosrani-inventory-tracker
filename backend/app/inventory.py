@@ -551,6 +551,7 @@ def validate_inventory():
             "category": values["category"].name,
             "item": values["item"].name,
             "size": values["specification"].label,
+            "packSize": values["specification"].pack_size,
             "quantityIn": json_number(values["quantityIn"]),
             "quantityOut": json_number(values["quantityOut"]),
             "normalizedQuantityIn": json_number(values["normalizedQuantityIn"]),

@@ -16,6 +16,8 @@ individual records, and use the read-only inventory assistant.
   the signed-in user's assigned locations.
 - Review current stock remaining on an inventory record, calculated across all
   non-deleted entries for the same specification and location.
+- Search and filter the inventory summary, and export the visible results to
+  CSV.
 - Track products in pieces or bales, preserve each transaction's entered
   quantity and conversion snapshot, and normalize bale stock to individual
   pieces for calculations.

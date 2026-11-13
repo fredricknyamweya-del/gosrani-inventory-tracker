@@ -1,6 +1,7 @@
-import { Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
+  Button,
   EmptyState,
   ErrorState,
   Input,
@@ -11,6 +12,14 @@ import {
 import QuantityDisplay from "../components/QuantityDisplay";
 import { useApi } from "../hooks/useApi";
 import { api } from "../services/api";
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  const safeText = /^[\u0000-\u0020]*[=+\-@]/.test(text)
+    ? `'${text}`
+    : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
+}
 
 export default function InventorySummaryPage() {
   const [search, setSearch] = useState("");
@@ -52,12 +61,46 @@ export default function InventorySummaryPage() {
     });
   }, [stockRows, search, category, size, unit]);
 
+  function exportCsv() {
+    const rows = [
+      ["Item Name", "Category", "Size", "Total Stock Left"],
+      ...visibleRows.map((row) => [
+        row.itemName,
+        row.category,
+        row.size,
+        [row.display, row.secondaryDisplay].filter(Boolean).join(" "),
+      ]),
+    ];
+    const csvRows = rows.map((row) => row.map(csvCell).join(","));
+    const csv = `\uFEFF${csvRows.join("\r\n")}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download =
+      `inventory-summary-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   return (
     <section className="inventory-summary-page">
       <PageHeader
         className="inventory-summary-header"
         description="A clear, size-by-size view of the stock remaining across your assigned locations."
         eyebrow="Stock at a glance"
+        actions={
+          <Button
+            disabled={loading || Boolean(error) || visibleRows.length === 0}
+            onClick={exportCsv}
+            variant="secondary"
+          >
+            <Download aria-hidden="true" size={16} />
+            Export CSV
+          </Button>
+        }
         title="Inventory summary"
       />
 
