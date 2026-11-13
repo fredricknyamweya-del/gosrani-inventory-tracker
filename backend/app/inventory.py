@@ -34,7 +34,7 @@ from app.models import (
     UserRole,
     v_stock,
 )
-from app.units import format_quantity_display
+from app.units import effective_pieces_per_bale, format_quantity_display
 
 inventory_bp = Blueprint("inventory", __name__, url_prefix="/api/inventory")
 
@@ -109,13 +109,7 @@ def _resolve_record(
         and specification.id == existing_record.specification_id
     )
     default_unit = (
-        existing_record.entered_unit
-        if same_specification
-        else EnteredUnit.BALE
-        if pack_size is not None
-        and item is not None
-        and item.inventory_unit == InventoryUnit.BALE
-        else EnteredUnit(stock_unit.value)
+        item.entry_unit if item is not None else EnteredUnit.PCS
     )
     entered_unit_value = payload.get("enteredUnit", default_unit.value)
     try:
@@ -125,37 +119,48 @@ def _resolve_record(
             {"field": "enteredUnit", "message": "Choose PCS, BALE, or KG."}
         )
         entered_unit = default_unit
-    allowed_units = (
-        {EnteredUnit.KG}
-        if stock_unit == StockUnit.KG
-        else {EnteredUnit.PCS, EnteredUnit.BALE}
-        if pack_size is not None
-        else {EnteredUnit.PCS}
-    )
-    if entered_unit == EnteredUnit.BALE and pack_size is None:
+    if item is not None and entered_unit != item.entry_unit:
+        unit_name = {
+            EnteredUnit.BALE: "bales",
+            EnteredUnit.PCS: "pieces",
+            EnteredUnit.KG: "kg",
+        }[item.entry_unit]
         errors.append(
             {
                 "field": "enteredUnit",
-                "message": "This specification has no pack size; BALE quantities cannot be entered.",
+                "message": f"{item.name} is entered in {unit_name}.",
             }
         )
-    elif entered_unit not in allowed_units:
-        unit_message = (
-            "This specification supports BALE or PCS transactions."
-            if stock_unit == StockUnit.PCS and pack_size is not None
-            else "This specification supports PCS transactions."
-            if stock_unit == StockUnit.PCS
-            else "This item is configured for KG transactions."
+
+    pieces_per_bale = None
+    if entered_unit == EnteredUnit.BALE:
+        raw_pieces_per_bale = payload.get(
+            "piecesPerBale",
+            existing_record.pieces_per_bale
+            if same_specification and existing_record is not None
+            else pack_size,
         )
-        errors.append(
-            {
-                "field": "enteredUnit",
-                "message": unit_message,
-            }
-        )
-    pieces_per_unit = (
-        pack_size if entered_unit == EnteredUnit.BALE and pack_size else 1
-    )
+        try:
+            parsed_pieces_per_bale = Decimal(str(raw_pieces_per_bale))
+            if (
+                not parsed_pieces_per_bale.is_finite()
+                or parsed_pieces_per_bale != parsed_pieces_per_bale.to_integral_value()
+                or not 1 <= parsed_pieces_per_bale <= 10_000
+            ):
+                raise InvalidOperation
+            pieces_per_bale = int(parsed_pieces_per_bale)
+        except (InvalidOperation, ValueError):
+            errors.append(
+                {
+                    "field": "piecesPerBale",
+                    "message": (
+                        "Enter how many pieces are in each bale."
+                        if raw_pieces_per_bale in (None, "")
+                        else "Pieces per bale must be a whole number from 1 to 10000."
+                    ),
+                }
+            )
+    pieces_per_unit = pieces_per_bale or 1
 
     quantities: dict[str, Decimal | None] = {}
     for key in ("quantityIn", "quantityOut"):
@@ -173,7 +178,7 @@ def _resolve_record(
                 raise InvalidOperation
             if (
                 entered_unit == EnteredUnit.BALE
-                or stock_unit == StockUnit.PCS
+                or entered_unit == EnteredUnit.PCS
             ) and quantity != quantity.to_integral_value():
                 raise InvalidOperation
             quantities[key] = quantity
@@ -182,8 +187,7 @@ def _resolve_record(
                 "field": key,
                 "message": (
                     "Enter a non-negative whole number of bales or pieces."
-                    if entered_unit == EnteredUnit.BALE
-                    or stock_unit == StockUnit.PCS
+                    if entered_unit in {EnteredUnit.BALE, EnteredUnit.PCS}
                     else "Enter a non-negative quantity with no more than three decimal places."
                 ),
             })
@@ -213,6 +217,7 @@ def _resolve_record(
         "quantityIn": quantities["quantityIn"],
         "quantityOut": quantities["quantityOut"],
         "enteredUnit": entered_unit,
+        "piecesPerBale": pieces_per_bale,
         "piecesPerUnit": pieces_per_unit or 1,
         "normalizedQuantityIn": (
             quantities["quantityIn"] * (pieces_per_unit or 1)
