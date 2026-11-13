@@ -45,11 +45,16 @@ PIPENV_VENV_IN_PROJECT=1 pipenv run flask --app app db upgrade
 
 Run this as a release/pre-deploy step, not automatically on every web-worker
 startup. Migrations add saved product inventory units, pieces-per-bale
-configuration, and normalized transaction quantities. Existing transaction
-quantities are backfilled unchanged; selected seeded bedding products receive
-their documented conversion rates. The `v_stock` view uses normalized
-quantities for new transactions. Do not run the destructive test suite against
-a production database.
+configuration, normalized transaction quantities, the strict `items.entry_unit`
+policy, and `inventory_records.pieces_per_bale`. The latter is nullable and
+positive when set; only BALE records store it. Existing transaction quantities
+are backfilled unchanged. `items.entry_unit` defaults to PCS and is backfilled
+as BALE for items with a specification pack size; the local
+`flask apply-unit-policy` command applies the reviewed item/category policy
+after migration. The `v_stock` view preserves base stock and additionally
+exposes `stock_pieces` and `stock_bales` by location and specification, using a
+record's conversion or the specification's pack size for older records. Do not
+run the destructive test suite against a production database.
 
 ## Seed first-run data
 

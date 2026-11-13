@@ -215,6 +215,10 @@ class Item(db.Model):
             text("lower(trim(name))"),
             unique=True,
         ),
+        CheckConstraint(
+            "entry_unit IN ('PCS', 'BALE', 'KG')",
+            name="items_entry_unit_valid",
+        ),
     )
 
     id: Mapped[int] = mapped_column(ID_TYPE, primary_key=True, autoincrement=True)
@@ -233,6 +237,11 @@ class Item(db.Model):
             "inventory_unit",
             create_constraint=False,
         ),
+        nullable=False,
+        server_default=text("'PCS'"),
+    )
+    entry_unit: Mapped[EnteredUnit] = mapped_column(
+        _enum(EnteredUnit, "item_entry_unit", create_constraint=False),
         nullable=False,
         server_default=text("'PCS'"),
     )
@@ -436,6 +445,10 @@ class InventoryRecord(db.Model):
             "qty_in >= 0 AND qty_out >= 0",
             name="quantities_non_negative",
         ),
+        CheckConstraint(
+            "pieces_per_bale IS NULL OR pieces_per_bale > 0",
+            name="pieces_per_bale_positive",
+        ),
         {"sqlite_autoincrement": True},
     )
 
@@ -459,6 +472,7 @@ class InventoryRecord(db.Model):
         nullable=False,
         server_default=text("'PCS'"),
     )
+    pieces_per_bale: Mapped[int | None] = mapped_column(Integer)
     handled_by: Mapped[str | None] = mapped_column(String(160))
     details: Mapped[str | None] = mapped_column(Text)
     status: Mapped[RecordStatus] = mapped_column(
@@ -521,4 +535,6 @@ v_stock = Table(
     Column("location_id", ID_TYPE, nullable=False),
     Column("specification_id", ID_TYPE, nullable=False),
     Column("stock", Numeric(15, 3), nullable=True),
+    Column("stock_pieces", Numeric(15, 3), nullable=True),
+    Column("stock_bales", Numeric(15, 3), nullable=True),
 )

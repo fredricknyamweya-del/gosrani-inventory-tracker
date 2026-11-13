@@ -1,6 +1,7 @@
 """Tests for the ERD-backed SQLAlchemy schema."""
 
 from datetime import UTC, date, datetime
+from pathlib import Path
 
 import pytest
 from sqlalchemy import inspect, select, text
@@ -67,7 +68,14 @@ def test_schema_constraints_and_partial_indexes_are_named():
     }
     spec_indexes = {index.name: index for index in Specification.__table__.indexes}
 
-    assert {"has_a_quantity", "quantities_non_negative"} <= record_constraints
+    assert {
+        "has_a_quantity",
+        "quantities_non_negative",
+        "pieces_per_bale_positive",
+    } <= record_constraints
+    assert "items_entry_unit_valid" in {
+        constraint.name for constraint in Item.__table__.constraints
+    }
     assert "specifications_one_default_per_item_uq" in spec_indexes
     assert spec_indexes["specifications_one_default_per_item_uq"].dialect_options[
         "postgresql"
@@ -75,6 +83,16 @@ def test_schema_constraints_and_partial_indexes_are_named():
     assert spec_indexes["specifications_one_default_per_item_uq"].dialect_options[
         "sqlite"
     ]["where"] is not None
+
+
+def test_unit_schema_matches_dbml():
+    dbml_path = Path(__file__).resolve().parents[2] / "assets/gosrani_inventory.dbml"
+    dbml = dbml_path.read_text()
+
+    assert "Enum item_entry_unit {" in dbml
+    assert "entry_unit  item_entry_unit [not null, default: 'PCS'" in dbml
+    assert "pieces_per_bale  int" in dbml
+    assert "`pieces_per_bale IS NULL OR pieces_per_bale > 0`" in dbml
 
 
 def _create_catalog():
@@ -102,6 +120,7 @@ def test_identity_and_catalog_models_insert_with_server_defaults(app):
     assert category.sort_order == 0
     assert category.active is True
     assert item.unit.value == "PCS"
+    assert item.entry_unit.value == "PCS"
     assert item.active is True
     assert specification.is_default is False
     assert specification.active is True
@@ -308,6 +327,8 @@ def test_remaining_models_accept_valid_rows_and_stock_view_excludes_deleted(app)
         )
     ).one()
     assert stock_row.stock == 8
+    assert stock_row.stock_pieces == 8
+    assert stock_row.stock_bales is None
     assert request.id is not None
     assert audit.id is not None
     assert assistant_query.id is not None
@@ -352,6 +373,17 @@ def test_inventory_checks_reject_missing_and_negative_quantities(app):
     }
 
     db.session.add(InventoryRecord(**common))
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+    db.session.rollback()
+
+    db.session.add(
+        InventoryRecord(
+            **common,
+            qty_in=1,
+            pieces_per_bale=0,
+        )
+    )
     with pytest.raises(IntegrityError):
         db.session.commit()
     db.session.rollback()

@@ -42,6 +42,12 @@ Enum entered_unit {
   KG
 }
 
+Enum item_entry_unit {
+  PCS
+  BALE
+  KG
+}
+
 Enum record_status {
   Saved
   Locked
@@ -139,10 +145,15 @@ Table items {
   category_id bigint       [not null, ref: > categories.id]
   name        varchar(120) [not null]
   unit        stock_unit   [not null, default: 'PCS', note: 'Base unit used for all quantities of this item']
+  entry_unit  item_entry_unit [not null, default: 'PCS', note: 'The only unit staff may use for new entries']
   active      boolean      [not null, default: true, note: 'Deactivate instead of deleting. History is kept']
 
   indexes {
     (category_id, `lower(trim(name))`) [unique, name: 'items_name_per_category_uq']
+  }
+
+  checks {
+    `entry_unit IN ('PCS', 'BALE', 'KG')` [name: 'items_entry_unit_valid']
   }
 
   Note: 'The product. Size, colour, or weight variants live in specifications.'
@@ -267,6 +278,7 @@ Table inventory_records {
   specification_id bigint         [not null, ref: > specifications.id, note: 'Item and category are reached through this']
   qty_in           decimal(12,3)  [null, note: 'In the item base unit (pieces or kg)']
   qty_out          decimal(12,3)  [null, note: 'In the item base unit (pieces or kg)']
+  pieces_per_bale  int            [null, note: 'Conversion used by this BALE entry; stock quantities remain base units']
   entered_unit     entered_unit   [not null, default: 'PCS', note: 'How staff typed it, for display. Stock maths always uses the base unit']
   details          text           [null]
   status           record_status  [not null, default: 'Locked']
@@ -285,6 +297,7 @@ Table inventory_records {
   checks {
     `qty_in IS NOT NULL OR qty_out IS NOT NULL` [name: 'has_a_quantity']
     `qty_in >= 0 AND qty_out >= 0`              [name: 'quantities_non_negative']
+    `pieces_per_bale IS NULL OR pieces_per_bale > 0` [name: 'pieces_per_bale_positive']
   }
 
   Note: '''
