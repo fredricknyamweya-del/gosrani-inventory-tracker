@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  calculateTotalPieces,
   formatEntryQuantityPreview,
   formatQuantityDisplay,
 } from "./units.js";
@@ -43,4 +44,12 @@ test("does not preview a bale entry without a specification pack size", () => {
 
 test("rejects invalid pack sizes", () => {
   assert.throws(() => formatQuantityDisplay(1, "PCS", 0), /positive whole/);
+});
+
+test("calculates bale totals from the entered bale count and contents", () => {
+  assert.equal(calculateTotalPieces(10, 20), 200);
+  assert.equal(calculateTotalPieces(0, 20), 0);
+  assert.equal(calculateTotalPieces(2, 24), 48);
+  assert.equal(calculateTotalPieces(2.5, 20), null);
+  assert.equal(calculateTotalPieces(2, null), null);
 });

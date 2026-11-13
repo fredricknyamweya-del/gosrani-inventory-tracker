@@ -19,7 +19,7 @@ import { useAuth } from "../context/AuthContext";
 import { useApi } from "../hooks/useApi";
 import { api } from "../services/api";
 import { formatDate, todayIso } from "../utils/format";
-import { formatEntryQuantityPreview } from "../utils/units";
+import { calculateTotalPieces } from "../utils/units";
 
 function makeEntry(id) {
   return {
@@ -29,6 +29,7 @@ function makeEntry(id) {
     item: "",
     size: "",
     enteredUnit: "PCS",
+    piecesPerBale: "",
     quantityIn: "",
     quantityOut: "",
     handledBy: "",
@@ -36,15 +37,15 @@ function makeEntry(id) {
   };
 }
 
-function unitLabel(unit) {
-  if (unit === "BALE") return "Bales";
-  if (unit === "KG") return "Kg";
-  return "Pieces";
+function unitLabel(unit, plural = true) {
+  if (unit === "BALE") return plural ? "bales" : "bale";
+  if (unit === "KG") return "kg";
+  return plural ? "pcs" : "pc";
 }
 
 function validateEntry(entry, item, packSize) {
   const errors = {};
-  const allowsFractionalQuantity = item?.inventoryUnit === "KG";
+  const allowsFractionalQuantity = item?.entryUnit === "KG";
 
   if (!entry.date) errors.date = "Entry date is required.";
   if (!entry.category) errors.category = "Category is required.";
@@ -58,9 +59,16 @@ function validateEntry(entry, item, packSize) {
   if (entry.quantityIn === "" && entry.quantityOut === "") {
     errors.quantity = "Enter a value for Quantity In or Quantity Out.";
   }
-  if (entry.enteredUnit === "BALE" && packSize == null) {
-    errors.enteredUnit =
-      "Bales are only available for specifications with a pack size.";
+  if (item?.entryUnit === "BALE") {
+    const piecesPerBale = Number(entry.piecesPerBale);
+    if (
+      !Number.isInteger(piecesPerBale) ||
+      piecesPerBale < 1 ||
+      piecesPerBale > 10_000
+    ) {
+      errors.piecesPerBale =
+        "Enter a whole number from 1 to 10000 pieces per bale.";
+    }
   }
   for (const key of ["quantityIn", "quantityOut"]) {
     if (entry[key] === "") continue;
@@ -178,7 +186,8 @@ export default function EntryFormPage() {
                   (category) => category.id === item.categoryId,
                 )?.name ?? entry.category,
               item: item.name,
-              enteredUnit: item.unit ?? "PCS",
+              enteredUnit: item.entryUnit ?? "PCS",
+              piecesPerBale: "",
               size: "",
             }
           : entry,
@@ -223,12 +232,9 @@ export default function EntryFormPage() {
       if (entry.item && !selectedItem) {
         entryErrors.item = "Choose an item from the selected category.";
       }
-      if (selectedItem && entry.enteredUnit !== selectedItem.unit &&
-          !(packSize != null && ["PCS", "BALE"].includes(entry.enteredUnit))) {
+      if (selectedItem && entry.enteredUnit !== selectedItem.entryUnit) {
         entryErrors.enteredUnit =
-          packSize != null
-            ? "Choose bales or pieces for this specification."
-            : "Choose the unit supported by this item and specification.";
+          `${selectedItem.name} is entered in ${unitLabel(selectedItem.entryUnit)}.`;
       }
       if (Object.keys(entryErrors).length) {
         nextErrors[entry.id] = entryErrors;
@@ -254,6 +260,7 @@ export default function EntryFormPage() {
           ...entry,
           category: category.name,
           item: selectedItem.name,
+          enteredUnit: selectedItem.entryUnit,
         };
       });
       const response = await api.validateInventory(payload);
@@ -474,20 +481,15 @@ export default function EntryFormPage() {
               (specification) => specification.label === entry.size,
             );
             const packSize = selectedSpecification?.packSize ?? null;
-            const supportsBales = packSize != null;
-            const quantityStep =
-              selectedItem?.unit === "KG" ? "0.001" : "1";
-            const quantityInPreview = formatEntryQuantityPreview(
+            const isBaleItem = selectedItem?.entryUnit === "BALE";
+            const quantityStep = selectedItem?.entryUnit === "KG" ? "0.001" : "1";
+            const totalPiecesIn = calculateTotalPieces(
               entry.quantityIn,
-              entry.enteredUnit,
-              selectedItem?.unit,
-              packSize,
+              entry.piecesPerBale,
             );
-            const quantityOutPreview = formatEntryQuantityPreview(
+            const totalPiecesOut = calculateTotalPieces(
               entry.quantityOut,
-              entry.enteredUnit,
-              selectedItem?.unit,
-              packSize,
+              entry.piecesPerBale,
             );
 
             return (
