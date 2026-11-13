@@ -82,7 +82,7 @@ def test_stock_report_lists_base_stock_and_csv_without_writing(app, monkeypatch)
         "Goldstar Blanket (BF)",
         "54x80 2ST",
         "20",
-        "8300",
+        "8,300",
         "415 bales (8,300 pcs)",
     ] in parsed[1:]
     with app.app_context():

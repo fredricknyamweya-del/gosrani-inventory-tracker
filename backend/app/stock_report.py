@@ -1,6 +1,7 @@
 """Read-only stock report for active catalog specifications."""
 
 import csv
+import io
 import os
 from decimal import Decimal
 
@@ -196,9 +197,11 @@ def stock_report_command(csv_output: bool) -> None:
 
     warnings = _missing_pack_warnings(rows)
     if csv_output:
-        writer = csv.writer(click.get_text_stream("stdout"))
+        output = io.StringIO()
+        writer = csv.writer(output)
         writer.writerow(headers)
         writer.writerows(report_rows)
+        click.echo(output.getvalue(), nl=False)
         for warning in warnings:
             click.echo(f"WARNING: {warning}", err=True)
         return
