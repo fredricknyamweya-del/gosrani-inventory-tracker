@@ -192,15 +192,22 @@ def _resolve_record(
             quantity = Decimal(str(value))
             if not quantity.is_finite() or quantity < 0 or quantity.as_tuple().exponent < -3:
                 raise InvalidOperation
-            if entered_unit == EnteredUnit.BALE and quantity != quantity.to_integral_value():
+            if (
+                entered_unit == EnteredUnit.BALE
+                or (
+                    configured_unit == InventoryUnit.BALE
+                    and entered_unit == EnteredUnit.PCS
+                )
+            ) and quantity != quantity.to_integral_value():
                 raise InvalidOperation
             quantities[key] = quantity
         except (InvalidOperation, ValueError):
             errors.append({
                 "field": key,
                 "message": (
-                    "Enter a non-negative whole number of bales."
+                    "Enter a non-negative whole number of bales or pieces."
                     if entered_unit == EnteredUnit.BALE
+                    or configured_unit == InventoryUnit.BALE
                     else "Enter a non-negative quantity with no more than three decimal places."
                 ),
             })

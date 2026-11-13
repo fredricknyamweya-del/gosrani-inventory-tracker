@@ -147,6 +147,18 @@ def test_bale_and_piece_units_are_allowed_and_stock_out_cannot_exceed_balance(cl
     assert partial_bale.json["data"][0]["piecesPerUnit"] == 1
     assert partial_bale.json["data"][0]["normalizedQuantityIn"] == 3
 
+    summary = client.get(
+        "/api/catalog/summary",
+        headers=authorization(admin),
+    )
+    stock = next(
+        row
+        for row in summary.json["data"]["stockBySpecification"]
+        if row["itemName"] == "Configured Duvet"
+    )
+    assert stock["remainingStock"] == 1.6
+    assert stock["equivalentPieces"] == 8
+
     wrong_unit = client.post(
         "/api/inventory",
         json=transaction_payload(

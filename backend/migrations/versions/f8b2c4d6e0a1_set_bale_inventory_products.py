@@ -49,7 +49,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for category, name, _ in BALE_PRODUCTS:
+    for category, name in (
+        ("Pillows", "Pillow"),
+        ("Blankets", "Goldstar Blanket (BF)"),
+    ):
         op.execute(
             sa.text(
                 """
