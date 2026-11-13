@@ -245,8 +245,12 @@ def test_assistant_reports_normalized_bale_stock_across_specifications(client):
     )
     db.session.add(item)
     db.session.flush()
-    first_specification = Specification(item_id=item.id, label="4x6")
-    second_specification = Specification(item_id=item.id, label="5x7")
+    first_specification = Specification(
+        item_id=item.id, label="4x6", pack_size=5
+    )
+    second_specification = Specification(
+        item_id=item.id, label="5x7", pack_size=5
+    )
     db.session.add_all([first_specification, second_specification])
     db.session.flush()
     db.session.add_all(
@@ -297,8 +301,8 @@ def test_assistant_reports_normalized_bale_stock_across_specifications(client):
 
     assert response.status_code == 200
     assert response.json["data"]["answer"] == (
-        "Recorded stock for Configured Duvet is 1.6 bales (8 pcs) "
-        "across its specifications."
+        "Recorded stock for Configured Duvet by specification and location: "
+        "4x6 at Eldoret: 1 bale (5 pcs); 5x7 at Eldoret: 3 pcs."
     )
 
 

@@ -12,6 +12,7 @@ from app.models import (
     AuditLog,
     Category,
     InventoryUnit,
+    InventoryRecord,
     Item,
     ItemRequest,
     Location,
@@ -132,6 +133,140 @@ def test_bale_transactions_normalize_and_keep_the_original_unit(client):
 
     persisted = db.session.get(Specification, specification.id)
     assert persisted is not None
+
+
+def test_bale_and_piece_entries_store_base_units_and_share_stock_display(client):
+    admin, _, _, _, _, specification, _, _ = create_case()
+
+    bale_entry = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "4x6",
+            quantityIn=2,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(admin),
+    )
+    piece_entry = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "4x6",
+            quantityIn=5,
+            enteredUnit="PCS",
+        ),
+        headers=authorization(admin),
+    )
+
+    assert bale_entry.status_code == 201
+    bale_record = db.session.get(InventoryRecord, bale_entry.json["data"][0]["id"])
+    assert bale_record.qty_in == 10
+    assert bale_record.qty_in_normalized == 10
+    assert bale_entry.json["data"][0]["quantityIn"] == 2
+    assert bale_entry.json["data"][0]["quantityInDisplay"] == "2 bales"
+    assert (
+        bale_entry.json["data"][0]["quantityInSecondaryDisplay"] == "(10 pcs)"
+    )
+    assert piece_entry.status_code == 201
+    assert piece_entry.json["data"][0]["quantityInDisplay"] == "5 pcs"
+
+    stock = client.get(
+        f"/api/inventory/{bale_entry.json['data'][0]['id']}/stock",
+        headers=authorization(admin),
+    )
+    assert stock.json["data"]["quantity"] == 15
+    assert stock.json["data"]["display"] == "3 bales"
+    assert stock.json["data"]["secondaryDisplay"] == "(15 pcs)"
+
+    second_size = Specification(
+        item_id=specification.item_id,
+        label="5x7",
+        pack_size=10,
+    )
+    db.session.add(second_size)
+    db.session.commit()
+    second_size_entry = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "5x7",
+            quantityIn=100,
+            enteredUnit="PCS",
+        ),
+        headers=authorization(admin),
+    )
+    assert second_size_entry.status_code == 201
+
+    summary = client.get(
+        "/api/catalog/summary",
+        headers=authorization(admin),
+    )
+    size_rows = [
+        row
+        for row in summary.json["data"]["stockBySpecification"]
+        if row["itemName"] == "Configured Duvet"
+    ]
+    assert {row["size"]: row["remainingStock"] for row in size_rows} == {
+        "4x6": 15,
+        "5x7": 100,
+    }
+
+
+def test_editing_entered_unit_reconverts_to_base_once(client):
+    admin, _, _, _, _, _, _, _ = create_case()
+    received = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "4x6",
+            quantityIn=2,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(admin),
+    )
+    record_id = received.json["data"][0]["id"]
+
+    updated = client.patch(
+        f"/api/inventory/{record_id}",
+        json={"enteredUnit": "PCS", "quantityIn": 7},
+        headers=authorization(admin),
+    )
+
+    assert updated.status_code == 200
+    assert updated.json["data"]["enteredUnit"] == "PCS"
+    assert updated.json["data"]["quantityIn"] == 7
+    assert updated.json["data"]["quantityInDisplay"] == "7 pcs"
+    record = db.session.get(InventoryRecord, record_id)
+    assert record.qty_in == 7
+    assert record.qty_in_normalized == 7
+    assert record.pieces_per_unit == 1
+    stock = client.get(
+        f"/api/inventory/{record_id}/stock",
+        headers=authorization(admin),
+    )
+    assert stock.json["data"]["quantity"] == 7
+
+
+def test_bale_entry_without_specification_pack_size_returns_422(client):
+    admin, _, _, _, _, _, _, _ = create_case(
+        inventory_unit=InventoryUnit.PCS,
+        pieces_per_bale=None,
+    )
+
+    response = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "4x6",
+            quantityIn=1,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(admin),
+    )
+
+    assert response.status_code == 422
+    assert "no pack size" in response.json["errors"][0]["message"]
 
 
 def test_bale_and_piece_units_are_allowed_and_stock_out_cannot_exceed_balance(client):
