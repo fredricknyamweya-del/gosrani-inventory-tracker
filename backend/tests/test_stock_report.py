@@ -14,6 +14,7 @@ from app.models import (
     Item,
     Location,
     Specification,
+    User,
 )
 
 
@@ -30,11 +31,8 @@ def seed_catalog(app, monkeypatch):
 def test_stock_report_lists_base_stock_and_csv_without_writing(app, monkeypatch):
     seed_catalog(app, monkeypatch)
     with app.app_context():
-        admin_id = db.session.scalar(
-            select(db.Model.id).select_from(db.Model).limit(1)
-        )
         admin = db.session.scalar(
-            select(db.Model).where(db.Model.id == admin_id)
+            select(User).where(User.email == "admin@example.com")
         )
         goldstar = db.session.scalar(
             select(Item).where(Item.name == "Goldstar Blanket (BF)")
