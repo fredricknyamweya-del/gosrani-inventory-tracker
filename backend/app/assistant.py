@@ -20,6 +20,7 @@ from app.models import (
     Category,
     InventoryRecord,
     Item,
+    InventoryUnit,
     Specification,
     UserRole,
 )
@@ -257,8 +258,24 @@ def _query_item_stock(
 ) -> Decimal:
     statement = (
         select(
-            func.coalesce(func.sum(InventoryRecord.qty_in), 0)
-            - func.coalesce(func.sum(InventoryRecord.qty_out), 0)
+            func.coalesce(
+                func.sum(
+                    func.coalesce(
+                        InventoryRecord.qty_in_normalized,
+                        InventoryRecord.qty_in,
+                    )
+                ),
+                0,
+            )
+            - func.coalesce(
+                func.sum(
+                    func.coalesce(
+                        InventoryRecord.qty_out_normalized,
+                        InventoryRecord.qty_out,
+                    )
+                ),
+                0,
+            )
         )
         .select_from(InventoryRecord)
         .join(InventoryRecord.specification)
@@ -486,15 +503,26 @@ def query_assistant():
             user_location_ids(user.id),
             matched_specification[0] if matched_specification else None,
         )
+        item = db.session.get(Item, matched_item[0])
+        stock_display = _format_quantity(balance)
+        if item and item.inventory_unit == InventoryUnit.BALE:
+            stock_display = f"{_format_quantity(balance)} pcs"
+            if item.pieces_per_bale and item.pieces_per_bale > 0:
+                bale_balance = balance / Decimal(item.pieces_per_bale)
+                bale_unit = "bale" if bale_balance == 1 else "bales"
+                stock_display = (
+                    f"{_format_quantity(bale_balance)} {bale_unit} "
+                    f"({_format_quantity(balance)} pcs)"
+                )
         specification_label = (
             matched_specification[1] if matched_specification else None
         )
         answer = (
             f"Recorded stock for {matched_item[1]} ({specification_label}) is "
-            f"{_format_quantity(balance)}."
+            f"{stock_display}."
             if specification_label
             else f"Recorded stock for {matched_item[1]} is "
-            f"{_format_quantity(balance)} across its specifications."
+            f"{stock_display} across its specifications."
         )
     else:
         answer = ""
