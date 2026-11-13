@@ -18,9 +18,9 @@ from app.extensions import db
 from app.models import (
     AssistantQuery,
     Category,
+    InventoryUnit,
     InventoryRecord,
     Item,
-    InventoryUnit,
     Specification,
     UserRole,
 )

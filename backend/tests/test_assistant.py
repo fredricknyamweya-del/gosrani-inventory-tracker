@@ -15,6 +15,7 @@ from app.models import (
     AssistantQuery,
     Category,
     EnteredUnit,
+    InventoryUnit,
     InventoryRecord,
     Item,
     Location,
@@ -227,6 +228,66 @@ def test_assistant_queries_item_stock_across_all_specifications(client):
     assert response.status_code == 200
     assert response.json["data"]["answer"] == (
         "Recorded stock for HDF is 18 across its specifications."
+    )
+
+
+def test_assistant_reports_normalized_bale_stock_across_specifications(client):
+    user = _create_user(UserRole.ADMIN)
+    location = Location(code="ELD", name="Eldoret")
+    category = Category(name="Bedding")
+    db.session.add_all([location, category])
+    db.session.flush()
+    item = Item(
+        category_id=category.id,
+        name="Configured Duvet",
+        inventory_unit=InventoryUnit.BALE,
+        pieces_per_bale=5,
+    )
+    db.session.add(item)
+    db.session.flush()
+    first_specification = Specification(item_id=item.id, label="4x6")
+    second_specification = Specification(item_id=item.id, label="5x7")
+    db.session.add_all([first_specification, second_specification])
+    db.session.flush()
+    db.session.add_all(
+        [
+            UserLocation(user_id=user.id, location_id=location.id),
+            InventoryRecord(
+                location_id=location.id,
+                record_date=date(2026, 11, 5),
+                specification_id=first_specification.id,
+                qty_in=Decimal(1),
+                qty_in_normalized=Decimal(5),
+                pieces_per_unit=5,
+                entered_unit=EnteredUnit.BALE,
+                status=RecordStatus.LOCKED,
+                created_by=user.id,
+            ),
+            InventoryRecord(
+                location_id=location.id,
+                record_date=date(2026, 11, 5),
+                specification_id=second_specification.id,
+                qty_in=Decimal(3),
+                qty_in_normalized=Decimal(3),
+                pieces_per_unit=1,
+                entered_unit=EnteredUnit.PCS,
+                status=RecordStatus.LOCKED,
+                created_by=user.id,
+            ),
+        ]
+    )
+    db.session.commit()
+
+    response = client.post(
+        "/api/assistant/query",
+        json={"question": "How much Configured Duvet is in stock across all sizes?"},
+        headers=_authorization(user),
+    )
+
+    assert response.status_code == 200
+    assert response.json["data"]["answer"] == (
+        "Recorded stock for Configured Duvet is 1.6 bales (8 pcs) "
+        "across its specifications."
     )
 
 
