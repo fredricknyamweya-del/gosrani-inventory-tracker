@@ -10,6 +10,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { api } from "../services/api";
 import { formatDate } from "../utils/format";
+import QuantityDisplay from "./QuantityDisplay";
 import { Button } from "./ui";
 
 const suggestions = [
@@ -285,15 +286,17 @@ export default function AssistantChat({ compact = false }) {
                                 <div className="assistant-result-quantities">
                                   <span className="assistant-quantity-in">
                                     <strong>Quantity In</strong>
-                                    {record.quantityIn ?? "–"}
-                                    {record.quantityIn != null &&
-                                      ` ${record.enteredUnit ?? "PCS"}`}
+                                    <QuantityDisplay
+                                      display={record.quantityInDisplay}
+                                      secondary={record.quantityInSecondaryDisplay}
+                                    />
                                   </span>
                                   <span className="assistant-quantity-out">
                                     <strong>Quantity Out</strong>
-                                    {record.quantityOut ?? "–"}
-                                    {record.quantityOut != null &&
-                                      ` ${record.enteredUnit ?? "PCS"}`}
+                                    <QuantityDisplay
+                                      display={record.quantityOutDisplay}
+                                      secondary={record.quantityOutSecondaryDisplay}
+                                    />
                                   </span>
                                 </div>
                                 {record.details && (

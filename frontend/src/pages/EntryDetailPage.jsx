@@ -18,6 +18,7 @@ import {
   Select,
   StatusBadge,
 } from "../components/ui"
+import QuantityDisplay from "../components/QuantityDisplay"
 import { useAuth } from "../context/AuthContext"
 import { useApi } from "../hooks/useApi"
 import { api } from "../services/api"
@@ -181,8 +182,11 @@ export default function EntryDetailPage() {
   const category = categories.find((entry) => entry.name === form.category)
   const categoryItems = items.filter((item) => item.categoryId === category?.id)
   const item = categoryItems.find((entry) => entry.name === form.item)
-  const isBaleItem = item?.inventoryUnit === "BALE"
   const specifications = item?.specifications ?? []
+  const selectedSpecification = item?.specificationPackSizes?.find(
+    (specification) => specification.label === form.size,
+  )
+  const supportsBales = selectedSpecification?.packSize != null
   const isOriginalItem =
     form.category === record.category && form.item === record.item
   const selectedSizeIsAvailable = specifications.includes(form.size)
@@ -191,7 +195,15 @@ export default function EntryDetailPage() {
     const selectedItem =
       key === "item"
         ? categoryItems.find((entry) => entry.name === value)
-        : null
+        : item
+    const selectedSize = key === "size" ? value : key === "item" ? "" : form.size
+    const selectedPackSize = selectedItem?.specificationPackSizes?.find(
+      (specification) => specification.label === selectedSize,
+    )?.packSize
+    const defaultUnit =
+      selectedPackSize != null && selectedItem?.inventoryUnit === "BALE"
+        ? "BALE"
+        : selectedItem?.unit ?? "PCS"
     setForm((current) => ({
       ...current,
       [key]: value,
@@ -201,9 +213,10 @@ export default function EntryDetailPage() {
       ...(key === "item"
         ? {
             size: "",
-            enteredUnit: selectedItem?.inventoryUnit ?? "PCS",
+            enteredUnit: defaultUnit,
           }
         : {}),
+      ...(key === "size" ? { enteredUnit: defaultUnit } : {}),
     }))
     setSaveError("")
   }
@@ -380,11 +393,11 @@ export default function EntryDetailPage() {
             </Field>
             <Field label="Quantity unit">
               <Select
-                disabled={!isBaleItem}
+                disabled={!supportsBales}
                 onChange={(event) => update("enteredUnit", event.target.value)}
                 value={form.enteredUnit}
               >
-                {isBaleItem ? (
+                {supportsBales ? (
                   <>
                     <option value="BALE">Bales</option>
                     <option value="PCS">Pieces</option>
@@ -462,15 +475,19 @@ export default function EntryDetailPage() {
             <div className="entry-record-quantity-in">
               <dt>Quantity In</dt>
               <dd>
-                <span>{record.quantityIn ?? "–"}</span>
-                <small>{record.enteredUnit}</small>
+                <QuantityDisplay
+                  display={record.quantityInDisplay}
+                  secondary={record.quantityInSecondaryDisplay}
+                />
               </dd>
             </div>
             <div className="entry-record-quantity-out">
               <dt>Quantity Out</dt>
               <dd>
-                <span>{record.quantityOut ?? "–"}</span>
-                <small>{record.enteredUnit}</small>
+                <QuantityDisplay
+                  display={record.quantityOutDisplay}
+                  secondary={record.quantityOutSecondaryDisplay}
+                />
               </dd>
             </div>
           </dl>

@@ -8,21 +8,9 @@ import {
   PageHeader,
   Select,
 } from "../components/ui";
+import QuantityDisplay from "../components/QuantityDisplay";
 import { useApi } from "../hooks/useApi";
 import { api } from "../services/api";
-
-function unitName(unit, quantity) {
-  const singular = Math.abs(Number(quantity)) === 1;
-  if (unit === "BALE") return singular ? "bale" : "bales";
-  if (unit === "KG") return "kg";
-  return singular ? "piece" : "pieces";
-}
-
-function formatQuantity(quantity) {
-  return Number(quantity ?? 0).toLocaleString(undefined, {
-    maximumFractionDigits: 3,
-  });
-}
 
 export default function InventorySummaryPage() {
   const [search, setSearch] = useState("");
@@ -160,15 +148,10 @@ export default function InventorySummaryPage() {
                           <span className="inventory-summary-size">{row.size}</span>
                         </td>
                         <td>
-                          <span className="inventory-summary-stock">
-                            <strong>{formatQuantity(row.remainingStock)}</strong>
-                            <span>{unitName(row.inventoryUnit, row.remainingStock)}</span>
-                            {row.inventoryUnit === "BALE" && (
-                              <span>
-                                {formatQuantity(row.equivalentPieces)} pieces
-                              </span>
-                            )}
-                          </span>
+                          <QuantityDisplay
+                            display={row.display}
+                            secondary={row.secondaryDisplay}
+                          />
                         </td>
                       </tr>
                     ))}

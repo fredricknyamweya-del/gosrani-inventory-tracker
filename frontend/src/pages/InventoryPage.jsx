@@ -21,6 +21,7 @@ import {
   StatusBadge,
   Toast,
 } from "../components/ui";
+import QuantityDisplay from "../components/QuantityDisplay";
 import { useApi } from "../hooks/useApi";
 import { useAuth } from "../context/AuthContext";
 import { formatDate } from "../utils/format";
@@ -354,12 +355,16 @@ export default function InventoryPage() {
                         </td>
                         <td>{record.size || "–"}</td>
                         <td>
-                          {record.quantityIn ?? "–"}{" "}
-                          <small>{record.enteredUnit}</small>
+                          <QuantityDisplay
+                            display={record.quantityInDisplay}
+                            secondary={record.quantityInSecondaryDisplay}
+                          />
                         </td>
                         <td>
-                          {record.quantityOut ?? "–"}{" "}
-                          <small>{record.enteredUnit}</small>
+                          <QuantityDisplay
+                            display={record.quantityOutDisplay}
+                            secondary={record.quantityOutSecondaryDisplay}
+                          />
                         </td>
                         <td className="inventory-details-cell" title={record.details || undefined}>
                           {record.details || "–"}
