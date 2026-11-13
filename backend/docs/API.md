@@ -168,7 +168,9 @@ quantities and the conversion snapshot used at the time:
 }
 ```
 
-Stock-out quantities are validated against the normalized available balance.
+Kilogram quantities may include up to three decimal places; piece and bale
+quantities must be whole numbers. Stock-out quantities are validated against
+the normalized available balance.
 
 ## Inventory summary
 
