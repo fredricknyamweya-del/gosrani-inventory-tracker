@@ -11,6 +11,7 @@ from app.models import (
     AuditEntity,
     AuditLog,
     Category,
+    InventoryRecord,
     InventoryUnit,
     Item,
     ItemRequest,
@@ -53,7 +54,11 @@ def create_case(*, inventory_unit=InventoryUnit.BALE, pieces_per_bale=5):
     )
     db.session.add_all([item, ordinary_item])
     db.session.flush()
-    specification = Specification(item_id=item.id, label="4x6")
+    specification = Specification(
+        item_id=item.id,
+        label="4x6",
+        pack_size=pieces_per_bale if inventory_unit == InventoryUnit.BALE else None,
+    )
     ordinary_specification = Specification(
         item_id=ordinary_item.id, label="Standard"
     )
@@ -120,13 +125,189 @@ def test_bale_transactions_normalize_and_keep_the_original_unit(client):
         headers=authorization(admin),
     )
     assert stock.status_code == 200
-    assert stock.json["data"]["unit"] == "BALE"
-    assert stock.json["data"]["quantity"] == 3
+    assert stock.json["data"]["unit"] == "PCS"
+    assert stock.json["data"]["quantity"] == 15
     assert stock.json["data"]["equivalentPieces"] == 15
-    assert stock.json["data"]["display"] == "3 bales (15 pcs)"
+    assert stock.json["data"]["display"] == "3 bales"
+    assert stock.json["data"]["secondaryDisplay"] == "(15 pcs)"
 
     persisted = db.session.get(Specification, specification.id)
     assert persisted is not None
+
+
+def test_bale_and_piece_entries_store_base_units_and_share_stock_display(client):
+    admin, _, _, _, _, specification, _, _ = create_case()
+
+    bale_entry = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "4x6",
+            quantityIn=2,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(admin),
+    )
+    piece_entry = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "4x6",
+            quantityIn=5,
+            enteredUnit="PCS",
+        ),
+        headers=authorization(admin),
+    )
+
+    assert bale_entry.status_code == 201
+    bale_record = db.session.get(InventoryRecord, bale_entry.json["data"][0]["id"])
+    assert bale_record.qty_in == 10
+    assert bale_record.qty_in_normalized == 10
+    assert bale_entry.json["data"][0]["quantityIn"] == 2
+    assert bale_entry.json["data"][0]["quantityInDisplay"] == "2 bales"
+    assert (
+        bale_entry.json["data"][0]["quantityInSecondaryDisplay"] == "(10 pcs)"
+    )
+    assert piece_entry.status_code == 201
+    assert piece_entry.json["data"][0]["quantityInDisplay"] == "1 bale"
+    assert (
+        piece_entry.json["data"][0]["quantityInSecondaryDisplay"] == "(5 pcs)"
+    )
+
+    stock = client.get(
+        f"/api/inventory/{bale_entry.json['data'][0]['id']}/stock",
+        headers=authorization(admin),
+    )
+    assert stock.json["data"]["quantity"] == 15
+    assert stock.json["data"]["display"] == "3 bales"
+    assert stock.json["data"]["secondaryDisplay"] == "(15 pcs)"
+
+    second_size = Specification(
+        item_id=specification.item_id,
+        label="5x7",
+        pack_size=10,
+    )
+    db.session.add(second_size)
+    db.session.commit()
+    second_size_entry = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "5x7",
+            quantityIn=100,
+            enteredUnit="PCS",
+        ),
+        headers=authorization(admin),
+    )
+    assert second_size_entry.status_code == 201
+
+    summary = client.get(
+        "/api/catalog/summary",
+        headers=authorization(admin),
+    )
+    size_rows = [
+        row
+        for row in summary.json["data"]["stockBySpecification"]
+        if row["itemName"] == "Configured Duvet"
+    ]
+    assert {row["size"]: row["remainingStock"] for row in size_rows} == {
+        "4x6": 15,
+        "5x7": 100,
+    }
+
+
+def test_editing_entered_unit_reconverts_to_base_once(client):
+    admin, _, _, _, _, _, _, _ = create_case()
+    received = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "4x6",
+            quantityIn=2,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(admin),
+    )
+    record_id = received.json["data"][0]["id"]
+
+    updated = client.patch(
+        f"/api/inventory/{record_id}",
+        json={"enteredUnit": "PCS", "quantityIn": 7},
+        headers=authorization(admin),
+    )
+
+    assert updated.status_code == 200
+    assert updated.json["data"]["enteredUnit"] == "PCS"
+    assert updated.json["data"]["quantityIn"] == 7
+    assert updated.json["data"]["quantityInDisplay"] == "1 bale + 2 pcs"
+    assert updated.json["data"]["quantityInSecondaryDisplay"] == "(7 pcs)"
+    record = db.session.get(InventoryRecord, record_id)
+    assert record.qty_in == 7
+    assert record.qty_in_normalized == 7
+    assert record.pieces_per_unit == 1
+    stock = client.get(
+        f"/api/inventory/{record_id}/stock",
+        headers=authorization(admin),
+    )
+    assert stock.json["data"]["quantity"] == 7
+
+
+def test_bale_entry_without_specification_pack_size_returns_422(client):
+    admin, _, _, _, _, _, _, _ = create_case(
+        inventory_unit=InventoryUnit.PCS,
+        pieces_per_bale=None,
+    )
+
+    response = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Configured Duvet",
+            "4x6",
+            quantityIn=1,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(admin),
+    )
+
+    assert response.status_code == 422
+    assert "no pack size" in response.json["errors"][0]["message"]
+
+
+def test_validate_and_stock_endpoint_display_415_bales_as_base_pieces(client):
+    admin, _, _, _, _, _, _, _ = create_case(pieces_per_bale=20)
+    payload = transaction_payload(
+        "Configured Duvet",
+        "4x6",
+        quantityIn=415,
+        enteredUnit="BALE",
+    )
+
+    review = client.post(
+        "/api/inventory/validate",
+        json=payload,
+        headers=authorization(admin),
+    )
+
+    assert review.status_code == 200
+    reviewed_row = review.json["data"]["rows"][0]
+    assert reviewed_row["quantityInDisplay"] == "415 bales"
+    assert reviewed_row["quantityInSecondaryDisplay"] == "(8,300 pcs)"
+
+    received = client.post(
+        "/api/inventory",
+        json=payload,
+        headers=authorization(admin),
+    )
+    assert received.status_code == 201
+    record = db.session.get(InventoryRecord, received.json["data"][0]["id"])
+    assert record.qty_in == 8300
+    assert received.json["data"][0]["quantityInDisplay"] == "415 bales"
+    stock = client.get(
+        f"/api/inventory/{received.json['data'][0]['id']}/stock",
+        headers=authorization(admin),
+    )
+    assert stock.json["data"]["display"] == "415 bales"
+    assert stock.json["data"]["secondaryDisplay"] == "(8,300 pcs)"
 
 
 def test_bale_and_piece_units_are_allowed_and_stock_out_cannot_exceed_balance(client):
@@ -161,7 +342,9 @@ def test_bale_and_piece_units_are_allowed_and_stock_out_cannot_exceed_balance(cl
         for row in summary.json["data"]["stockBySpecification"]
         if row["itemName"] == "Configured Duvet"
     )
-    assert stock["remainingStock"] == 1.6
+    assert stock["remainingStock"] == 8
+    assert stock["display"] == "1 bale + 3 pcs"
+    assert stock["secondaryDisplay"] == "(8 pcs)"
     assert stock["equivalentPieces"] == 8
 
     wrong_unit = client.post(
@@ -245,12 +428,12 @@ def test_kilogram_quantities_keep_fractional_precision_in_inventory_summary(clie
         for row in summary.json["data"]["stockBySpecification"]
         if row["itemName"] == "Cotton"
     )
-    assert product["totalStockIn"] == 1.125
-    assert product["totalStockOut"] == 0.025
-    assert product["remainingStock"] == 1.1
-    assert product["equivalentPieces"] is None
+    assert "totalStockIn" not in product
     assert specification["inventoryUnit"] == "KG"
     assert specification["remainingStock"] == 1.1
+    assert specification["totalStockIn"] == 1.125
+    assert specification["totalStockOut"] == 0.025
+    assert specification["display"] == "1.1 kg"
     assert specification["equivalentPieces"] is None
 
     invalid_precision = client.post(
@@ -289,14 +472,10 @@ def test_catalogue_summary_includes_products_without_entries_and_converts_bales(
 
     assert summary.status_code == 200
     products = {row["productName"]: row for row in summary.json["data"]["products"]}
-    assert products["Configured Duvet"]["totalStockIn"] == 3
-    assert products["Configured Duvet"]["remainingStock"] == 3
-    assert products["Configured Duvet"]["equivalentPieces"] == 15
-    assert products["Configured Duvet"]["piecesPerBale"] == 5
+    assert "totalStockIn" not in products["Configured Duvet"]
     assert products["Configured Duvet"]["totalEntries"] == 1
-    assert products["Pillow Kiss Case"]["remainingStock"] == 2
+    assert "remainingStock" not in products["Pillow Kiss Case"]
     assert products["Pillow Kiss Case"]["inventoryUnit"] == "PCS"
-    assert products["Pillow Kiss Case"]["equivalentPieces"] == 2
     assert summary.json["data"]["totals"]["registeredProducts"] == 2
     assert ordinary_item.inventory_unit == InventoryUnit.PCS
 
@@ -352,9 +531,29 @@ def test_admin_must_configure_pillow_conversion_and_users_cannot_edit_it(client)
     assert configured.json["data"]["inventoryUnit"] == "BALE"
     assert configured.json["data"]["piecesPerBale"] == 10
 
+    still_unconfigured = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Pillow",
+            "Standard",
+            quantityIn=1,
+            enteredUnit="BALE",
+        ),
+        headers=authorization(user),
+    )
+    assert still_unconfigured.status_code == 422
+    assert "no pack size" in still_unconfigured.json["errors"][0]["message"]
+
+    baled_specification = Specification(
+        item_id=pillow.id,
+        label="Baled",
+        pack_size=10,
+    )
+    db.session.add(baled_specification)
+    db.session.commit()
     transaction = client.post(
         "/api/inventory",
-        json=transaction_payload("Pillow", "Standard", quantityIn=2),
+        json=transaction_payload("Pillow", "Baled", quantityIn=2),
         headers=authorization(user),
     )
     assert transaction.status_code == 201
@@ -398,8 +597,14 @@ def test_conversion_changes_do_not_rewrite_historical_transactions(client):
         for row in summary.json["data"]["products"]
         if row["productName"] == item.name
     )
-    assert configured["remainingStock"] == 1
-    assert configured["equivalentPieces"] == 10
+    assert configured["totalEntries"] == 1
+    size_stock = next(
+        row
+        for row in summary.json["data"]["stockBySpecification"]
+        if row["itemName"] == item.name
+    )
+    assert size_stock["remainingStock"] == 10
+    assert size_stock["display"] == "2 bales"
 
 
 def test_catalog_item_can_be_permanently_deleted_when_unreferenced(client):
@@ -502,7 +707,8 @@ def test_switching_product_to_pieces_preserves_stock_and_defaults_new_entries(cl
     assert stock.status_code == 200
     assert stock.json["data"]["unit"] == "PCS"
     assert stock.json["data"]["quantity"] == 5
-    assert stock.json["data"]["display"] == "5 PCS"
+    assert stock.json["data"]["display"] == "1 bale"
+    assert stock.json["data"]["secondaryDisplay"] == "(5 pcs)"
 
     new_received = client.post(
         "/api/inventory",
@@ -543,7 +749,7 @@ def test_catalog_create_requires_positive_whole_bale_rate(client):
 
 
 def test_catalogue_summary_is_location_scoped(client):
-    admin, user, location, category, item, specification, _, _ = create_case()
+    admin, user, _, _, item, specification, _, _ = create_case()
     unassigned_location = Location(code="NAK", name="Nakuru Godown")
     db.session.add(unassigned_location)
     db.session.flush()
@@ -581,13 +787,14 @@ def test_catalogue_summary_is_location_scoped(client):
         for row in response.json["data"]["products"]
         if row["productName"] == item.name
     )
-    assert configured["remainingStock"] == 0
     assert configured["totalEntries"] == 0
 
 
 def test_catalogue_summary_reports_size_level_stock_in_inventory_units(client):
-    admin, _, _, _, item, specification, _, _ = create_case()
-    second_specification = Specification(item_id=item.id, label="5x7")
+    admin, _, location, _, item, specification, _, _ = create_case()
+    second_specification = Specification(
+        item_id=item.id, label="5x7", pack_size=5
+    )
     db.session.add(second_specification)
     db.session.commit()
 
@@ -614,8 +821,20 @@ def test_catalogue_summary_reports_size_level_stock_in_inventory_units(client):
         "itemName": "Configured Duvet",
         "category": "Bedding",
         "size": "4x6",
+        "unit": "PCS",
         "inventoryUnit": "BALE",
-        "remainingStock": 3,
+        "packSize": 5,
+        "locationId": str(location.id),
+        "locationName": "Eldoret Godown",
+        "totalStockIn": 15,
+        "totalStockInDisplay": "3 bales",
+        "totalStockInSecondaryDisplay": "(15 pcs)",
+        "totalStockOut": 0,
+        "totalStockOutDisplay": "0",
+        "totalStockOutSecondaryDisplay": None,
+        "remainingStock": 15,
+        "display": "3 bales",
+        "secondaryDisplay": "(15 pcs)",
         "equivalentPieces": 15,
     }
     assert sizes["5x7"]["remainingStock"] == 0

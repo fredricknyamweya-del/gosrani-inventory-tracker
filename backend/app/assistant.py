@@ -10,7 +10,7 @@ from pathlib import Path
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required
 from openai import OpenAI, OpenAIError
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select, true
 
 from app.api_utils import current_user, json_number, user_location_ids
 from app.errors import error_response, validation_error
@@ -18,12 +18,15 @@ from app.extensions import db
 from app.models import (
     AssistantQuery,
     Category,
-    InventoryUnit,
     InventoryRecord,
     Item,
+    Location,
     Specification,
+    StockUnit,
     UserRole,
+    v_stock,
 )
+from app.units import format_quantity_display
 
 assistant_bp = Blueprint("assistant", __name__, url_prefix="/api/assistant")
 
@@ -247,47 +250,112 @@ def _date_range(query: str) -> tuple[date | None, date | None]:
     return None, None
 
 
-def _format_quantity(value: Decimal) -> str:
-    return format(value.normalize(), "f")
-
-
 def _query_item_stock(
     item_id: int,
     location_ids: list[int],
     specification_id: int | None = None,
-) -> Decimal:
+) -> list[tuple[int, str, int, str, int | None, StockUnit, Decimal]]:
+    if not location_ids:
+        return []
     statement = (
         select(
-            func.coalesce(
-                func.sum(
-                    func.coalesce(
-                        InventoryRecord.qty_in_normalized,
-                        InventoryRecord.qty_in,
-                    )
-                ),
-                0,
-            )
-            - func.coalesce(
-                func.sum(
-                    func.coalesce(
-                        InventoryRecord.qty_out_normalized,
-                        InventoryRecord.qty_out,
-                    )
-                ),
-                0,
-            )
+            Location.id,
+            Location.name,
+            Specification.id,
+            Specification.label,
+            Specification.pack_size,
+            Item.unit,
+            func.coalesce(v_stock.c.stock, 0),
         )
-        .select_from(InventoryRecord)
-        .join(InventoryRecord.specification)
+        .select_from(Location)
+        .join(Specification, true())
         .where(
+            Location.id.in_(location_ids),
             Specification.item_id == item_id,
-            InventoryRecord.location_id.in_(location_ids),
-            InventoryRecord.deleted_at.is_(None),
+            Specification.active.is_(True),
         )
+        .join(Item, Item.id == Specification.item_id)
+        .outerjoin(
+            v_stock,
+            and_(
+                v_stock.c.location_id == Location.id,
+                v_stock.c.specification_id == Specification.id,
+            ),
+        )
+        .order_by(Location.name, Specification.label)
     )
     if specification_id is not None:
-        statement = statement.where(InventoryRecord.specification_id == specification_id)
-    return Decimal(str(db.session.scalar(statement) or 0))
+        statement = statement.where(Specification.id == specification_id)
+    return [
+        (
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+            Decimal(str(row[6])),
+        )
+        for row in db.session.execute(statement).all()
+    ]
+
+
+def _serialize_assistant_record(
+    record: InventoryRecord,
+    category_name: str,
+    item_name: str,
+    specification_label: str,
+    unit: StockUnit,
+    pack_size: int | None,
+) -> dict[str, object]:
+    base_quantity_in = (
+        record.qty_in_normalized
+        if record.qty_in_normalized is not None
+        else record.qty_in
+    )
+    base_quantity_out = (
+        record.qty_out_normalized
+        if record.qty_out_normalized is not None
+        else record.qty_out
+    )
+    conversion = (
+        Decimal(record.pieces_per_unit)
+        if record.entered_unit.value == "BALE"
+        else Decimal(1)
+    )
+    quantity_in_display = (
+        format_quantity_display(base_quantity_in, unit, pack_size)
+        if base_quantity_in is not None
+        else (None, None)
+    )
+    quantity_out_display = (
+        format_quantity_display(base_quantity_out, unit, pack_size)
+        if base_quantity_out is not None
+        else (None, None)
+    )
+    return {
+        "id": record.id,
+        "date": record.record_date.isoformat(),
+        "category": category_name,
+        "item": item_name,
+        "size": specification_label,
+        "quantityIn": (
+            json_number(base_quantity_in / conversion)
+            if base_quantity_in is not None
+            else None
+        ),
+        "quantityOut": (
+            json_number(base_quantity_out / conversion)
+            if base_quantity_out is not None
+            else None
+        ),
+        "quantityInDisplay": quantity_in_display[0],
+        "quantityInSecondaryDisplay": quantity_in_display[1],
+        "quantityOutDisplay": quantity_out_display[0],
+        "quantityOutSecondaryDisplay": quantity_out_display[1],
+        "enteredUnit": record.entered_unit.value,
+        "details": record.details or "",
+    }
 
 
 def _generate_openai_answer(
@@ -491,39 +559,56 @@ def query_assistant():
             criteria.append(InventoryRecord.id == -1)
 
     statement = (
-        select(InventoryRecord, Category.name, Item.name, Specification.label)
+        select(
+            InventoryRecord,
+            Category.name,
+            Item.name,
+            Specification.label,
+            Item.unit,
+            Specification.pack_size,
+        )
         .join(InventoryRecord.specification)
         .join(Specification.item)
         .join(Item.category)
         .where(*criteria)
     )
     if wants_stock and matched_item:
-        balance = _query_item_stock(
+        balances = _query_item_stock(
             matched_item[0],
             user_location_ids(user.id),
             matched_specification[0] if matched_specification else None,
         )
-        item = db.session.get(Item, matched_item[0])
-        stock_display = _format_quantity(balance)
-        if item and item.inventory_unit == InventoryUnit.BALE:
-            stock_display = f"{_format_quantity(balance)} pcs"
-            if item.pieces_per_bale and item.pieces_per_bale > 0:
-                bale_balance = balance / Decimal(item.pieces_per_bale)
-                bale_unit = "bale" if bale_balance == 1 else "bales"
-                stock_display = (
-                    f"{_format_quantity(bale_balance)} {bale_unit} "
-                    f"({_format_quantity(balance)} pcs)"
-                )
-        specification_label = (
-            matched_specification[1] if matched_specification else None
-        )
-        answer = (
-            f"Recorded stock for {matched_item[1]} ({specification_label}) is "
-            f"{stock_display}."
-            if specification_label
-            else f"Recorded stock for {matched_item[1]} is "
-            f"{stock_display} across its specifications."
-        )
+        formatted_balances = []
+        for (
+            _location_id,
+            location_name,
+            _specification_id,
+            specification_label,
+            pack_size,
+            unit,
+            balance,
+        ) in balances:
+            display, secondary = format_quantity_display(
+                balance, unit, pack_size
+            )
+            stock_display = (
+                f"{display} {secondary}" if secondary else display
+            )
+            formatted_balances.append(
+                f"{specification_label} at {location_name}: {stock_display}"
+            )
+        if len(formatted_balances) == 1:
+            answer = (
+                f"Recorded stock for {matched_item[1]} is "
+                f"{formatted_balances[0]}."
+            )
+        elif formatted_balances:
+            answer = (
+                f"Recorded stock for {matched_item[1]} by specification "
+                f"and location: {'; '.join(formatted_balances)}."
+            )
+        else:
+            answer = f"No stock locations are available for {matched_item[1]}."
     else:
         answer = ""
 
@@ -539,18 +624,22 @@ def query_assistant():
         ).limit(5)
     ).all()
     records = [
-        {
-            "id": record.id,
-            "date": record.record_date.isoformat(),
-            "category": category_name,
-            "item": item_name,
-            "size": specification_label,
-            "quantityIn": json_number(record.qty_in),
-            "quantityOut": json_number(record.qty_out),
-            "enteredUnit": record.entered_unit.value,
-            "details": record.details or "",
-        }
-        for record, category_name, item_name, specification_label in rows
+        _serialize_assistant_record(
+            record,
+            category_name,
+            item_name,
+            specification_label,
+            unit,
+            pack_size,
+        )
+        for (
+            record,
+            category_name,
+            item_name,
+            specification_label,
+            unit,
+            pack_size,
+        ) in rows
     ]
     if not answer:
         answer = (
