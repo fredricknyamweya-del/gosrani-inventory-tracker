@@ -2,6 +2,7 @@ import { ArrowLeft, Check, Plus, Save, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import AddItemModal from "../components/AddItemModal";
+import QuantityDisplay from "../components/QuantityDisplay";
 import RequestItemModal from "../components/RequestItemModal";
 import {
   Button,
@@ -18,6 +19,7 @@ import { useAuth } from "../context/AuthContext";
 import { useApi } from "../hooks/useApi";
 import { api } from "../services/api";
 import { formatDate, todayIso } from "../utils/format";
+import { formatEntryQuantityPreview } from "../utils/units";
 
 function makeEntry(id) {
   return {
@@ -40,7 +42,7 @@ function unitLabel(unit) {
   return "Pieces";
 }
 
-function validateEntry(entry, item) {
+function validateEntry(entry, item, packSize) {
   const errors = {};
   const allowsFractionalQuantity = item?.inventoryUnit === "KG";
 
@@ -55,6 +57,10 @@ function validateEntry(entry, item) {
   }
   if (entry.quantityIn === "" && entry.quantityOut === "") {
     errors.quantity = "Enter a value for Quantity In or Quantity Out.";
+  }
+  if (entry.enteredUnit === "BALE" && packSize == null) {
+    errors.enteredUnit =
+      "Bales are only available for specifications with a pack size.";
   }
   for (const key of ["quantityIn", "quantityOut"]) {
     if (entry[key] === "") continue;
@@ -207,20 +213,22 @@ export default function EntryFormPage() {
           item.categoryId === category?.id &&
           item.name === entry.item,
       );
-      const entryErrors = validateEntry(entry, selectedItem);
+      const packSize = selectedItem?.specificationPackSizes?.find(
+        (specification) => specification.label === entry.size,
+      )?.packSize;
+      const entryErrors = validateEntry(entry, selectedItem, packSize);
       if (!category) {
         entryErrors.category = "Choose a category from the catalog.";
       }
       if (entry.item && !selectedItem) {
         entryErrors.item = "Choose an item from the selected category.";
       }
-      if (
-        selectedItem &&
-        entry.enteredUnit !== selectedItem.inventoryUnit &&
-        !(selectedItem.inventoryUnit === "BALE" && entry.enteredUnit === "PCS")
-      ) {
+      if (selectedItem && entry.enteredUnit !== selectedItem.unit &&
+          !(packSize != null && ["PCS", "BALE"].includes(entry.enteredUnit))) {
         entryErrors.enteredUnit =
-          "Choose bales or pieces for this bale-based product.";
+          packSize != null
+            ? "Choose bales or pieces for this specification."
+            : "Choose the unit supported by this item and specification.";
       }
       if (Object.keys(entryErrors).length) {
         nextErrors[entry.id] = entryErrors;
@@ -372,12 +380,26 @@ export default function EntryFormPage() {
                       <dd>{entry.size || "–"}</dd>
                     </div>
                     <div>
-                      <dt>Quantity In {enteredUnitLabel}</dt>
-                      <dd>{entry.quantityIn || "–"}</dd>
+                      <dt>Quantity In</dt>
+                      <dd>
+                        <QuantityDisplay
+                          display={entry.quantityInDisplay}
+                          secondary={entry.quantityInSecondaryDisplay}
+                        />
+                      </dd>
                     </div>
                     <div>
-                      <dt>Quantity Out {enteredUnitLabel}</dt>
-                      <dd>{entry.quantityOut || "–"}</dd>
+                      <dt>Quantity Out</dt>
+                      <dd>
+                        <QuantityDisplay
+                          display={entry.quantityOutDisplay}
+                          secondary={entry.quantityOutSecondaryDisplay}
+                        />
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Entered unit</dt>
+                      <dd>{enteredUnitLabel}</dd>
                     </div>
                     <div>
                       <dt>Received / dispatched by</dt>
@@ -448,8 +470,25 @@ export default function EntryFormPage() {
               (item) => item.name === entry.item,
             );
             const enteredUnitLabel = unitLabel(entry.enteredUnit);
+            const selectedSpecification = selectedItem?.specificationPackSizes?.find(
+              (specification) => specification.label === entry.size,
+            );
+            const packSize = selectedSpecification?.packSize ?? null;
+            const supportsBales = packSize != null;
             const quantityStep =
-              selectedItem?.inventoryUnit === "KG" ? "0.001" : "1";
+              selectedItem?.unit === "KG" ? "0.001" : "1";
+            const quantityInPreview = formatEntryQuantityPreview(
+              entry.quantityIn,
+              entry.enteredUnit,
+              selectedItem?.unit,
+              packSize,
+            );
+            const quantityOutPreview = formatEntryQuantityPreview(
+              entry.quantityOut,
+              entry.enteredUnit,
+              selectedItem?.unit,
+              packSize,
+            );
 
             return (
               <section className="entry-batch-row" key={entry.id}>
@@ -524,7 +563,7 @@ export default function EntryFormPage() {
                           updateEntry(
                             entry.id,
                             "enteredUnit",
-                            nextItem?.inventoryUnit ?? "PCS",
+                            nextItem?.unit ?? "PCS",
                           );
                           updateEntry(entry.id, "size", "");
                         }}
@@ -563,9 +602,21 @@ export default function EntryFormPage() {
                     <Select
                       disabled={!selectedItem}
                       value={entry.size}
-                      onChange={(event) =>
-                        updateEntry(entry.id, "size", event.target.value)
-                      }
+                      onChange={(event) => {
+                        const nextSize = event.target.value;
+                        const nextPackSize =
+                          selectedItem?.specificationPackSizes?.find(
+                            (specification) =>
+                              specification.label === nextSize,
+                          )?.packSize;
+                        const nextUnit =
+                          nextPackSize != null &&
+                          selectedItem?.inventoryUnit === "BALE"
+                            ? "BALE"
+                            : selectedItem?.unit ?? "PCS";
+                        updateEntry(entry.id, "size", nextSize);
+                        updateEntry(entry.id, "enteredUnit", nextUnit);
+                      }}
                     >
                       <option value="">Select specifications/size</option>
                       {(selectedItem?.specifications ?? []).map(
@@ -585,13 +636,13 @@ export default function EntryFormPage() {
                       required
                     >
                       <Select
-                        disabled={!selectedItem || selectedItem.inventoryUnit !== "BALE"}
+                        disabled={!supportsBales}
                         onChange={(event) =>
                           updateEntry(entry.id, "enteredUnit", event.target.value)
                         }
                         value={entry.enteredUnit}
                       >
-                        {selectedItem?.inventoryUnit === "BALE" ? (
+                        {supportsBales ? (
                           <>
                             <option value="BALE">Bales</option>
                             <option value="PCS">Pieces</option>
@@ -621,6 +672,11 @@ export default function EntryFormPage() {
                             )
                           }
                         />
+                        {quantityInPreview && (
+                          <small className="entry-quantity-preview">
+                            = {quantityInPreview}
+                          </small>
+                        )}
                       </Field>
                       <Field
                         error={
@@ -641,6 +697,11 @@ export default function EntryFormPage() {
                             )
                           }
                         />
+                        {quantityOutPreview && (
+                          <small className="entry-quantity-preview">
+                            = {quantityOutPreview}
+                          </small>
+                        )}
                       </Field>
                     </div>
                   </div>

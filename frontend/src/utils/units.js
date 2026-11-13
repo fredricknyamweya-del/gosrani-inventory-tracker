@@ -15,9 +15,10 @@ function formatNumber(value) {
     rounded += 1;
   }
 
-  return (rounded / 1000).toLocaleString("en-US", {
+  const formatted = (rounded / 1000).toLocaleString("en-US", {
     maximumFractionDigits: 3,
   });
+  return value < 0 ? `-${formatted}` : formatted;
 }
 
 export function formatQuantityDisplay(quantity, unit, packSize) {
@@ -69,7 +70,7 @@ export function formatEntryQuantityPreview(
   stockUnit,
   packSize,
 ) {
-  if (quantity === "" || quantity == null) return null;
+  if (quantity === "" || quantity == null || !stockUnit) return null;
   const value = Number(quantity);
   if (!Number.isFinite(value)) return null;
   if (enteredUnit === "BALE" && packSize == null) return null;
