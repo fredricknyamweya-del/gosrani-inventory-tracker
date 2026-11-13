@@ -13,6 +13,7 @@ from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models import (
     Category,
+    EnteredUnit,
     InventoryUnit,
     Item,
     Location,
@@ -143,6 +144,13 @@ def _seed_catalog() -> tuple[int, int, int]:
                     category_id=category.id,
                     name=item_name,
                     unit=unit,
+                    entry_unit=(
+                        EnteredUnit.BALE
+                        if any(pack_size is not None for _, pack_size in specifications)
+                        else EnteredUnit.KG
+                        if unit == StockUnit.KG
+                        else EnteredUnit.PCS
+                    ),
                     inventory_unit=(
                         InventoryUnit.BALE
                         if pieces_per_bale is not None

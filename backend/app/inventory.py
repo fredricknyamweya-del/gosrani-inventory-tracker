@@ -24,7 +24,6 @@ from app.models import (
     Category,
     EnteredUnit,
     InventoryRecord,
-    InventoryUnit,
     Item,
     Location,
     RecordStatus,
@@ -714,17 +713,24 @@ def get_inventory_stock(record_identifier: str):
     specification = db.session.get(Specification, record.specification_id)
     item = db.session.get(Item, specification.item_id)
     location = db.session.get(Location, record.location_id)
-    quantity = db.session.scalar(
-        select(v_stock.c.stock).where(
+    stock_row = db.session.execute(
+        select(v_stock.c.stock, v_stock.c.stock_pieces, v_stock.c.stock_bales).where(
             v_stock.c.location_id == record.location_id,
             v_stock.c.specification_id == record.specification_id,
         )
+    ).one_or_none()
+    quantity = Decimal(stock_row.stock if stock_row else 0)
+    stock_bales = (
+        Decimal(stock_row.stock_bales)
+        if stock_row is not None and stock_row.stock_bales is not None
+        else None
     )
-    quantity = Decimal(quantity or 0)
     display, secondary_display = format_quantity_display(
         quantity,
         item.unit,
         specification.pack_size,
+        entry_unit=item.entry_unit,
+        bales=stock_bales,
     )
     equivalent_pieces = (
         json_number(quantity)
@@ -736,7 +742,14 @@ def get_inventory_stock(record_identifier: str):
         "data": {
             "quantity": json_number(quantity),
             "unit": item.unit.value,
+            "entryUnit": item.entry_unit.value,
             "normalizedQuantity": json_number(quantity),
+            "stockPieces": (
+                json_number(stock_row.stock_pieces)
+                if stock_row is not None
+                else None
+            ),
+            "stockBales": json_number(stock_bales),
             "equivalentPieces": json_number(equivalent_pieces),
             "packSize": specification.pack_size,
             "piecesPerBale": item.pieces_per_bale,
@@ -771,13 +784,24 @@ def update_inventory(record_id: int):
     current_specification = db.session.get(Specification, record.specification_id)
     current_item = db.session.get(Item, current_specification.item_id)
     current_category = db.session.get(Category, current_item.category_id)
+    serialized_record = _serialize(record)
     merged = {
         "date": record.record_date.isoformat(),
         "category": current_category.name,
         "item": current_item.name,
         "size": current_specification.label,
-        "quantityIn": _serialize(record)["quantityIn"],
-        "quantityOut": _serialize(record)["quantityOut"],
+        "quantityIn": (
+            serialized_record["balesIn"]
+            if record.entered_unit == EnteredUnit.BALE
+            else serialized_record["quantityIn"]
+        ),
+        "quantityOut": (
+            serialized_record["balesOut"]
+            if record.entered_unit == EnteredUnit.BALE
+            else serialized_record["quantityOut"]
+        ),
+        "piecesPerBale": record.pieces_per_bale,
+        "enteredUnit": record.entered_unit.value,
         "handledBy": record.handled_by or "",
         "details": record.details or "",
         **payload,
