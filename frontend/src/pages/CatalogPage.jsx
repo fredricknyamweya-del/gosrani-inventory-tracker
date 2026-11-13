@@ -555,17 +555,17 @@ export default function CatalogPage() {
                                     Reactivate
                                   </Button>
                                 )}
-                                <Button
+                                <button
                                   aria-label={`Permanently delete ${item.name}`}
+                                  className="icon-btn catalog-delete-action"
                                   onClick={() => {
                                     setDeleteTarget(item);
                                     setDeleteError("");
                                   }}
-                                  variant="destructive"
+                                  type="button"
                                 >
                                   <Trash2 aria-hidden="true" size={15} />
-                                  Delete permanently
-                                </Button>
+                                </button>
                               </div>
                             </div>
                             <p className="catalog-item-unit">
