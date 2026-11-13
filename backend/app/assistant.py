@@ -300,6 +300,64 @@ def _query_item_stock(
     ]
 
 
+def _serialize_assistant_record(
+    record: InventoryRecord,
+    category_name: str,
+    item_name: str,
+    specification_label: str,
+    unit: StockUnit,
+    pack_size: int | None,
+) -> dict[str, object]:
+    base_quantity_in = (
+        record.qty_in_normalized
+        if record.qty_in_normalized is not None
+        else record.qty_in
+    )
+    base_quantity_out = (
+        record.qty_out_normalized
+        if record.qty_out_normalized is not None
+        else record.qty_out
+    )
+    conversion = (
+        Decimal(record.pieces_per_unit)
+        if record.entered_unit.value == "BALE"
+        else Decimal(1)
+    )
+    quantity_in_display = (
+        format_quantity_display(base_quantity_in, unit, pack_size)
+        if base_quantity_in is not None
+        else (None, None)
+    )
+    quantity_out_display = (
+        format_quantity_display(base_quantity_out, unit, pack_size)
+        if base_quantity_out is not None
+        else (None, None)
+    )
+    return {
+        "id": record.id,
+        "date": record.record_date.isoformat(),
+        "category": category_name,
+        "item": item_name,
+        "size": specification_label,
+        "quantityIn": (
+            json_number(base_quantity_in / conversion)
+            if base_quantity_in is not None
+            else None
+        ),
+        "quantityOut": (
+            json_number(base_quantity_out / conversion)
+            if base_quantity_out is not None
+            else None
+        ),
+        "quantityInDisplay": quantity_in_display[0],
+        "quantityInSecondaryDisplay": quantity_in_display[1],
+        "quantityOutDisplay": quantity_out_display[0],
+        "quantityOutSecondaryDisplay": quantity_out_display[1],
+        "enteredUnit": record.entered_unit.value,
+        "details": record.details or "",
+    }
+
+
 def _generate_openai_answer(
     question: str, answer: str, records: list[dict], total_matches: int
 ) -> str:
@@ -501,39 +559,56 @@ def query_assistant():
             criteria.append(InventoryRecord.id == -1)
 
     statement = (
-        select(InventoryRecord, Category.name, Item.name, Specification.label)
+        select(
+            InventoryRecord,
+            Category.name,
+            Item.name,
+            Specification.label,
+            Item.unit,
+            Specification.pack_size,
+        )
         .join(InventoryRecord.specification)
         .join(Specification.item)
         .join(Item.category)
         .where(*criteria)
     )
     if wants_stock and matched_item:
-        balance = _query_item_stock(
+        balances = _query_item_stock(
             matched_item[0],
             user_location_ids(user.id),
             matched_specification[0] if matched_specification else None,
         )
-        item = db.session.get(Item, matched_item[0])
-        stock_display = _format_quantity(balance)
-        if item and item.inventory_unit == InventoryUnit.BALE:
-            stock_display = f"{_format_quantity(balance)} pcs"
-            if item.pieces_per_bale and item.pieces_per_bale > 0:
-                bale_balance = balance / Decimal(item.pieces_per_bale)
-                bale_unit = "bale" if bale_balance == 1 else "bales"
-                stock_display = (
-                    f"{_format_quantity(bale_balance)} {bale_unit} "
-                    f"({_format_quantity(balance)} pcs)"
-                )
-        specification_label = (
-            matched_specification[1] if matched_specification else None
-        )
-        answer = (
-            f"Recorded stock for {matched_item[1]} ({specification_label}) is "
-            f"{stock_display}."
-            if specification_label
-            else f"Recorded stock for {matched_item[1]} is "
-            f"{stock_display} across its specifications."
-        )
+        formatted_balances = []
+        for (
+            _location_id,
+            location_name,
+            _specification_id,
+            specification_label,
+            pack_size,
+            unit,
+            balance,
+        ) in balances:
+            display, secondary = format_quantity_display(
+                balance, unit, pack_size
+            )
+            stock_display = (
+                f"{display} {secondary}" if secondary else display
+            )
+            formatted_balances.append(
+                f"{specification_label} at {location_name}: {stock_display}"
+            )
+        if len(formatted_balances) == 1:
+            answer = (
+                f"Recorded stock for {matched_item[1]} is "
+                f"{formatted_balances[0]}."
+            )
+        elif formatted_balances:
+            answer = (
+                f"Recorded stock for {matched_item[1]} by specification "
+                f"and location: {'; '.join(formatted_balances)}."
+            )
+        else:
+            answer = f"No stock locations are available for {matched_item[1]}."
     else:
         answer = ""
 
@@ -549,18 +624,22 @@ def query_assistant():
         ).limit(5)
     ).all()
     records = [
-        {
-            "id": record.id,
-            "date": record.record_date.isoformat(),
-            "category": category_name,
-            "item": item_name,
-            "size": specification_label,
-            "quantityIn": json_number(record.qty_in),
-            "quantityOut": json_number(record.qty_out),
-            "enteredUnit": record.entered_unit.value,
-            "details": record.details or "",
-        }
-        for record, category_name, item_name, specification_label in rows
+        _serialize_assistant_record(
+            record,
+            category_name,
+            item_name,
+            specification_label,
+            unit,
+            pack_size,
+        )
+        for (
+            record,
+            category_name,
+            item_name,
+            specification_label,
+            unit,
+            pack_size,
+        ) in rows
     ]
     if not answer:
         answer = (
