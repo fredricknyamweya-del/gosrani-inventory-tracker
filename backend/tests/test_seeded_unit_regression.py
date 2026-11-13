@@ -8,8 +8,15 @@ from flask_jwt_extended import create_access_token
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models import InventoryRecord, Item, Specification, StockUnit, User
-from app.seed import BALE_PRODUCT_CONFIG, CATALOG
+from app.models import (
+    Category,
+    InventoryRecord,
+    Item,
+    Specification,
+    StockUnit,
+    User,
+)
+from app.seed import CATALOG
 
 
 SEEDED_SPECIFICATIONS = [
@@ -87,7 +94,8 @@ def test_seeded_specification_entry_storage_stock_and_display(
     headers = seed_catalog(app, monkeypatch)
     with app.app_context():
         item = db.session.scalar(
-            select(Item).join(Specification).where(
+            select(Item).join(Specification).join(Category).where(
+                Category.name == category,
                 Item.name == item_name,
                 Specification.label == size,
             )
@@ -189,7 +197,11 @@ def test_seeded_specification_entry_storage_stock_and_display(
         item_name,
         size,
         entered_unit,
-        quantityIn=float(in_quantity),
+        quantityIn=(
+            float(in_quantity)
+            if stock_unit == StockUnit.KG
+            else int(in_quantity)
+        ),
     )
     last_record_id = in_record["id"]
     expected_display = "2.5 kg" if stock_unit == StockUnit.KG else "3 pcs"
@@ -210,11 +222,18 @@ def test_seeded_specification_entry_storage_stock_and_display(
         item_name,
         size,
         entered_unit,
-        quantityOut=float(out_quantity),
+        quantityOut=(
+            float(out_quantity)
+            if stock_unit == StockUnit.KG
+            else int(out_quantity)
+        ),
     )
     last_record_id = out_record["id"]
     stock = get_stock(client, headers, last_record_id)
-    assert Decimal(str(stock["quantity"])) == Decimal("-0.5") if stock_unit == StockUnit.KG else -1
+    expected_negative = (
+        Decimal("-0.5") if stock_unit == StockUnit.KG else Decimal(-1)
+    )
+    assert Decimal(str(stock["quantity"])) == expected_negative
     assert stock["display"] == ("-0.5 kg" if stock_unit == StockUnit.KG else "-1 pc")
 
     zero_quantity = Decimal("0.5") if stock_unit == StockUnit.KG else Decimal(1)
@@ -225,7 +244,11 @@ def test_seeded_specification_entry_storage_stock_and_display(
         item_name,
         size,
         entered_unit,
-        quantityIn=float(zero_quantity),
+        quantityIn=(
+            float(zero_quantity)
+            if stock_unit == StockUnit.KG
+            else int(zero_quantity)
+        ),
     )
     stock = get_stock(client, headers, zero_record["id"])
     assert stock["quantity"] == 0
