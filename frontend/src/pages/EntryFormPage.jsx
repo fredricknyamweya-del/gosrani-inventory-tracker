@@ -401,7 +401,7 @@ export default function EntryFormPage() {
                         />
                       </dd>
                     </div>
-                    {entry.entryUnit === "BALE" && (
+                    {entry.enteredUnit === "BALE" && (
                       <div>
                         <dt>Bale contents</dt>
                         <dd>
@@ -501,8 +501,8 @@ export default function EntryFormPage() {
               (specification) => specification.label === entry.size,
             );
             const packSize = selectedSpecification?.packSize ?? null;
-            const isBaleItem = selectedItem?.entryUnit === "BALE";
-            const quantityStep = selectedItem?.entryUnit === "KG" ? "0.001" : "1";
+            const isBaleUnit = entry.enteredUnit === "BALE";
+            const quantityStep = entry.enteredUnit === "KG" ? "0.001" : "1";
             const totalPiecesIn = calculateTotalPieces(
               entry.quantityIn,
               entry.piecesPerBale,
@@ -558,7 +558,6 @@ export default function EntryFormPage() {
                         updateEntry(entry.id, "item", "");
                         updateEntry(entry.id, "size", "");
                         updateEntry(entry.id, "enteredUnit", "PCS");
-                        updateEntry(entry.id, "entryUnit", "PCS");
                         updateEntry(entry.id, "piecesPerBale", "");
                       }}
                     >
@@ -587,11 +586,6 @@ export default function EntryFormPage() {
                           updateEntry(
                             entry.id,
                             "enteredUnit",
-                            nextItem?.entryUnit ?? "PCS",
-                          );
-                          updateEntry(
-                            entry.id,
-                            "entryUnit",
                             nextItem?.entryUnit ?? "PCS",
                           );
                           updateEntry(entry.id, "size", "");
@@ -640,24 +634,13 @@ export default function EntryFormPage() {
                               specification.label === nextSize,
                           )?.packSize;
                         updateEntry(entry.id, "size", nextSize);
-                        updateEntry(
-                          entry.id,
-                          "enteredUnit",
-                          selectedItem?.entryUnit ?? "PCS",
-                        );
-                        updateEntry(
-                          entry.id,
-                          "entryUnit",
-                          selectedItem?.entryUnit ?? "PCS",
-                        );
-                        updateEntry(
-                          entry.id,
-                          "piecesPerBale",
-                          selectedItem?.entryUnit === "BALE" &&
-                            nextPackSize != null
-                            ? String(nextPackSize)
-                            : "",
-                        );
+                        if (entry.enteredUnit === "BALE") {
+                          updateEntry(
+                            entry.id,
+                            "piecesPerBale",
+                            nextPackSize != null ? String(nextPackSize) : "",
+                          );
+                        }
                       }}
                     >
                       <option value="">Select specifications/size</option>
@@ -671,6 +654,32 @@ export default function EntryFormPage() {
                     </Select>
                   </Field>
                   <div className="entry-quantity-section">
+                    <Field label="Quantity unit">
+                      <Select
+                        disabled={!selectedItem}
+                        value={entry.enteredUnit}
+                        onChange={(event) => {
+                          const enteredUnit = event.target.value;
+                          updateEntry(entry.id, "enteredUnit", enteredUnit);
+                          updateEntry(
+                            entry.id,
+                            "piecesPerBale",
+                            enteredUnit === "BALE" && packSize != null
+                              ? String(packSize)
+                              : "",
+                          );
+                        }}
+                      >
+                        {selectedItem?.unit === "KG" ? (
+                          <option value="KG">kg</option>
+                        ) : (
+                          <>
+                            <option value="PCS">pcs</option>
+                            <option value="BALE">bales</option>
+                          </>
+                        )}
+                      </Select>
+                    </Field>
                     <div className="entry-quantity-fields">
                       <Field
                         error={entryErrors.quantityIn || entryErrors.quantity}
@@ -711,7 +720,7 @@ export default function EntryFormPage() {
                         />
                       </Field>
                     </div>
-                    {isBaleItem && (
+                    {isBaleUnit && (
                       <section className="entry-bale-contents" aria-label="Bale contents">
                         <h3>Bale contents</h3>
                         {packSize != null && (

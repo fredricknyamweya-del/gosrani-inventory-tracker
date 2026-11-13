@@ -559,8 +559,18 @@ export default function EntryDetailPage() {
             </div>
             <div>
               <dt>Entered unit</dt>
-              <dd>{record.enteredUnit}</dd>
+              <dd>{unitLabel(record.entryUnit)}</dd>
             </div>
+            {record.entryUnit === "BALE" && (
+              <div>
+                <dt>Pieces per bale</dt>
+                <dd>
+                  {record.piecesPerBale ?? record.packSize
+                    ? `${record.piecesPerBale ?? record.packSize} pcs`
+                    : "Not recorded"}
+                </dd>
+              </div>
+            )}
             <div>
               <dt>Added by</dt>
               <dd>{record.addedBy}</dd>

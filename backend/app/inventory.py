@@ -117,16 +117,18 @@ def _resolve_record(
             {"field": "enteredUnit", "message": "Choose PCS, BALE, or KG."}
         )
         entered_unit = default_unit
-    if item is not None and entered_unit != item.entry_unit:
-        unit_name = {
-            EnteredUnit.BALE: "bales",
-            EnteredUnit.PCS: "pieces",
-            EnteredUnit.KG: "kg",
-        }[item.entry_unit]
+    if item is not None and (
+        (item.unit == StockUnit.KG and entered_unit != EnteredUnit.KG)
+        or (item.unit == StockUnit.PCS and entered_unit == EnteredUnit.KG)
+    ):
         errors.append(
             {
                 "field": "enteredUnit",
-                "message": f"{item.name} is entered in {unit_name}.",
+                "message": (
+                    "Choose KG for this weight-based item."
+                    if item.unit == StockUnit.KG
+                    else "Choose PCS or BALE for this piece-based item."
+                ),
             }
         )
 
