@@ -135,47 +135,82 @@ CSRF values are provided in the non-HttpOnly `csrf_access_token` and
   ```json
   {
     "data": {
-      "quantity": 99.8,
-      "unit": "BALE",
-      "normalizedQuantity": 998,
-      "equivalentPieces": 998,
-      "packSize": 10,
-      "piecesPerBale": 10,
-      "display": "99.8 bales (998 pcs)",
+      "quantity": 200,
+      "unit": "PCS",
+      "entryUnit": "BALE",
+      "normalizedQuantity": 200,
+      "stockPieces": 200,
+      "stockBales": 10,
+      "equivalentPieces": null,
+      "packSize": 20,
+      "piecesPerBale": 20,
+      "display": "10 bales (200 pcs)",
+      "secondaryDisplay": null,
       "locationId": "1",
       "locationName": "Eldoret Godown",
       "specificationId": "5",
-      "itemName": "V SHD Cushion",
-      "sizeLabel": "Quilted",
+      "itemName": "Pillow",
+      "sizeLabel": "Standard",
       "asOf": "2026-11-12T08:41:00Z"
     }
   }
   ```
 
-- `packSize` is specification metadata; bale stock conversions use
-  `piecesPerBale`.
+- `quantity` and `normalizedQuantity` are base-unit stock quantities;
+  `unit` is the item's base stock unit (`PCS` or `KG`) and `entryUnit` is its
+  required transaction unit (`BALE`, `PCS`, or `KG`).
+- Bale stock is available in both `stockPieces` and `stockBales`. Conversion
+  is scoped to the record's location and specification. `stockBales` is null
+  when the stock cannot be fully converted; mixed bale sizes show both their
+  total bale count and base pieces.
+- `packSize` is optional specification metadata. A bale record's saved
+  `piecesPerBale` takes precedence; older records without it use the
+  specification's standard when available.
 - `404`: Record does not exist or has been soft-deleted.
 - `Cache-Control: no-store`; the stock response is not cached.
 - This endpoint does not add fields or ETags to the inventory record detail
   response.
 
-New records derive `enteredUnit` from the saved product configuration. Bale
-quantities are stored as originally entered and normalized to pieces using the
-product's configured rate. The response includes the normalized transaction
-quantities and the conversion snapshot used at the time:
+### `POST /api/inventory` and `POST /api/inventory/validate`
+
+The request may be one JSON object or a list of row objects. Required fields
+include `date`, `category`, `item`, `size`, `handledBy`, and at least one of
+`quantityIn` or `quantityOut`. `enteredUnit` is optional; when present it must
+match the item's configured `entryUnit`.
+
+For a BALE item, send whole bale counts and `piecesPerBale`. If that field is
+omitted, the specification's standard `packSize` is used when available;
+otherwise validation returns `422` with “Enter how many pieces are in each
+bale.” The range is 1–10,000 pieces per bale. The server stores converted
+base-piece quantities in `quantityIn` and `quantityOut`, and saves
+`piecesPerBale` on the record. For PCS items, quantities are whole numbers and
+`piecesPerBale` is ignored. For KG items, up to three decimal places are
+accepted and `piecesPerBale` is ignored.
+
+An entry request for a different unit is rejected with `422`, for example
+“Pillow is entered in bales.” Review warnings are non-blocking; when the
+record's `piecesPerBale` differs from the specification standard, a warning
+identifies both values. Quantity warnings use converted base quantities.
+
+The response preserves the converted quantities in the existing quantity
+fields and includes the entry unit, bale counts, and display strings:
 
 ```json
 {
-  "quantityIn": 5,
+  "quantityIn": 200,
+  "quantityOut": null,
   "enteredUnit": "BALE",
-  "piecesPerUnit": 5,
-  "normalizedQuantityIn": 25
+  "entryUnit": "BALE",
+  "piecesPerBale": 20,
+  "balesIn": 10,
+  "balesOut": null,
+  "quantityInDisplay": "10 bales x 20 pcs = 200 pcs"
 }
 ```
 
-Kilogram quantities may include up to three decimal places; piece and bale
-quantities must be whole numbers. Stock-out quantities are validated against
-the normalized available balance.
+`POST /api/inventory/validate` returns the same row display fields plus
+non-blocking `warnings`; `POST /api/inventory` creates records with `201`.
+Stock-out quantities are validated against available base-unit stock.
 
 ## Inventory summary
 
@@ -184,29 +219,36 @@ the normalized available balance.
 - Auth: Signed-in user
 - `200`: Returns one summary for every registered product, including products
   with no transactions. Transaction totals are limited to the user's assigned
-  locations. Bale totals are displayed in bales and include
-  `equivalentPieces`; no totals are added across different units.
+  locations. Balances include base stock in pieces or kilograms, and bale
+  balances when conversion data is available. Stock remains separate by
+  specification.
 - The `totals` object includes registered, bale-based, piece-based, and
   transaction counts.
 
 ### `POST /api/catalog/items`
 
 - Auth: Active administrator
-- Request: Includes `categoryId`, `name`, and `specifications`. Optional
-  `inventoryUnit` is `PCS`, `BALE`, or `KG`; `piecesPerBale` is required as a
-  positive whole number when `inventoryUnit` is `BALE`.
-- `201`: Creates the item with its saved inventory configuration. Omitted
-  inventory configuration defaults to pieces.
-- `422`: Invalid inventory unit or bale conversion configuration.
+- Request: Includes `categoryId`, `name`, and `specifications`. `entryUnit`
+  is `PCS`, `BALE`, or `KG` (defaults to PCS for new items). Optional
+  `specificationPackSizes` contains `{ "label": "...", "packSize": 20 }`
+  objects; sizes are optional for BALE items, whole numbers from 1 to 10,000,
+  and prohibited for PCS or KG items.
+- `201`: Creates the item and its specification defaults. Catalog responses
+  include `entryUnit` and `specificationPackSizes`.
+- `422`: Invalid entry unit, invalid specification size, or a size assigned
+  to a PCS/KG item.
 
 ### `PATCH /api/catalog/items/{id}`
 
 - Auth: Active administrator
-- Request: May update `inventoryUnit` and `piecesPerBale`. Historical
-  transaction quantities and conversion snapshots are not rewritten.
+- Request: May update `entryUnit` and per-specification pack sizes. An item's
+  entry unit cannot change once inventory records exist. A specification's
+  pack size remains optional for BALE items and cannot change once that
+  specification has records. Historical quantities are never rewritten.
 - `200`: Returns the updated item configuration.
-- `422`: Invalid configuration, or an incompatible kilogram/piece unit change
-  after stock transactions exist.
+- `409`: Entry-unit or specification pack-size change conflicts with existing
+  inventory history.
+- `422`: Invalid unit or pack-size configuration.
 
 ### `DELETE /api/catalog/items/{id}`
 

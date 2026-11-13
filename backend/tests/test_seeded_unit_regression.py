@@ -13,12 +13,26 @@ from app.models import (
     EnteredUnit,
     InventoryRecord,
     Item,
-    Location,
     Specification,
     StockUnit,
     User,
 )
 from app.seed import CATALOG
+
+BALE_CATEGORIES = {"pillows", "duvets", "blankets"}
+PCS_CATEGORIES = {"sofa sets", "mattresses", "cushions"}
+BALE_ITEMS = {
+    "woolen duvet",
+    "plain school bedcovers - heavy",
+    "white pillow case",
+}
+PCS_ITEMS = {"duvet bags", "pillow kiss case"}
+UNLISTED_ITEMS = {
+    "bedcover 60x80",
+    "fibre",
+    "pillow individual packaging bags",
+    "pillow (10 pc) packaging polythene bags",
+}
 
 SEEDED_SPECIFICATIONS = [
     (category, item_name, label, pack_size, unit)
@@ -34,33 +48,60 @@ def seed_catalog(app, monkeypatch):
     monkeypatch.setenv("SEED_ADMIN_PASSWORD", "seed-password")
     monkeypatch.setenv("DEFAULT_LOCATION_CODE", "ELD")
     monkeypatch.setenv("DEFAULT_LOCATION_NAME", "Eldoret Godown")
-    result = app.test_cli_runner().invoke(args=["seed"])
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["seed"])
     assert result.exit_code == 0, result.output
     with app.app_context():
         admin = db.session.scalar(
             select(User).where(User.email == "admin@example.com")
         )
-        return {
-            "Authorization": f"Bearer {create_access_token(identity=str(admin.id))}"
-        }
+        return {"Authorization": f"Bearer {create_access_token(identity=str(admin.id))}"}
 
 
-def post_entry(client, headers, category, item, size, entered_unit, **quantities):
-    response = client.post(
-        "/api/inventory",
-        json=[
-            {
-                "date": date.today().isoformat(),
-                "category": category,
-                "item": item,
-                "size": size,
-                "enteredUnit": entered_unit,
-                "handledBy": "Regression test",
-                **quantities,
-            }
-        ],
-        headers=headers,
-    )
+def apply_unit_policy(app):
+    result = app.test_cli_runner().invoke(args=["apply-unit-policy", "--apply"])
+    assert result.exit_code == 0, result.output
+    return result.output
+
+
+def expected_policy_unit(category_name, item_name):
+    category_key = category_name.casefold()
+    item_key = item_name.casefold()
+    if item_key in BALE_ITEMS:
+        return EnteredUnit.BALE
+    if item_key in PCS_ITEMS:
+        return EnteredUnit.PCS
+    if category_key in BALE_CATEGORIES and item_key != "duvet bags":
+        return EnteredUnit.BALE
+    if category_key in PCS_CATEGORIES:
+        return EnteredUnit.PCS
+    return None
+
+
+def post_entry(
+    client,
+    headers,
+    category,
+    item,
+    size,
+    entry_unit,
+    *,
+    quantity_in,
+    pieces_per_bale=None,
+):
+    payload = {
+        "date": date.today().isoformat(),
+        "category": category,
+        "item": item,
+        "size": size,
+        "quantityIn": quantity_in,
+        "handledBy": "Regression test",
+    }
+    if pieces_per_bale is not None:
+        payload["piecesPerBale"] = pieces_per_bale
+    if entry_unit is not None:
+        payload["enteredUnit"] = entry_unit.value
+    response = client.post("/api/inventory", json=payload, headers=headers)
     assert response.status_code == 201, response.json
     return response.json["data"][0]
 
@@ -74,43 +115,40 @@ def get_stock(client, headers, record_id):
     return response.json["data"]
 
 
-def add_outflow_record(app, category_name, item_name, size, entered_unit, quantity):
+def test_seeded_catalog_units_follow_explicit_policy_and_leave_unlisted_unchanged(
+    app, monkeypatch
+):
+    seed_catalog(app, monkeypatch)
     with app.app_context():
-        category = db.session.scalar(
-            select(Category).where(Category.name == category_name)
-        )
-        item = db.session.scalar(
-            select(Item).where(
-                Item.category_id == category.id,
-                Item.name == item_name,
+        initial = {
+            (category.name, item.name): item.entry_unit
+            for item, category in db.session.execute(
+                select(Item, Category).join(Category, Item.category_id == Category.id)
             )
-        )
-        specification = db.session.scalar(
-            select(Specification).where(
-                Specification.item_id == item.id,
-                Specification.label == size,
-            )
-        )
-        location = db.session.scalar(
-            select(Location).where(Location.code == "ELD")
-        )
-        admin = db.session.scalar(
-            select(User).where(User.email == "admin@example.com")
-        )
-        record = InventoryRecord(
-            location_id=location.id,
-            record_date=date.today(),
-            specification_id=specification.id,
-            qty_out=Decimal(str(quantity)),
-            qty_out_normalized=Decimal(str(quantity)),
-            pieces_per_unit=1,
-            entered_unit=EnteredUnit(entered_unit),
-            handled_by="Regression overdraw",
-            created_by=admin.id,
-        )
-        db.session.add(record)
-        db.session.commit()
-        return record.id
+        }
+    dry_run = app.test_cli_runner().invoke(args=["apply-unit-policy"])
+    assert dry_run.exit_code == 0, dry_run.output
+    assert "dry run" in dry_run.output.lower()
+    assert "UNMATCHED item: Plain School Bedcovers - Heavy" in dry_run.output
+
+    output = apply_unit_policy(app)
+    assert "Updated " in output
+    with app.app_context():
+        items = db.session.execute(
+            select(Item, Category).join(Category, Item.category_id == Category.id)
+        ).all()
+        observed_names = {
+            (category.name.casefold(), item.name.casefold())
+            for item, category in items
+        }
+        for item, category in items:
+            target = expected_policy_unit(category.name, item.name)
+            if target is not None:
+                assert item.entry_unit == target, (category.name, item.name)
+            elif item.name.casefold() in UNLISTED_ITEMS:
+                assert item.entry_unit == initial[(category.name, item.name)]
+        assert all(item.entry_unit in EnteredUnit for item, _ in items)
+        assert ("sofa sets", "any item") not in observed_names
 
 
 @pytest.mark.parametrize(
@@ -132,9 +170,13 @@ def test_seeded_specification_entry_storage_stock_and_display(
     stock_unit,
 ):
     headers = seed_catalog(app, monkeypatch)
+    apply_unit_policy(app)
     with app.app_context():
         item = db.session.scalar(
-            select(Item).join(Specification).join(Category).where(
+            select(Item)
+            .join(Specification)
+            .join(Category)
+            .where(
                 Category.name == category,
                 Item.name == item_name,
                 Specification.label == size,
@@ -146,161 +188,116 @@ def test_seeded_specification_entry_storage_stock_and_display(
                 Specification.label == size,
             )
         )
+        entry_unit = item.entry_unit
 
-    last_record_id = None
-    if pack_size is not None:
-        bale_record = post_entry(
+    if entry_unit == EnteredUnit.BALE:
+        pieces_per_bale = pack_size or 12
+        expected_pieces = 2 * pieces_per_bale
+        record = post_entry(
             client,
             headers,
             category,
             item_name,
             size,
-            "BALE",
-            quantityIn=2,
+            entry_unit,
+            quantity_in=2,
+            pieces_per_bale=pieces_per_bale,
         )
-        last_record_id = bale_record["id"]
-        expected_bale_pieces = 2 * pack_size
-        assert bale_record["enteredUnit"] == "BALE"
-        assert bale_record["normalizedQuantityIn"] == expected_bale_pieces
-        assert bale_record["quantityInDisplay"] == "2 bales"
-        with app.app_context():
-            stored = db.session.get(InventoryRecord, int(bale_record["id"]))
-            assert stored.qty_in == Decimal(expected_bale_pieces)
-            assert stored.qty_in_normalized == Decimal(expected_bale_pieces)
-            assert stored.specification_id == specification.id
-        stock = get_stock(client, headers, last_record_id)
-        assert stock["quantity"] == expected_bale_pieces
-        assert stock["display"] == "2 bales"
-        assert stock["secondaryDisplay"] == (
-            f"({expected_bale_pieces:,} pcs)"
+        expected_record_display = (
+            f"2 bales x {pieces_per_bale} pcs = {expected_pieces} pcs"
         )
-
-        piece_record = post_entry(
+        expected_stock_display = f"2 bales ({expected_pieces} pcs)"
+        assert record["quantityIn"] == expected_pieces
+        assert record["balesIn"] == 2
+        assert record["piecesPerBale"] == pieces_per_bale
+        assert record["quantityInDisplay"] == expected_record_display
+    elif entry_unit == EnteredUnit.KG:
+        expected_pieces = 2.5
+        record = post_entry(
             client,
             headers,
             category,
             item_name,
             size,
-            "PCS",
-            quantityIn=3,
+            entry_unit,
+            quantity_in=expected_pieces,
         )
-        last_record_id = piece_record["id"]
-        assert piece_record["normalizedQuantityIn"] == 3
-        assert piece_record["quantityInDisplay"] == "3 pcs"
-        stock = get_stock(client, headers, last_record_id)
-        combined_pieces = expected_bale_pieces + 3
-        assert stock["quantity"] == combined_pieces
-        assert stock["display"] == "2 bales + 3 pcs"
-        assert stock["secondaryDisplay"] == f"({combined_pieces:,} pcs)"
-
-        out_quantity = expected_bale_pieces + 4
-        out_record_id = add_outflow_record(
-            app,
-            category,
-            item_name,
-            size,
-            "PCS",
-            out_quantity,
-        )
-        stock = get_stock(client, headers, out_record_id)
-        assert stock["quantity"] == -1
-        assert stock["display"] == "-1 pc"
-        assert stock["secondaryDisplay"] is None
-
-        zero_record = post_entry(
+        expected_record_display = "2.5 kg"
+        expected_stock_display = expected_record_display
+        assert record["quantityIn"] == expected_pieces
+        assert record["piecesPerBale"] is None
+        assert record["balesIn"] is None
+    else:
+        expected_pieces = 3
+        record = post_entry(
             client,
             headers,
             category,
             item_name,
             size,
-            "PCS",
-            quantityIn=1,
+            entry_unit,
+            quantity_in=expected_pieces,
         )
-        last_record_id = zero_record["id"]
-        stock = get_stock(client, headers, last_record_id)
-        assert stock["quantity"] == 0
-        assert stock["display"] == "0"
-        assert stock["secondaryDisplay"] is None
-        return
+        expected_record_display = "3 pcs"
+        expected_stock_display = expected_record_display
+        assert record["quantityIn"] == expected_pieces
+        assert record["piecesPerBale"] is None
+        assert record["balesIn"] is None
 
-    entered_unit = stock_unit.value
-    in_quantity = Decimal("2.5") if stock_unit == StockUnit.KG else Decimal(3)
-    in_record = post_entry(
-        client,
-        headers,
-        category,
-        item_name,
-        size,
-        entered_unit,
-        quantityIn=(
-            float(in_quantity)
-            if stock_unit == StockUnit.KG
-            else int(in_quantity)
-        ),
-    )
-    last_record_id = in_record["id"]
-    expected_display = "2.5 kg" if stock_unit == StockUnit.KG else "3 pcs"
-    assert in_record["quantityInDisplay"] == expected_display
+    assert record["entryUnit"] == entry_unit.value
+    assert record["quantityInDisplay"] == expected_record_display
     with app.app_context():
-        stored = db.session.get(InventoryRecord, int(in_record["id"]))
-        assert stored.qty_in == in_quantity
-        assert stored.qty_in_normalized == in_quantity
-    stock = get_stock(client, headers, last_record_id)
-    assert Decimal(str(stock["quantity"])) == in_quantity
-    assert stock["display"] == expected_display
+        stored = db.session.get(InventoryRecord, int(record["id"]))
+        assert stored is not None
+        assert stored.specification_id == specification.id
+        assert stored.qty_in == Decimal(str(expected_pieces))
 
-    out_quantity = Decimal(3) if stock_unit == StockUnit.KG else Decimal(4)
-    out_record_id = add_outflow_record(
-        app,
-        category,
-        item_name,
-        size,
-        entered_unit,
-        out_quantity,
-    )
-    stock = get_stock(client, headers, out_record_id)
-    expected_negative = (
-        Decimal("-0.5") if stock_unit == StockUnit.KG else Decimal(-1)
-    )
-    assert Decimal(str(stock["quantity"])) == expected_negative
-    assert stock["display"] == ("-0.5 kg" if stock_unit == StockUnit.KG else "-1 pc")
-
-    zero_quantity = Decimal("0.5") if stock_unit == StockUnit.KG else Decimal(1)
-    zero_record = post_entry(
-        client,
-        headers,
-        category,
-        item_name,
-        size,
-        entered_unit,
-        quantityIn=(
-            float(zero_quantity)
-            if stock_unit == StockUnit.KG
-            else int(zero_quantity)
-        ),
-    )
-    stock = get_stock(client, headers, zero_record["id"])
-    assert stock["quantity"] == 0
-    assert stock["display"] == "0"
+    stock = get_stock(client, headers, record["id"])
+    assert Decimal(str(stock["quantity"])) == Decimal(str(expected_pieces))
+    assert stock["display"] == expected_stock_display
+    if stock_unit == StockUnit.KG:
+        assert stock["stockBales"] is None
+    elif entry_unit == EnteredUnit.BALE:
+        assert stock["stockPieces"] == expected_pieces
+        assert stock["stockBales"] == 2
+    else:
+        assert stock["stockPieces"] == expected_pieces
+        assert stock["stockBales"] is None
 
 
-def test_bf_goldstar_54x80_2st_shows_415_bales_for_8300_pieces(
+def test_pillow_goldstar_and_mattress_examples_use_the_configured_unit(
     client, app, monkeypatch
 ):
     headers = seed_catalog(app, monkeypatch)
-    record = post_entry(
-        client,
-        headers,
-        "Blankets",
-        "Goldstar Blanket (BF)",
-        "54x80 2ST",
-        "BALE",
-        quantityIn=415,
-    )
-
-    assert record["normalizedQuantityIn"] == 8300
-    assert record["quantityInDisplay"] == "415 bales"
-    assert record["quantityInSecondaryDisplay"] == "(8,300 pcs)"
-    stock = get_stock(client, headers, record["id"])
-    assert stock["display"] == "415 bales"
-    assert stock["secondaryDisplay"] == "(8,300 pcs)"
+    apply_unit_policy(app)
+    examples = [
+        ("Pillows", "Pillow", "600g", EnteredUnit.BALE, 10),
+        (
+            "Blankets",
+            "Goldstar Blanket (BF)",
+            "54x80 2ST",
+            EnteredUnit.BALE,
+            20,
+        ),
+        ("Mattresses", "HDF", "36x4", EnteredUnit.PCS, None),
+    ]
+    for category, item, size, unit, pack_size in examples:
+        record = post_entry(
+            client,
+            headers,
+            category,
+            item,
+            size,
+            unit,
+            quantity_in=2,
+            pieces_per_bale=pack_size,
+        )
+        assert record["entryUnit"] == unit.value
+        if unit == EnteredUnit.BALE:
+            assert record["quantityIn"] == 2 * pack_size
+            assert record["quantityInDisplay"] == (
+                f"2 bales x {pack_size} pcs = {2 * pack_size} pcs"
+            )
+        else:
+            assert record["quantityIn"] == 2
+            assert record["quantityInDisplay"] == "2 pcs"

@@ -44,17 +44,16 @@ PIPENV_VENV_IN_PROJECT=1 pipenv run flask --app app db upgrade
 ```
 
 Run this as a release/pre-deploy step, not automatically on every web-worker
-startup. Migrations add saved product inventory units, pieces-per-bale
-configuration, normalized transaction quantities, the strict `items.entry_unit`
-policy, and `inventory_records.pieces_per_bale`. The latter is nullable and
-positive when set; only BALE records store it. Existing transaction quantities
-are backfilled unchanged. `items.entry_unit` defaults to PCS and is backfilled
-as BALE for items with a specification pack size; the local
-`flask apply-unit-policy` command applies the reviewed item/category policy
-after migration. The `v_stock` view preserves base stock and additionally
-exposes `stock_pieces` and `stock_bales` by location and specification, using a
-record's conversion or the specification's pack size for older records. Do not
-run the destructive test suite against a production database.
+startup. The entry-unit migration adds `items.entry_unit` (PCS, BALE, or KG),
+defaulting to PCS and backfilled as BALE for items with a specification pack
+size. `inventory_records.pieces_per_bale` is nullable and positive when set;
+only BALE records store it. Existing inventory quantities are not rewritten.
+The local `flask apply-unit-policy` command applies the reviewed item/category
+policy after migration. The `v_stock` view exposes base stock, `stock_pieces`,
+and `stock_bales` by location and specification, using a record's saved bale
+size or the specification's pack size for older records. It does not combine
+different specifications. Do not run the destructive test suite against a
+production database.
 
 ## Seed first-run data
 
@@ -88,11 +87,34 @@ existing Admin password or reactivate existing accounts. Existing catalog
 items with conflicting units or pack sizes stop the command and roll back all
 changes.
 
-The starter catalog configures Duvet N at 5 pieces per bale, Duvet S and
-Woolen Duvet at 20, Bedcover 60x80 at 50, and White Pillow Case at 100.
-Goldstar Blanket (BF) and Pillow Kiss Case remain piece-based. Other Pillow
-products remain piece-based until an administrator explicitly sets a valid
-pieces-per-bale rate.
+The `apply-unit-policy` command is a dry run unless `--apply` is passed. It
+matches category and item names exactly, ignoring case and surrounding
+whitespace; it does not guess alternate names. It changes only
+`items.entry_unit` and writes audit rows when applied. Run it only against a
+local or otherwise explicitly reviewed database:
+
+```sh
+cd backend
+pipenv run flask --app app apply-unit-policy
+pipenv run flask --app app apply-unit-policy --apply
+```
+
+The approved mapping is BALE for all items in Pillows, Duvets except Duvet
+Bags, and Blankets; plus Woolen Duvet, Plain School Bedcovers - Heavy, and
+White Pillow Case. It is PCS for Duvet Bags and Pillow Kiss Case, and all
+items in Sofa Sets, Mattresses, and Cushions. KG items and all products not
+covered by these exact rules remain unchanged.
+
+In the current seed catalog, BALE category matches are Pillow; Duvet N,
+Duvet S, and Woolen Duvet; and Goldstar Blanket (BF). White Pillow Case is a
+named match. PCS named matches are Duvet Bags and Pillow Kiss Case; the
+Mattresses category includes HDF, SHDF, and SHDQ (and the local catalog may
+also contain V HDQ); Cushions includes SHDQ Cushion. Sofa Sets exists but is
+empty. Plain School Bedcovers - Heavy is missing. Bedcover 60x80, Fibre, and
+the Packaging items are not covered by the policy and remain unchanged. The
+migration's initial BALE backfill is broader than this policy: for example,
+Bedcover 60x80 has a specification pack size and will remain initially BALE
+until an administrator reviews its unit.
 
 To create initial active User accounts as part of the same seed transaction,
 pass `--user-email` once per account. The command generates a random password

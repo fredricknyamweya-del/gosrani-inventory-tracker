@@ -338,6 +338,8 @@ def get_catalog_summary():
             v_stock.c.stock,
             v_stock.c.stock_pieces,
             v_stock.c.stock_bales,
+            v_stock.c.stock_bales_in,
+            v_stock.c.stock_bales_out,
         )
         .where(v_stock.c.location_id.in_(location_ids) if location_ids else False)
     )
@@ -398,17 +400,33 @@ def get_catalog_summary():
                 if stock_row is not None and stock_row.stock_bales is not None
                 else None
             )
+            stock_bales_in = (
+                Decimal(stock_row.stock_bales_in)
+                if stock_row is not None and stock_row.stock_bales_in is not None
+                else Decimal(0)
+                if stock_row is None and item.entry_unit == EnteredUnit.BALE
+                else None
+            )
+            stock_bales_out = (
+                Decimal(stock_row.stock_bales_out)
+                if stock_row is not None and stock_row.stock_bales_out is not None
+                else Decimal(0)
+                if stock_row is None and item.entry_unit == EnteredUnit.BALE
+                else None
+            )
             in_display, in_secondary = format_quantity_display(
                 normalized_in,
                 item.unit,
                 specification.pack_size,
                 entry_unit=item.entry_unit,
+                bales=stock_bales_in,
             )
             out_display, out_secondary = format_quantity_display(
                 normalized_out,
                 item.unit,
                 specification.pack_size,
                 entry_unit=item.entry_unit,
+                bales=stock_bales_out,
             )
             stock_display, stock_secondary = format_quantity_display(
                 normalized_stock,

@@ -4,7 +4,8 @@ Inventory management software for Gosrani Wholesalers Limited in Eldoret,
 Kenya. The application has a React frontend and a Flask API backed by a
 relational database. Signed-in staff can record and review stock movements;
 administrators can also manage users and the product catalog, edit records
-(including switching bale-based movements between bales and pieces), delete
+(including reviewing and editing stock movements in their configured entry
+unit), delete
 individual records, and use the read-only inventory assistant.
 
 ## Current scope
@@ -18,9 +19,11 @@ individual records, and use the read-only inventory assistant.
   non-deleted entries for the same specification and location.
 - Search and filter the inventory summary, and export the visible results to
   CSV.
-- Track products in pieces or bales, preserve each transaction's entered
-  quantity and conversion snapshot, and normalize bale stock to individual
-  pieces for calculations.
+- Enforce one entry unit per item: pieces (`PCS`), bales (`BALE`), or
+  kilograms (`KG`). Bale records capture pieces per bale and store stock in
+  base pieces; historical quantities are never rewritten.
+- Display bale movements as their entered bale count and converted pieces,
+  and show stock in both bales and pieces without combining specifications.
 - Review a searchable inventory summary with stock remaining by item size and
   the item's configured inventory unit.
 - Validate entries on the server and show review warnings, including large
@@ -39,12 +42,12 @@ individual records, and use the read-only inventory assistant.
   bearer-token and cookie-based authentication, and keep an audit log of
   application changes.
 
-Inventory quantities are associated with product specifications. Products
-support piece (`PCS`), bale (`BALE`), or kilogram (`KG`) stock units, and
-specifications can carry pack-size metadata. Bale-based products store a
-product-specific pieces-per-bale conversion; historical transaction
-quantities and conversions are retained. Historical spreadsheet import and
-offline operation are not currently part of the application.
+Inventory quantities are associated with product specifications. Items have one strict entry unit. Bale items require a whole bale quantity and
+pieces-per-bale value per entry; a specification may provide an optional
+standard pack size. Piece quantities are whole numbers, while kilogram
+quantities allow up to three decimal places. Standard pack sizes are valid
+only for bale items. Historical spreadsheet import and offline operation are
+not currently part of the application.
 
 ## Roles
 
@@ -129,6 +132,33 @@ production, configure a PostgreSQL `DATABASE_URL` and the required signing
 secrets in the service environment. Production requires a TLS PostgreSQL
 connection. See [the database guide](backend/docs/DATABASE.md) for database,
 seeding, and deployment configuration details.
+
+After applying migrations to a local database, preview the explicit item-unit
+policy before applying it:
+
+```sh
+cd backend
+pipenv run flask --app app apply-unit-policy
+pipenv run flask --app app apply-unit-policy --apply
+```
+
+The command is a dry run unless `--apply` is passed. It matches category and
+item names exactly (case-insensitively), reports unmatched names, changes only
+`items.entry_unit`, and writes audit records. Never run this operational
+command against production without the reviewed release procedure.
+
+The approved entry-unit policy is:
+
+| Unit | Categories | Named items |
+| --- | --- | --- |
+| BALE | Pillows, Duvets except Duvet Bags, Blankets | Woolen Duvet, Plain School Bedcovers - Heavy, White Pillow Case |
+| PCS | Sofa Sets, Mattresses, Cushions | Duvet Bags, Pillow Kiss Case |
+| KG | No category-wide rule | Existing weight-based products, including Fibre |
+
+Any item not covered by those rules is left unchanged for review. In the
+current seed catalog, Plain School Bedcovers - Heavy is not present; Bedcover
+60x80 and Packaging items are unlisted and require a decision. See the
+[database guide](backend/docs/DATABASE.md) for the item-level catalog mapping.
 
 ## Application routes
 

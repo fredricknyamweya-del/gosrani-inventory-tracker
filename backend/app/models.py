@@ -537,4 +537,6 @@ v_stock = Table(
     Column("stock", Numeric(15, 3), nullable=True),
     Column("stock_pieces", Numeric(15, 3), nullable=True),
     Column("stock_bales", Numeric(15, 3), nullable=True),
+    Column("stock_bales_in", Numeric(15, 3), nullable=True),
+    Column("stock_bales_out", Numeric(15, 3), nullable=True),
 )

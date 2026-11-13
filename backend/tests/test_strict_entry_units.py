@@ -3,6 +3,8 @@
 from datetime import date
 from decimal import Decimal
 
+from flask_jwt_extended import create_access_token
+
 from app.extensions import db
 from app.models import (
     Category,
@@ -17,7 +19,6 @@ from app.models import (
     UserLocation,
     UserRole,
 )
-from flask_jwt_extended import create_access_token
 
 
 def create_case(client):
