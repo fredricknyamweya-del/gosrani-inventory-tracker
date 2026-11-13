@@ -178,7 +178,7 @@ export default function EntryFormPage() {
                   (category) => category.id === item.categoryId,
                 )?.name ?? entry.category,
               item: item.name,
-              enteredUnit: item.inventoryUnit ?? "PCS",
+              enteredUnit: item.unit ?? "PCS",
               size: "",
             }
           : entry,
