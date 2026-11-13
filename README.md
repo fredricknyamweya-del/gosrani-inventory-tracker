@@ -3,8 +3,9 @@
 Inventory management software for Gosrani Wholesalers Limited in Eldoret,
 Kenya. The application has a React frontend and a Flask API backed by a
 relational database. Signed-in staff can record and review stock movements;
-administrators can also manage users and the product catalog, edit records, and
-use the read-only inventory assistant.
+administrators can also manage users and the product catalog, edit records
+(including switching bale-based movements between bales and pieces), delete
+individual records, and use the read-only inventory assistant.
 
 ## Current scope
 
