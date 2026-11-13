@@ -561,7 +561,7 @@ export default function CatalogPage() {
                                     setDeleteTarget(item);
                                     setDeleteError("");
                                   }}
-                                  variant="ghost"
+                                  variant="destructive"
                                 >
                                   <Trash2 aria-hidden="true" size={15} />
                                   Delete permanently

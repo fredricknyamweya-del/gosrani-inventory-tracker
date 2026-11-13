@@ -13,7 +13,9 @@ from app.models import (
     Category,
     InventoryUnit,
     Item,
+    ItemRequest,
     Location,
+    RequestStatus,
     Specification,
     User,
     UserLocation,
@@ -376,6 +378,30 @@ def test_catalog_item_deletion_requires_admin_and_preserves_inventory_history(cl
     assert response.json["code"] == "item_has_inventory"
     assert db.session.get(Item, item.id) is not None
     assert db.session.get(Specification, specification.id) is not None
+
+
+def test_catalog_item_deletion_preserves_linked_requests(client):
+    admin, user, _, category, item, _, _, _ = create_case()
+    request = ItemRequest(
+        requested_by=user.id,
+        category_id=category.id,
+        item_id=item.id,
+        item_name=item.name,
+        specification="Requested size",
+        status=RequestStatus.PENDING,
+    )
+    db.session.add(request)
+    db.session.commit()
+
+    response = client.delete(
+        f"/api/catalog/items/{item.id}",
+        headers=authorization(admin),
+    )
+
+    assert response.status_code == 409
+    assert response.json["code"] == "item_has_requests"
+    assert db.session.get(Item, item.id) is not None
+    assert db.session.get(ItemRequest, request.id) is not None
 
 
 def test_switching_product_to_pieces_preserves_stock_and_defaults_new_entries(client):
