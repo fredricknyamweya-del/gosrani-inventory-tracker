@@ -170,7 +170,7 @@ quantities and the conversion snapshot used at the time:
 
 Stock-out quantities are validated against the normalized available balance.
 
-## Catalogue
+## Inventory summary
 
 ### `GET /api/catalog/summary`
 

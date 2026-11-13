@@ -101,7 +101,6 @@ BALE_PRODUCT_CONFIG = {
     ("Duvets", "Duvet N"): 5,
     ("Duvets", "Duvet S"): 20,
     ("Duvets", "Woolen Duvet"): 20,
-    ("Blankets", "Goldstar Blanket (BF)"): 20,
     ("Bedcovers", "Bedcover 60x80"): 50,
     ("Pillow Cases", "White Pillow Case"): 100,
 }

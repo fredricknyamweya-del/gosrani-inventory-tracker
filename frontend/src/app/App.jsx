@@ -12,7 +12,7 @@ import CatalogPage from "../pages/CatalogPage"
 import UsersPage from "../pages/UsersPage"
 import EntryDetailPage from "../pages/EntryDetailPage"
 import PasswordChangePage from "../pages/PasswordChangePage"
-import CatalogSummaryPage from "../pages/CatalogSummaryPage"
+import InventorySummaryPage from "../pages/InventorySummaryPage"
 
 export default function App() {
   return (
@@ -26,7 +26,11 @@ export default function App() {
                 <Route element={<Navigate replace to="/inventory" />} index />
                 <Route element={<InventoryPage />} path="inventory" />
                 <Route
-                  element={<CatalogSummaryPage />}
+                  element={<InventorySummaryPage />}
+                  path="inventory-summary"
+                />
+                <Route
+                  element={<Navigate replace to="/inventory-summary" />}
                   path="catalog-summary"
                 />
                 <Route element={<EntryFormPage />} path="inventory/new" />

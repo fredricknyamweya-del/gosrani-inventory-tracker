@@ -24,12 +24,13 @@ function formatQuantity(quantity) {
   });
 }
 
-export default function CatalogSummaryPage() {
+export default function InventorySummaryPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [size, setSize] = useState("");
+  const [unit, setUnit] = useState("");
   const { data, error, loading, reload } = useApi(
-    () => api.getCatalogSummary(),
+    () => api.getInventorySummary(),
     [],
   );
   const stockRows = data?.stockBySpecification ?? [];
@@ -45,6 +46,12 @@ export default function CatalogSummaryPage() {
     ),
     [stockRows],
   );
+  const units = useMemo(
+    () => [...new Set(stockRows.map((row) => row.inventoryUnit))].sort(
+      (left, right) => left.localeCompare(right),
+    ),
+    [stockRows],
+  );
   const visibleRows = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return stockRows.filter((row) => {
@@ -52,9 +59,10 @@ export default function CatalogSummaryPage() {
         `${row.itemName} ${row.size}`.toLocaleLowerCase().includes(query);
       return matchesSearch &&
         (!category || row.category === category) &&
-        (!size || row.size === size);
+        (!size || row.size === size) &&
+        (!unit || row.inventoryUnit === unit);
     });
-  }, [stockRows, search, category, size]);
+  }, [stockRows, search, category, size, unit]);
 
   return (
     <section className="inventory-summary-page">
@@ -106,6 +114,24 @@ export default function CatalogSummaryPage() {
                 <option value="">All sizes</option>
                 {sizes.map((entry) => (
                   <option key={entry} value={entry}>{entry}</option>
+                ))}
+              </Select>
+            </label>
+            <label className="inventory-summary-filter">
+              <span>Unit</span>
+              <Select
+                onChange={(event) => setUnit(event.target.value)}
+                value={unit}
+              >
+                <option value="">All units</option>
+                {units.map((entry) => (
+                  <option key={entry} value={entry}>
+                    {entry === "PCS"
+                      ? "Pieces"
+                      : entry === "BALE"
+                        ? "Bales"
+                        : "Kilograms"}
+                  </option>
                 ))}
               </Select>
             </label>
