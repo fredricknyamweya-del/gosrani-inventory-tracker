@@ -24,7 +24,6 @@ from app.models import (
     Category,
     EnteredUnit,
     InventoryRecord,
-    InventoryUnit,
     Item,
     Location,
     RecordStatus,
@@ -34,7 +33,7 @@ from app.models import (
     UserRole,
     v_stock,
 )
-from app.units import format_quantity_display
+from app.units import effective_pieces_per_bale, format_quantity_display
 
 inventory_bp = Blueprint("inventory", __name__, url_prefix="/api/inventory")
 
@@ -109,13 +108,7 @@ def _resolve_record(
         and specification.id == existing_record.specification_id
     )
     default_unit = (
-        existing_record.entered_unit
-        if same_specification
-        else EnteredUnit.BALE
-        if pack_size is not None
-        and item is not None
-        and item.inventory_unit == InventoryUnit.BALE
-        else EnteredUnit(stock_unit.value)
+        item.entry_unit if item is not None else EnteredUnit.PCS
     )
     entered_unit_value = payload.get("enteredUnit", default_unit.value)
     try:
@@ -125,37 +118,48 @@ def _resolve_record(
             {"field": "enteredUnit", "message": "Choose PCS, BALE, or KG."}
         )
         entered_unit = default_unit
-    allowed_units = (
-        {EnteredUnit.KG}
-        if stock_unit == StockUnit.KG
-        else {EnteredUnit.PCS, EnteredUnit.BALE}
-        if pack_size is not None
-        else {EnteredUnit.PCS}
-    )
-    if entered_unit == EnteredUnit.BALE and pack_size is None:
+    if item is not None and entered_unit != item.entry_unit:
+        unit_name = {
+            EnteredUnit.BALE: "bales",
+            EnteredUnit.PCS: "pieces",
+            EnteredUnit.KG: "kg",
+        }[item.entry_unit]
         errors.append(
             {
                 "field": "enteredUnit",
-                "message": "This specification has no pack size; BALE quantities cannot be entered.",
+                "message": f"{item.name} is entered in {unit_name}.",
             }
         )
-    elif entered_unit not in allowed_units:
-        unit_message = (
-            "This specification supports BALE or PCS transactions."
-            if stock_unit == StockUnit.PCS and pack_size is not None
-            else "This specification supports PCS transactions."
-            if stock_unit == StockUnit.PCS
-            else "This item is configured for KG transactions."
+
+    pieces_per_bale = None
+    if entered_unit == EnteredUnit.BALE:
+        raw_pieces_per_bale = payload.get(
+            "piecesPerBale",
+            existing_record.pieces_per_bale
+            if same_specification and existing_record is not None
+            else pack_size,
         )
-        errors.append(
-            {
-                "field": "enteredUnit",
-                "message": unit_message,
-            }
-        )
-    pieces_per_unit = (
-        pack_size if entered_unit == EnteredUnit.BALE and pack_size else 1
-    )
+        try:
+            parsed_pieces_per_bale = Decimal(str(raw_pieces_per_bale))
+            if (
+                not parsed_pieces_per_bale.is_finite()
+                or parsed_pieces_per_bale != parsed_pieces_per_bale.to_integral_value()
+                or not 1 <= parsed_pieces_per_bale <= 10_000
+            ):
+                raise InvalidOperation
+            pieces_per_bale = int(parsed_pieces_per_bale)
+        except (InvalidOperation, ValueError):
+            errors.append(
+                {
+                    "field": "piecesPerBale",
+                    "message": (
+                        "Enter how many pieces are in each bale."
+                        if raw_pieces_per_bale in (None, "")
+                        else "Pieces per bale must be a whole number from 1 to 10000."
+                    ),
+                }
+            )
+    pieces_per_unit = pieces_per_bale or 1
 
     quantities: dict[str, Decimal | None] = {}
     for key in ("quantityIn", "quantityOut"):
@@ -173,7 +177,7 @@ def _resolve_record(
                 raise InvalidOperation
             if (
                 entered_unit == EnteredUnit.BALE
-                or stock_unit == StockUnit.PCS
+                or entered_unit == EnteredUnit.PCS
             ) and quantity != quantity.to_integral_value():
                 raise InvalidOperation
             quantities[key] = quantity
@@ -182,8 +186,7 @@ def _resolve_record(
                 "field": key,
                 "message": (
                     "Enter a non-negative whole number of bales or pieces."
-                    if entered_unit == EnteredUnit.BALE
-                    or stock_unit == StockUnit.PCS
+                    if entered_unit in {EnteredUnit.BALE, EnteredUnit.PCS}
                     else "Enter a non-negative quantity with no more than three decimal places."
                 ),
             })
@@ -213,6 +216,7 @@ def _resolve_record(
         "quantityIn": quantities["quantityIn"],
         "quantityOut": quantities["quantityOut"],
         "enteredUnit": entered_unit,
+        "piecesPerBale": pieces_per_bale,
         "piecesPerUnit": pieces_per_unit or 1,
         "normalizedQuantityIn": (
             quantities["quantityIn"] * (pieces_per_unit or 1)
@@ -247,24 +251,43 @@ def _serialize(record: InventoryRecord) -> dict[str, object]:
     base_quantity_out = record.qty_out_normalized
     if base_quantity_out is None:
         base_quantity_out = record.qty_out
-    conversion = (
-        Decimal(record.pieces_per_unit)
-        if record.entered_unit == EnteredUnit.BALE
-        else Decimal(1)
+    pieces_per_bale = effective_pieces_per_bale(
+        record.entered_unit,
+        record.pieces_per_bale,
+        pack_size,
+        record.pieces_per_unit,
     )
-    quantity_in = (
-        base_quantity_in / conversion if base_quantity_in is not None else None
+    bales_in = (
+        base_quantity_in / Decimal(pieces_per_bale)
+        if pieces_per_bale is not None and base_quantity_in is not None
+        else None
     )
-    quantity_out = (
-        base_quantity_out / conversion if base_quantity_out is not None else None
+    bales_out = (
+        base_quantity_out / Decimal(pieces_per_bale)
+        if pieces_per_bale is not None and base_quantity_out is not None
+        else None
     )
     quantity_in_display = (
-        format_quantity_display(base_quantity_in, stock_unit, pack_size)
+        format_quantity_display(
+            base_quantity_in,
+            stock_unit,
+            pack_size,
+            entry_unit=item.entry_unit if item else None,
+            entered_unit=record.entered_unit,
+            pieces_per_bale=pieces_per_bale,
+        )
         if base_quantity_in is not None
         else (None, None)
     )
     quantity_out_display = (
-        format_quantity_display(base_quantity_out, stock_unit, pack_size)
+        format_quantity_display(
+            base_quantity_out,
+            stock_unit,
+            pack_size,
+            entry_unit=item.entry_unit if item else None,
+            entered_unit=record.entered_unit,
+            pieces_per_bale=pieces_per_bale,
+        )
         if base_quantity_out is not None
         else (None, None)
     )
@@ -275,8 +298,8 @@ def _serialize(record: InventoryRecord) -> dict[str, object]:
         "category": category.name if category else "",
         "item": item.name if item else "",
         "size": specification.label if specification else "",
-        "quantityIn": json_number(quantity_in),
-        "quantityOut": json_number(quantity_out),
+        "quantityIn": json_number(base_quantity_in),
+        "quantityOut": json_number(base_quantity_out),
         "normalizedQuantityIn": json_number(base_quantity_in),
         "normalizedQuantityOut": json_number(base_quantity_out),
         "quantityInDisplay": quantity_in_display[0],
@@ -284,8 +307,12 @@ def _serialize(record: InventoryRecord) -> dict[str, object]:
         "quantityOutDisplay": quantity_out_display[0],
         "quantityOutSecondaryDisplay": quantity_out_display[1],
         "piecesPerUnit": record.pieces_per_unit,
+        "piecesPerBale": record.pieces_per_bale,
+        "balesIn": json_number(bales_in),
+        "balesOut": json_number(bales_out),
         "handledBy": record.handled_by or "",
         "enteredUnit": record.entered_unit.value,
+        "entryUnit": item.entry_unit.value if item else EnteredUnit.PCS.value,
         "unit": stock_unit.value,
         "packSize": pack_size,
         "details": record.details or "",
@@ -305,6 +332,7 @@ def _record_snapshot(record: InventoryRecord) -> dict[str, object]:
         "normalizedQuantityIn": json_number(record.qty_in_normalized),
         "normalizedQuantityOut": json_number(record.qty_out_normalized),
         "piecesPerUnit": record.pieces_per_unit,
+        "piecesPerBale": record.pieces_per_bale,
         "enteredUnit": record.entered_unit.value,
         "handledBy": record.handled_by,
         "details": record.details,
@@ -323,8 +351,8 @@ def _warning_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     location_ids = _accessible_location_ids()
     for index, row in enumerate(rows):
         flags: list[dict[str, str]] = []
-        qty_in = row["quantityIn"]
-        qty_out = row["quantityOut"]
+        qty_in = row["normalizedQuantityIn"]
+        qty_out = row["normalizedQuantityOut"]
         if (qty_in is not None and qty_in >= 500) or (qty_out is not None and qty_out >= 500):
             flags.append({
                 "field": "quantity",
@@ -332,6 +360,22 @@ def _warning_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             })
         if qty_in is not None and qty_out is not None:
             flags.append({"field": "quantity", "message": "Both Quantity In and Quantity Out have values."})
+        pieces_per_bale = row.get("piecesPerBale")
+        standard_pack_size = row["specification"].pack_size
+        if (
+            pieces_per_bale is not None
+            and standard_pack_size is not None
+            and pieces_per_bale != standard_pack_size
+        ):
+            flags.append(
+                {
+                    "field": "piecesPerBale",
+                    "message": (
+                        f"This bale holds {pieces_per_bale} pieces; "
+                        f"the catalogue standard is {standard_pack_size}."
+                    ),
+                }
+            )
 
         location_id = row.get("locationId")
         if location_ids and location_id is not None and qty_out is not None:
@@ -394,6 +438,7 @@ def _create_one(payload: dict[str, object], user, location_id: int) -> Inventory
         handled_by=values["handledBy"],
         entered_unit=values["enteredUnit"],
         pieces_per_unit=values["piecesPerUnit"],
+        pieces_per_bale=values["piecesPerBale"],
         qty_in_normalized=values["normalizedQuantityIn"],
         qty_out_normalized=values["normalizedQuantityOut"],
         details=values["details"],
@@ -509,11 +554,16 @@ def validate_inventory():
             "size": values["specification"].label,
             "quantityIn": json_number(values["quantityIn"]),
             "quantityOut": json_number(values["quantityOut"]),
+            "normalizedQuantityIn": json_number(values["normalizedQuantityIn"]),
+            "normalizedQuantityOut": json_number(values["normalizedQuantityOut"]),
             "quantityInDisplay": (
                 format_quantity_display(
                     values["normalizedQuantityIn"],
                     values["item"].unit,
                     values["specification"].pack_size,
+                    entry_unit=values["item"].entry_unit,
+                    entered_unit=values["enteredUnit"],
+                    pieces_per_bale=values["piecesPerBale"],
                 )[0]
                 if values["normalizedQuantityIn"] is not None
                 else None
@@ -523,6 +573,9 @@ def validate_inventory():
                     values["normalizedQuantityIn"],
                     values["item"].unit,
                     values["specification"].pack_size,
+                    entry_unit=values["item"].entry_unit,
+                    entered_unit=values["enteredUnit"],
+                    pieces_per_bale=values["piecesPerBale"],
                 )[1]
                 if values["normalizedQuantityIn"] is not None
                 else None
@@ -532,6 +585,9 @@ def validate_inventory():
                     values["normalizedQuantityOut"],
                     values["item"].unit,
                     values["specification"].pack_size,
+                    entry_unit=values["item"].entry_unit,
+                    entered_unit=values["enteredUnit"],
+                    pieces_per_bale=values["piecesPerBale"],
                 )[0]
                 if values["normalizedQuantityOut"] is not None
                 else None
@@ -541,12 +597,17 @@ def validate_inventory():
                     values["normalizedQuantityOut"],
                     values["item"].unit,
                     values["specification"].pack_size,
+                    entry_unit=values["item"].entry_unit,
+                    entered_unit=values["enteredUnit"],
+                    pieces_per_bale=values["piecesPerBale"],
                 )[1]
                 if values["normalizedQuantityOut"] is not None
                 else None
             ),
             "handledBy": values["handledBy"],
             "enteredUnit": values["enteredUnit"],
+            "entryUnit": values["item"].entry_unit,
+            "piecesPerBale": values["piecesPerBale"],
             "details": values["details"],
         })
     if errors:
@@ -652,17 +713,24 @@ def get_inventory_stock(record_identifier: str):
     specification = db.session.get(Specification, record.specification_id)
     item = db.session.get(Item, specification.item_id)
     location = db.session.get(Location, record.location_id)
-    quantity = db.session.scalar(
-        select(v_stock.c.stock).where(
+    stock_row = db.session.execute(
+        select(v_stock.c.stock, v_stock.c.stock_pieces, v_stock.c.stock_bales).where(
             v_stock.c.location_id == record.location_id,
             v_stock.c.specification_id == record.specification_id,
         )
+    ).one_or_none()
+    quantity = Decimal(stock_row.stock if stock_row else 0)
+    stock_bales = (
+        Decimal(stock_row.stock_bales)
+        if stock_row is not None and stock_row.stock_bales is not None
+        else None
     )
-    quantity = Decimal(quantity or 0)
     display, secondary_display = format_quantity_display(
         quantity,
         item.unit,
         specification.pack_size,
+        entry_unit=item.entry_unit,
+        bales=stock_bales,
     )
     equivalent_pieces = (
         json_number(quantity)
@@ -674,7 +742,14 @@ def get_inventory_stock(record_identifier: str):
         "data": {
             "quantity": json_number(quantity),
             "unit": item.unit.value,
+            "entryUnit": item.entry_unit.value,
             "normalizedQuantity": json_number(quantity),
+            "stockPieces": (
+                json_number(stock_row.stock_pieces)
+                if stock_row is not None
+                else None
+            ),
+            "stockBales": json_number(stock_bales),
             "equivalentPieces": json_number(equivalent_pieces),
             "packSize": specification.pack_size,
             "piecesPerBale": item.pieces_per_bale,
@@ -709,13 +784,24 @@ def update_inventory(record_id: int):
     current_specification = db.session.get(Specification, record.specification_id)
     current_item = db.session.get(Item, current_specification.item_id)
     current_category = db.session.get(Category, current_item.category_id)
+    serialized_record = _serialize(record)
     merged = {
         "date": record.record_date.isoformat(),
         "category": current_category.name,
         "item": current_item.name,
         "size": current_specification.label,
-        "quantityIn": _serialize(record)["quantityIn"],
-        "quantityOut": _serialize(record)["quantityOut"],
+        "quantityIn": (
+            serialized_record["balesIn"]
+            if record.entered_unit == EnteredUnit.BALE
+            else serialized_record["quantityIn"]
+        ),
+        "quantityOut": (
+            serialized_record["balesOut"]
+            if record.entered_unit == EnteredUnit.BALE
+            else serialized_record["quantityOut"]
+        ),
+        "piecesPerBale": record.pieces_per_bale,
+        "enteredUnit": record.entered_unit.value,
         "handledBy": record.handled_by or "",
         "details": record.details or "",
         **payload,
@@ -763,6 +849,7 @@ def update_inventory(record_id: int):
     record.qty_out = values["normalizedQuantityOut"]
     record.entered_unit = values["enteredUnit"]
     record.pieces_per_unit = values["piecesPerUnit"]
+    record.pieces_per_bale = values["piecesPerBale"]
     record.qty_in_normalized = values["normalizedQuantityIn"]
     record.qty_out_normalized = values["normalizedQuantityOut"]
     record.handled_by = values["handledBy"]

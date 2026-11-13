@@ -29,6 +29,7 @@ from app.models import (
     Location,
     RequestStatus,
     Specification,
+    EnteredUnit,
     StockUnit,
     User,
     UserRole,
@@ -54,6 +55,7 @@ def _serialize_item(item: Item) -> dict[str, object]:
         "categoryId": str(item.category_id),
         "name": item.name,
         "unit": item.unit.value,
+        "entryUnit": item.entry_unit.value,
         "inventoryUnit": item.inventory_unit.value,
         "piecesPerBale": item.pieces_per_bale,
         "active": item.active,
@@ -251,11 +253,13 @@ def get_catalog_summary():
             v_stock.c.location_id,
             v_stock.c.specification_id,
             v_stock.c.stock,
+            v_stock.c.stock_pieces,
+            v_stock.c.stock_bales,
         )
         .where(v_stock.c.location_id.in_(location_ids) if location_ids else False)
     )
     stock_by_specification = {
-        (row.location_id, row.specification_id): row.stock
+        (row.location_id, row.specification_id): row
         for row in db.session.execute(stock_statement).all()
     }
     totals_statement = (
@@ -304,17 +308,31 @@ def get_catalog_summary():
             normalized_in, normalized_out = totals_by_location_and_specification.get(
                 (location_id, specification.id), (Decimal(0), Decimal(0))
             )
-            normalized_stock = Decimal(
-                stock_by_specification.get((location_id, specification.id), 0)
+            stock_row = stock_by_specification.get((location_id, specification.id))
+            normalized_stock = Decimal(stock_row.stock if stock_row else 0)
+            stock_bales = (
+                Decimal(stock_row.stock_bales)
+                if stock_row is not None and stock_row.stock_bales is not None
+                else None
             )
             in_display, in_secondary = format_quantity_display(
-                normalized_in, item.unit, specification.pack_size
+                normalized_in,
+                item.unit,
+                specification.pack_size,
+                entry_unit=item.entry_unit,
             )
             out_display, out_secondary = format_quantity_display(
-                normalized_out, item.unit, specification.pack_size
+                normalized_out,
+                item.unit,
+                specification.pack_size,
+                entry_unit=item.entry_unit,
             )
             stock_display, stock_secondary = format_quantity_display(
-                normalized_stock, item.unit, specification.pack_size
+                normalized_stock,
+                item.unit,
+                specification.pack_size,
+                entry_unit=item.entry_unit,
+                bales=stock_bales,
             )
             stock_summaries.append(
                 {
@@ -323,6 +341,7 @@ def get_catalog_summary():
                     "category": category_name,
                     "size": specification.label,
                     "unit": item.unit.value,
+                    "entryUnit": item.entry_unit.value,
                     "inventoryUnit": item.inventory_unit.value,
                     "packSize": specification.pack_size,
                     "locationId": str(location_id),
@@ -334,6 +353,12 @@ def get_catalog_summary():
                     "totalStockOutDisplay": out_display,
                     "totalStockOutSecondaryDisplay": out_secondary,
                     "remainingStock": json_number(normalized_stock),
+                    "stockPieces": (
+                        json_number(stock_row.stock_pieces)
+                        if stock_row is not None
+                        else None
+                    ),
+                    "stockBales": json_number(stock_bales),
                     "display": stock_display,
                     "secondaryDisplay": stock_secondary,
                     "equivalentPieces": (
@@ -378,6 +403,7 @@ def get_catalog_summary():
                 "productName": item.name,
                 "category": category_name,
                 "inventoryUnit": item.inventory_unit.value,
+                "entryUnit": item.entry_unit.value,
                 "piecesPerBale": item.pieces_per_bale,
                 "totalEntries": entry_count,
                 "lastTransactionDate": last_date.isoformat() if last_date else None,
