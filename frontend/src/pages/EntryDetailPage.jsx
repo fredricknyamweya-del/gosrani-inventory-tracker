@@ -74,6 +74,7 @@ function StockFigure({ stock, loading, error, onRetry, context = false }) {
       className={`entry-stock-value entry-stock-value-${state}`}
     >
       <strong>{stock.display}</strong>
+      {stock.secondaryDisplay && <small>{stock.secondaryDisplay}</small>}
       {isNegative && (
         <small>Stock is below zero. Check recent entries.</small>
       )}

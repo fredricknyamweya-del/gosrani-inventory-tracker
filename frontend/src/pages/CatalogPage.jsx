@@ -25,6 +25,7 @@ import {
 import { useApi } from "../hooks/useApi";
 import { api } from "../services/api";
 import { formatDate } from "../utils/format";
+import QuantityDisplay from "../components/QuantityDisplay";
 
 function CatalogStatus({ active }) {
   const status = active ? "Active" : "Inactive";
@@ -110,6 +111,12 @@ export default function CatalogPage() {
     loading: requestsLoading,
     reload: reloadRequests,
   } = useApi(() => api.getCatalogRequests(), []);
+  const {
+    data: inventorySummary,
+    error: inventorySummaryError,
+    loading: inventorySummaryLoading,
+    reload: reloadInventorySummary,
+  } = useApi(() => api.getInventorySummary(), []);
 
   const categories = catalog?.categories ?? [];
   const items = catalog?.items ?? [];
@@ -464,6 +471,22 @@ export default function CatalogPage() {
             </section>
           ) : (
             <div className="catalog-category-list">
+              {inventorySummaryError ? (
+                <ErrorState
+                  message={inventorySummaryError.message}
+                  onRetry={reloadInventorySummary}
+                  retrying={inventorySummaryLoading}
+                  title="Unable to load catalog stock"
+                />
+              ) : inventorySummaryLoading ? (
+                <p
+                  aria-live="polite"
+                  className="catalog-stock-loading"
+                  role="status"
+                >
+                  Loading stock by specification…
+                </p>
+              ) : null}
               {categories.map((category) => {
                 const categoryItems = items.filter(
                   (item) => item.categoryId === category.id,
@@ -620,6 +643,31 @@ export default function CatalogPage() {
                                 </span>
                               )}
                             </div>
+                            {!inventorySummaryLoading &&
+                              !inventorySummaryError && (
+                                <ul
+                                  aria-label={`${item.name} stock by specification and location`}
+                                  className="catalog-stock-list"
+                                >
+                                  {(inventorySummary?.stockBySpecification ?? [])
+                                    .filter(
+                                      (stock) =>
+                                        stock.category === category.name &&
+                                        stock.itemName === item.name,
+                                    )
+                                    .map((stock) => (
+                                      <li key={`${stock.id}-${stock.locationId}`}>
+                                        <span>
+                                          {stock.size} · {stock.locationName}
+                                        </span>
+                                        <QuantityDisplay
+                                          display={stock.display}
+                                          secondary={stock.secondaryDisplay}
+                                        />
+                                      </li>
+                                    ))}
+                                </ul>
+                              )}
                             {specificationItemId === item.id ? (
                               <form
                                 className="catalog-add-specification"

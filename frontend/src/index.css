@@ -1529,6 +1529,53 @@
   gap: 20px;
 }
 
+.entry-quantity-preview {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quantity-display {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quantity-display strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.quantity-display small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.catalog-stock-loading {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.catalog-stock-list {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-stock-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .entry-quantity-unit {
   width: calc(50% - 10px);
 }
