@@ -659,32 +659,9 @@ export default function EntryFormPage() {
                     </Select>
                   </Field>
                   <div className="entry-quantity-section">
-                    <Field label="Quantity unit">
-                      <Select
-                        disabled={!selectedItem}
-                        value={entry.enteredUnit}
-                        onChange={(event) => {
-                          const enteredUnit = event.target.value
-                          updateEntry(entry.id, "enteredUnit", enteredUnit)
-                          updateEntry(
-                            entry.id,
-                            "piecesPerBale",
-                            enteredUnit === "BALE" && packSize != null
-                              ? String(packSize)
-                              : "",
-                          )
-                        }}
-                      >
-                        {selectedItem?.unit === "KG" ? (
-                          <option value="KG">kg</option>
-                        ) : (
-                          <>
-                            <option value="PCS">pcs</option>
-                            <option value="BALE">bales</option>
-                          </>
-                        )}
-                      </Select>
-                    </Field>
+                    <div className="entry-quantity-unit">
+                      Entered in: <strong>{enteredUnitLabel}</strong>
+                    </div>
                     <div className="entry-quantity-fields">
                       <Field
                         error={entryErrors.quantityIn || entryErrors.quantity}

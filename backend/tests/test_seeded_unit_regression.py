@@ -9,6 +9,9 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models import (
+    AuditAction,
+    AuditEntity,
+    AuditLog,
     Category,
     EnteredUnit,
     InventoryRecord,
@@ -126,21 +129,26 @@ def test_seeded_catalog_units_follow_explicit_policy_and_leave_unlisted_unchange
                 select(Item, Category).join(Category, Item.category_id == Category.id)
             )
         }
+        pillow = db.session.scalar(
+            select(Item)
+            .join(Category, Item.category_id == Category.id)
+            .where(Category.name == "Pillows", Item.name == "Pillow")
+        )
+        pillow.entry_unit = EnteredUnit.PCS
+        db.session.commit()
+        pillow_id = pillow.id
     dry_run = app.test_cli_runner().invoke(args=["apply-unit-policy"])
     assert dry_run.exit_code == 0, dry_run.output
     assert "dry run" in dry_run.output.lower()
+    assert "Pillows / Pillow: PCS -> BALE" in dry_run.output
     assert "UNMATCHED item: Plain School Bedcovers - Heavy" in dry_run.output
 
     output = apply_unit_policy(app)
-    assert "Updated " in output
+    assert "Updated 1 item(s)" in output
     with app.app_context():
         items = db.session.execute(
             select(Item, Category).join(Category, Item.category_id == Category.id)
         ).all()
-        observed_names = {
-            (category.name.casefold(), item.name.casefold())
-            for item, category in items
-        }
         for item, category in items:
             target = expected_policy_unit(category.name, item.name)
             if target is not None:
@@ -148,7 +156,14 @@ def test_seeded_catalog_units_follow_explicit_policy_and_leave_unlisted_unchange
             elif item.name.casefold() in UNLISTED_ITEMS:
                 assert item.entry_unit == initial[(category.name, item.name)]
         assert all(item.entry_unit in EnteredUnit for item, _ in items)
-        assert ("sofa sets", "any item") not in observed_names
+        audit_row = db.session.scalar(
+            select(AuditLog).where(
+                AuditLog.entity_type == AuditEntity.ITEM,
+                AuditLog.entity_id == pillow_id,
+                AuditLog.action == AuditAction.UPDATE,
+            )
+        )
+        assert audit_row is not None
 
 
 @pytest.mark.parametrize(
