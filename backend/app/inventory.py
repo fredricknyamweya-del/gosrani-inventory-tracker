@@ -252,24 +252,43 @@ def _serialize(record: InventoryRecord) -> dict[str, object]:
     base_quantity_out = record.qty_out_normalized
     if base_quantity_out is None:
         base_quantity_out = record.qty_out
-    conversion = (
-        Decimal(record.pieces_per_unit)
-        if record.entered_unit == EnteredUnit.BALE
-        else Decimal(1)
+    pieces_per_bale = effective_pieces_per_bale(
+        record.entered_unit,
+        record.pieces_per_bale,
+        pack_size,
+        record.pieces_per_unit,
     )
-    quantity_in = (
-        base_quantity_in / conversion if base_quantity_in is not None else None
+    bales_in = (
+        base_quantity_in / Decimal(pieces_per_bale)
+        if pieces_per_bale is not None and base_quantity_in is not None
+        else None
     )
-    quantity_out = (
-        base_quantity_out / conversion if base_quantity_out is not None else None
+    bales_out = (
+        base_quantity_out / Decimal(pieces_per_bale)
+        if pieces_per_bale is not None and base_quantity_out is not None
+        else None
     )
     quantity_in_display = (
-        format_quantity_display(base_quantity_in, stock_unit, pack_size)
+        format_quantity_display(
+            base_quantity_in,
+            stock_unit,
+            pack_size,
+            entry_unit=item.entry_unit if item else None,
+            entered_unit=record.entered_unit,
+            pieces_per_bale=pieces_per_bale,
+        )
         if base_quantity_in is not None
         else (None, None)
     )
     quantity_out_display = (
-        format_quantity_display(base_quantity_out, stock_unit, pack_size)
+        format_quantity_display(
+            base_quantity_out,
+            stock_unit,
+            pack_size,
+            entry_unit=item.entry_unit if item else None,
+            entered_unit=record.entered_unit,
+            pieces_per_bale=pieces_per_bale,
+        )
         if base_quantity_out is not None
         else (None, None)
     )
@@ -280,8 +299,8 @@ def _serialize(record: InventoryRecord) -> dict[str, object]:
         "category": category.name if category else "",
         "item": item.name if item else "",
         "size": specification.label if specification else "",
-        "quantityIn": json_number(quantity_in),
-        "quantityOut": json_number(quantity_out),
+        "quantityIn": json_number(base_quantity_in),
+        "quantityOut": json_number(base_quantity_out),
         "normalizedQuantityIn": json_number(base_quantity_in),
         "normalizedQuantityOut": json_number(base_quantity_out),
         "quantityInDisplay": quantity_in_display[0],
@@ -289,8 +308,12 @@ def _serialize(record: InventoryRecord) -> dict[str, object]:
         "quantityOutDisplay": quantity_out_display[0],
         "quantityOutSecondaryDisplay": quantity_out_display[1],
         "piecesPerUnit": record.pieces_per_unit,
+        "piecesPerBale": record.pieces_per_bale,
+        "balesIn": json_number(bales_in),
+        "balesOut": json_number(bales_out),
         "handledBy": record.handled_by or "",
         "enteredUnit": record.entered_unit.value,
+        "entryUnit": item.entry_unit.value if item else EnteredUnit.PCS.value,
         "unit": stock_unit.value,
         "packSize": pack_size,
         "details": record.details or "",
@@ -310,6 +333,7 @@ def _record_snapshot(record: InventoryRecord) -> dict[str, object]:
         "normalizedQuantityIn": json_number(record.qty_in_normalized),
         "normalizedQuantityOut": json_number(record.qty_out_normalized),
         "piecesPerUnit": record.pieces_per_unit,
+        "piecesPerBale": record.pieces_per_bale,
         "enteredUnit": record.entered_unit.value,
         "handledBy": record.handled_by,
         "details": record.details,
@@ -328,8 +352,8 @@ def _warning_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     location_ids = _accessible_location_ids()
     for index, row in enumerate(rows):
         flags: list[dict[str, str]] = []
-        qty_in = row["quantityIn"]
-        qty_out = row["quantityOut"]
+        qty_in = row["normalizedQuantityIn"]
+        qty_out = row["normalizedQuantityOut"]
         if (qty_in is not None and qty_in >= 500) or (qty_out is not None and qty_out >= 500):
             flags.append({
                 "field": "quantity",
@@ -337,6 +361,22 @@ def _warning_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             })
         if qty_in is not None and qty_out is not None:
             flags.append({"field": "quantity", "message": "Both Quantity In and Quantity Out have values."})
+        pieces_per_bale = row.get("piecesPerBale")
+        standard_pack_size = row["specification"].pack_size
+        if (
+            pieces_per_bale is not None
+            and standard_pack_size is not None
+            and pieces_per_bale != standard_pack_size
+        ):
+            flags.append(
+                {
+                    "field": "piecesPerBale",
+                    "message": (
+                        f"This bale holds {pieces_per_bale} pieces; "
+                        f"the catalogue standard is {standard_pack_size}."
+                    ),
+                }
+            )
 
         location_id = row.get("locationId")
         if location_ids and location_id is not None and qty_out is not None:
@@ -399,6 +439,7 @@ def _create_one(payload: dict[str, object], user, location_id: int) -> Inventory
         handled_by=values["handledBy"],
         entered_unit=values["enteredUnit"],
         pieces_per_unit=values["piecesPerUnit"],
+        pieces_per_bale=values["piecesPerBale"],
         qty_in_normalized=values["normalizedQuantityIn"],
         qty_out_normalized=values["normalizedQuantityOut"],
         details=values["details"],
@@ -768,6 +809,7 @@ def update_inventory(record_id: int):
     record.qty_out = values["normalizedQuantityOut"]
     record.entered_unit = values["enteredUnit"]
     record.pieces_per_unit = values["piecesPerUnit"]
+    record.pieces_per_bale = values["piecesPerBale"]
     record.qty_in_normalized = values["normalizedQuantityIn"]
     record.qty_out_normalized = values["normalizedQuantityOut"]
     record.handled_by = values["handledBy"]
