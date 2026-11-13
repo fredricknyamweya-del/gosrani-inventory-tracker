@@ -44,6 +44,8 @@ def format_quantity_display(
     if pieces_per_bale is not None and pieces_per_bale <= 0:
         raise ValueError("Pieces per bale must be positive.")
     if quantity == 0:
+        if entry_unit is None and entered_unit is None and bales is None:
+            return "0", None
         if unit == StockUnit.KG:
             return "0 kg", None
         if entered_unit == EnteredUnit.BALE:
