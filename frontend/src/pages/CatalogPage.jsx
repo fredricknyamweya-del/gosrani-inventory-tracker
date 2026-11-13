@@ -8,7 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import AddItemModal from "../components/AddItemModal";
 import {
   Button,
@@ -509,7 +509,20 @@ export default function CatalogPage() {
                           <article className="catalog-item" key={item.id}>
                             <div className="catalog-item-main">
                               <div className="catalog-item-title">
-                                <h3>{item.name}</h3>
+                                <h3>
+                                  <Link
+                                    className="catalog-item-inventory-link"
+                                    to={{
+                                      pathname: "/inventory",
+                                      search: new URLSearchParams({
+                                        category: category.name,
+                                        item: item.name,
+                                      }).toString(),
+                                    }}
+                                  >
+                                    {item.name}
+                                  </Link>
+                                </h3>
                                 <CatalogStatus active={item.active} />
                               </div>
                               <div className="catalog-item-actions">

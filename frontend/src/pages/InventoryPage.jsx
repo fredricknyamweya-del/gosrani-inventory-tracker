@@ -32,9 +32,11 @@ export default function InventoryPage() {
   const { isAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlSearch = searchParams.get("search") ?? "";
+  const urlCategory = searchParams.get("category") ?? "";
+  const urlItem = searchParams.get("item") ?? "";
   const [search, setSearch] = useState(urlSearch);
-  const [category, setCategory] = useState("");
-  const [item, setItem] = useState("");
+  const [category, setCategory] = useState(urlCategory);
+  const [item, setItem] = useState(urlItem);
   const [size, setSize] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -75,7 +77,9 @@ export default function InventoryPage() {
   const categories = catalog?.categories ?? [];
   const selectedCategory = categories.find((entry) => entry.name === category);
   const availableItems = (catalog?.items ?? []).filter(
-    (entry) => entry.active && entry.categoryId === selectedCategory?.id,
+    (entry) =>
+      (entry.active || entry.name === item) &&
+      entry.categoryId === selectedCategory?.id,
   );
   const selectedItem = availableItems.find((entry) => entry.name === item);
   const availableSizes = selectedItem?.specifications ?? [];
@@ -86,6 +90,13 @@ export default function InventoryPage() {
     setSearch(urlSearch);
     setPage(1);
   }, [urlSearch]);
+
+  useEffect(() => {
+    setCategory(urlCategory);
+    setItem(urlItem);
+    setSize("");
+    setPage(1);
+  }, [urlCategory, urlItem]);
 
   useEffect(() => {
     if (!inventoryLoading && page > totalPages) setPage(totalPages);
@@ -113,7 +124,13 @@ export default function InventoryPage() {
     setFrom("");
     setTo("");
     setSort("desc");
-    updateSearch("");
+    setSearch("");
+    setPage(1);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("search");
+    nextParams.delete("category");
+    nextParams.delete("item");
+    setSearchParams(nextParams, { replace: true });
   }
 
   function changeCategory(value) {
@@ -121,12 +138,21 @@ export default function InventoryPage() {
     setItem("");
     setSize("");
     setPage(1);
+    const nextParams = new URLSearchParams(searchParams);
+    if (value) nextParams.set("category", value);
+    else nextParams.delete("category");
+    nextParams.delete("item");
+    setSearchParams(nextParams, { replace: true });
   }
 
   function changeItem(value) {
     setItem(value);
     setSize("");
     setPage(1);
+    const nextParams = new URLSearchParams(searchParams);
+    if (value) nextParams.set("item", value);
+    else nextParams.delete("item");
+    setSearchParams(nextParams, { replace: true });
   }
 
   async function confirmDelete() {
