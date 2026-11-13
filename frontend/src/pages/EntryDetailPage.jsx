@@ -23,6 +23,7 @@ import { useAuth } from "../context/AuthContext"
 import { useApi } from "../hooks/useApi"
 import { api } from "../services/api"
 import { formatDate, formatDateTime } from "../utils/format"
+import { calculateTotalPieces } from "../utils/units"
 
 function recordForm(record) {
   return {
@@ -200,6 +201,14 @@ export default function EntryDetailPage() {
   const isOriginalItem =
     form.category === record.category && form.item === record.item
   const selectedSizeIsAvailable = specifications.includes(form.size)
+  const totalPiecesIn = calculateTotalPieces(
+    form.quantityIn,
+    form.piecesPerBale,
+  )
+  const totalPiecesOut = calculateTotalPieces(
+    form.quantityOut,
+    form.piecesPerBale,
+  )
 
   function update(key, value) {
     const selectedItem =
@@ -391,24 +400,65 @@ export default function EntryDetailPage() {
                 ))}
               </Select>
             </Field>
-            <Field label={`Quantity In (${form.enteredUnit})`}>
+            <Field label={`Quantity In (${unitLabel(form.entryUnit)})`}>
               <Input
                 min="0"
                 onChange={(event) => update("quantityIn", event.target.value)}
-                step={form.enteredUnit === "BALE" || isBaleItem ? "1" : "0.001"}
+                step={form.entryUnit === "KG" ? "0.001" : "1"}
                 type="number"
                 value={form.quantityIn}
               />
             </Field>
-            <Field label={`Quantity Out (${form.enteredUnit})`}>
+            <Field label={`Quantity Out (${unitLabel(form.entryUnit)})`}>
               <Input
                 min="0"
                 onChange={(event) => update("quantityOut", event.target.value)}
-                step={form.enteredUnit === "BALE" || isBaleItem ? "1" : "0.001"}
+                step={form.entryUnit === "KG" ? "0.001" : "1"}
                 type="number"
                 value={form.quantityOut}
               />
             </Field>
+            {form.entryUnit === "BALE" && (
+              <section className="entry-bale-contents" aria-label="Bale contents">
+                <h3>Bale contents</h3>
+                {selectedSpecification?.packSize != null && (
+                  <small>
+                    Standard pack: {selectedSpecification.packSize} pcs
+                  </small>
+                )}
+                <Field label="Pieces per bale" required>
+                  <Input
+                    max="10000"
+                    min="1"
+                    onChange={(event) =>
+                      update("piecesPerBale", event.target.value)
+                    }
+                    required
+                    step="1"
+                    type="number"
+                    value={form.piecesPerBale}
+                  />
+                </Field>
+                <div className="entry-bale-totals" aria-live="polite">
+                  <div>
+                    <span>Total pieces in</span>
+                    <strong>
+                      {totalPiecesIn == null
+                        ? "–"
+                        : `${totalPiecesIn.toLocaleString("en-US")} pcs`}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Total pieces out</span>
+                    <strong>
+                      {totalPiecesOut == null
+                        ? "–"
+                        : `${totalPiecesOut.toLocaleString("en-US")} pcs`}
+                    </strong>
+                  </div>
+                </div>
+              </section>
+            )}
             <Field label="Received / dispatched by" required>
               <Input
                 autoComplete="name"
@@ -417,22 +467,6 @@ export default function EntryDetailPage() {
                 required
                 value={form.handledBy}
               />
-            </Field>
-            <Field label="Quantity unit">
-              <Select
-                disabled={!supportsBales}
-                onChange={(event) => update("enteredUnit", event.target.value)}
-                value={form.enteredUnit}
-              >
-                {supportsBales ? (
-                  <>
-                    <option value="BALE">Bales</option>
-                    <option value="PCS">Pieces</option>
-                  </>
-                ) : (
-                  <option value={form.enteredUnit}>{form.enteredUnit}</option>
-                )}
-              </Select>
             </Field>
             <Field label="Status">
               <Select

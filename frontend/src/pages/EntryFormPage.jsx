@@ -29,7 +29,6 @@ function makeEntry(id) {
     item: "",
     size: "",
     enteredUnit: "PCS",
-    entryUnit: "PCS",
     piecesPerBale: "",
     quantityIn: "",
     quantityOut: "",
@@ -46,7 +45,7 @@ function unitLabel(unit, plural = true) {
 
 function validateEntry(entry, item) {
   const errors = {};
-  const allowsFractionalQuantity = item?.entryUnit === "KG";
+  const allowsFractionalQuantity = entry.enteredUnit === "KG";
 
   if (!entry.date) errors.date = "Entry date is required.";
   if (!entry.category) errors.category = "Category is required.";
@@ -60,7 +59,7 @@ function validateEntry(entry, item) {
   if (entry.quantityIn === "" && entry.quantityOut === "") {
     errors.quantity = "Enter a value for Quantity In or Quantity Out.";
   }
-  if (item?.entryUnit === "BALE") {
+  if (entry.enteredUnit === "BALE") {
     const piecesPerBale = Number(entry.piecesPerBale);
     if (
       !Number.isInteger(piecesPerBale) ||
@@ -189,7 +188,6 @@ export default function EntryFormPage() {
                 )?.name ?? entry.category,
               item: item.name,
               enteredUnit: item.entryUnit ?? "PCS",
-              entryUnit: item.entryUnit ?? "PCS",
               piecesPerBale: "",
               size: "",
             }
@@ -232,10 +230,6 @@ export default function EntryFormPage() {
       if (entry.item && !selectedItem) {
         entryErrors.item = "Choose an item from the selected category.";
       }
-      if (selectedItem && entry.enteredUnit !== selectedItem.entryUnit) {
-        entryErrors.enteredUnit =
-          `${selectedItem.name} is entered in ${unitLabel(selectedItem.entryUnit)}.`;
-      }
       if (Object.keys(entryErrors).length) {
         nextErrors[entry.id] = entryErrors;
       }
@@ -260,7 +254,6 @@ export default function EntryFormPage() {
           ...entry,
           category: category.name,
           item: selectedItem.name,
-          enteredUnit: selectedItem.entryUnit,
         };
       });
       const response = await api.validateInventory(payload);
