@@ -2,7 +2,7 @@
 
 import click
 from flask.cli import with_appcontext
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from app.api_utils import audit
 from app.extensions import db
@@ -59,26 +59,21 @@ def apply_unit_policy_command(apply_changes: bool) -> None:
         .join(Category, Category.id == Item.category_id)
         .order_by(Category.name, Item.name)
     ).all()
-    matched_categories = set()
+    matched_categories = set(categories).intersection(BALE_CATEGORIES | PCS_CATEGORIES)
     matched_items = set()
-    planned_changes: list[tuple[Item, EnteredUnit]] = []
+    planned_changes: list[tuple[Item, str, EnteredUnit]] = []
 
     for item, category_name in items:
-        category_key = _key(category_name)
         item_key = _key(item.name)
-        if category_key in BALE_CATEGORIES | PCS_CATEGORIES:
-            matched_categories.add(category_key)
         if item_key in BALE_ITEMS | PCS_ITEMS:
             matched_items.add(item_key)
         target = _policy_for(category_name, item.name)
         if target is not None and item.entry_unit != target:
-            planned_changes.append((item, target))
+            planned_changes.append((item, category_name, target))
 
     click.echo("Applying unit policy." if apply_changes else "Unit policy dry run; no changes made.")
     if planned_changes:
-        for item, target in planned_changes:
-            category = categories.get(_key(item.category.name)) if item.category else None
-            category_name = category.name if category else str(item.category_id)
+        for item, category_name, target in planned_changes:
             click.echo(
                 f"{category_name} / {item.name}: "
                 f"{item.entry_unit.value} -> {target.value}"
@@ -106,7 +101,7 @@ def apply_unit_policy_command(apply_changes: bool) -> None:
             "Applying the unit policy requires at least one administrator for audit records."
         )
 
-    for item, target in planned_changes:
+    for item, _, target in planned_changes:
         previous = item.entry_unit.value
         item.entry_unit = target
         audit(
