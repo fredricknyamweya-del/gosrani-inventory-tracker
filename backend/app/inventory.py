@@ -190,7 +190,11 @@ def _resolve_record(
             continue
         try:
             quantity = Decimal(str(value))
-            if not quantity.is_finite() or quantity < 0 or quantity.as_tuple().exponent < -3:
+            if (
+                not quantity.is_finite()
+                or quantity < 0
+                or quantity != quantity.quantize(Decimal("0.001"))
+            ):
                 raise InvalidOperation
             if (
                 entered_unit == EnteredUnit.BALE

@@ -193,6 +193,78 @@ def test_bale_and_piece_units_are_allowed_and_stock_out_cannot_exceed_balance(cl
     assert "available stock" in excess.json["errors"][0]["message"]
 
 
+def test_kilogram_quantities_keep_fractional_precision_in_inventory_summary(client):
+    admin, _, _, category, _, _, _, _ = create_case(
+        inventory_unit=InventoryUnit.PCS,
+        pieces_per_bale=None,
+    )
+    item = Item(
+        category_id=category.id,
+        name="Cotton",
+        unit="KG",
+        inventory_unit=InventoryUnit.KG,
+    )
+    db.session.add(item)
+    db.session.flush()
+    db.session.add(Specification(item_id=item.id, label="Bulk"))
+    db.session.commit()
+
+    received = client.post(
+        "/api/inventory",
+        json=transaction_payload("Cotton", "Bulk", quantityIn=1.125),
+        headers=authorization(admin),
+    )
+    assert received.status_code == 201
+    assert received.json["data"][0]["enteredUnit"] == "KG"
+    assert received.json["data"][0]["normalizedQuantityIn"] == 1.125
+
+    issued = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Cotton",
+            "Bulk",
+            quantityIn=None,
+            quantityOut=0.025,
+        ),
+        headers=authorization(admin),
+    )
+    assert issued.status_code == 201
+
+    summary = client.get(
+        "/api/catalog/summary",
+        headers=authorization(admin),
+    )
+    assert summary.status_code == 200
+    product = next(
+        row
+        for row in summary.json["data"]["products"]
+        if row["productName"] == "Cotton"
+    )
+    specification = next(
+        row
+        for row in summary.json["data"]["stockBySpecification"]
+        if row["itemName"] == "Cotton"
+    )
+    assert product["totalStockIn"] == 1.125
+    assert product["totalStockOut"] == 0.025
+    assert product["remainingStock"] == 1.1
+    assert product["equivalentPieces"] is None
+    assert specification["inventoryUnit"] == "KG"
+    assert specification["remainingStock"] == 1.1
+    assert specification["equivalentPieces"] is None
+
+    invalid_precision = client.post(
+        "/api/inventory",
+        json=transaction_payload(
+            "Cotton",
+            "Bulk",
+            quantityIn=0.0001,
+        ),
+        headers=authorization(admin),
+    )
+    assert invalid_precision.status_code == 422
+
+
 def test_catalogue_summary_includes_products_without_entries_and_converts_bales(client):
     admin, user, _, _, _, _, ordinary_item, _ = create_case()
     response = client.post(

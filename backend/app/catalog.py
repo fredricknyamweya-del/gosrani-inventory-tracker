@@ -1,6 +1,7 @@
 """Persistent product catalog and staff request endpoints."""
 
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
@@ -12,6 +13,7 @@ from app.api_utils import (
     audit,
     current_user,
     iso_datetime,
+    json_number,
     user_location_ids,
 )
 from app.errors import error_response, validation_error
@@ -252,7 +254,9 @@ def get_catalog_summary():
     ).all()
     stock_summaries = []
     for specification, item, category_name in specifications:
-        normalized_stock = stock_by_specification.get(specification.id, 0)
+        normalized_stock = Decimal(
+            stock_by_specification.get(specification.id, 0)
+        )
         conversion = (
             item.pieces_per_bale
             if item.inventory_unit == InventoryUnit.BALE
@@ -265,9 +269,11 @@ def get_catalog_summary():
                 "category": category_name,
                 "size": specification.label,
                 "inventoryUnit": item.inventory_unit.value,
-                "remainingStock": float(normalized_stock) / conversion,
+                "remainingStock": json_number(
+                    normalized_stock / Decimal(conversion)
+                ),
                 "equivalentPieces": (
-                    float(normalized_stock)
+                    json_number(normalized_stock)
                     if item.inventory_unit == InventoryUnit.BALE
                     else None
                 ),
@@ -319,8 +325,10 @@ def get_catalog_summary():
             item.id, (0, 0, 0, None)
         )
         conversion = item.pieces_per_bale if item.inventory_unit == InventoryUnit.BALE else 1
-        quantity_in = float(normalized_in) / conversion
-        quantity_out = float(normalized_out) / conversion
+        normalized_in = Decimal(normalized_in)
+        normalized_out = Decimal(normalized_out)
+        quantity_in = normalized_in / Decimal(conversion)
+        quantity_out = normalized_out / Decimal(conversion)
         remaining = quantity_in - quantity_out
         product_summaries.append(
             {
@@ -329,11 +337,11 @@ def get_catalog_summary():
                 "category": category_name,
                 "inventoryUnit": item.inventory_unit.value,
                 "piecesPerBale": item.pieces_per_bale,
-                "totalStockIn": quantity_in,
-                "totalStockOut": quantity_out,
-                "remainingStock": remaining,
+                "totalStockIn": json_number(quantity_in),
+                "totalStockOut": json_number(quantity_out),
+                "remainingStock": json_number(remaining),
                 "equivalentPieces": (
-                    float(normalized_in) - float(normalized_out)
+                    json_number(normalized_in - normalized_out)
                     if item.inventory_unit
                     in {InventoryUnit.BALE, InventoryUnit.PCS}
                     else None

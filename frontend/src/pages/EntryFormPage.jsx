@@ -42,6 +42,7 @@ function unitLabel(unit) {
 
 function validateEntry(entry, item) {
   const errors = {};
+  const allowsFractionalQuantity = item?.inventoryUnit === "KG";
 
   if (!entry.date) errors.date = "Entry date is required.";
   if (!entry.category) errors.category = "Category is required.";
@@ -56,11 +57,21 @@ function validateEntry(entry, item) {
     errors.quantity = "Enter a value for Quantity In or Quantity Out.";
   }
   for (const key of ["quantityIn", "quantityOut"]) {
+    if (entry[key] === "") continue;
+    const quantity = Number(entry[key]);
+    const fractionalDigits =
+      entry[key].split(".")[1]?.replace(/0+$/, "").length ?? 0;
     if (
-      entry[key] !== "" &&
-      (!Number.isInteger(Number(entry[key])) || Number(entry[key]) < 0)
+      !Number.isFinite(quantity) ||
+      quantity < 0 ||
+      (allowsFractionalQuantity
+        ? !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(entry[key]) ||
+          fractionalDigits > 3
+        : !Number.isInteger(quantity))
     ) {
-      errors[key] = "Use a whole, non-negative number.";
+      errors[key] = allowsFractionalQuantity
+        ? "Use a non-negative number with no more than 3 decimal places."
+        : "Use a whole, non-negative number.";
     }
   }
 
@@ -597,7 +608,7 @@ export default function EntryFormPage() {
                       >
                         <Input
                           min="0"
-                          step="1"
+                          step={selectedItem?.inventoryUnit === "KG" ? "0.001" : "1"}
                           type="number"
                           value={entry.quantityIn ?? ""}
                           onChange={(event) =>
@@ -617,7 +628,7 @@ export default function EntryFormPage() {
                       >
                         <Input
                           min="0"
-                          step="1"
+                          step={selectedItem?.inventoryUnit === "KG" ? "0.001" : "1"}
                           type="number"
                           value={entry.quantityOut ?? ""}
                           onChange={(event) =>
