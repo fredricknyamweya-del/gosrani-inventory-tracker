@@ -17,6 +17,7 @@ from app.inventory import inventory_bp
 from app.locations import locations_bp
 from app.security import configure_security
 from app.seed import seed_command
+from app.stock_report import stock_report_command
 from app.users import users_bp
 
 
@@ -52,6 +53,7 @@ def create_app(config_name: str | None = None) -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
     app.cli.add_command(seed_command)
+    app.cli.add_command(stock_report_command)
     jwt.init_app(app)
     register_jwt_callbacks()
     cache.init_app(app)
