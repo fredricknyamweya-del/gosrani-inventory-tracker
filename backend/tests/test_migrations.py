@@ -15,6 +15,7 @@ from app.models import (
     Location,
     Specification,
     User,
+    v_stock,
 )
 
 
@@ -73,10 +74,9 @@ def test_entry_unit_migration_round_trip_preserves_stock(app):
         migrated_piece = db.session.get(Item, item_ids[1])
         migrated_record = db.session.get(InventoryRecord, record_id)
         stock = db.session.execute(
-            select(db.metadata.tables["v_stock"]).where(
-                db.metadata.tables["v_stock"].c.location_id == location_id,
-                db.metadata.tables["v_stock"].c.specification_id
-                == specification_id,
+            select(v_stock).where(
+                v_stock.c.location_id == location_id,
+                v_stock.c.specification_id == specification_id,
             )
         ).one()
 
