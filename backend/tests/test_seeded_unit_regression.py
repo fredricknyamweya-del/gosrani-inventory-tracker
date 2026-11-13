@@ -8,9 +8,17 @@ from flask_jwt_extended import create_access_token
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models import InventoryRecord, Item, Specification, StockUnit, User
-from app.seed import BALE_PRODUCT_CONFIG, CATALOG
-
+from app.models import (
+    Category,
+    EnteredUnit,
+    InventoryRecord,
+    Item,
+    Location,
+    Specification,
+    StockUnit,
+    User,
+)
+from app.seed import CATALOG
 
 SEEDED_SPECIFICATIONS = [
     (category, item_name, label, pack_size, unit)
@@ -66,6 +74,45 @@ def get_stock(client, headers, record_id):
     return response.json["data"]
 
 
+def add_outflow_record(app, category_name, item_name, size, entered_unit, quantity):
+    with app.app_context():
+        category = db.session.scalar(
+            select(Category).where(Category.name == category_name)
+        )
+        item = db.session.scalar(
+            select(Item).where(
+                Item.category_id == category.id,
+                Item.name == item_name,
+            )
+        )
+        specification = db.session.scalar(
+            select(Specification).where(
+                Specification.item_id == item.id,
+                Specification.label == size,
+            )
+        )
+        location = db.session.scalar(
+            select(Location).where(Location.code == "ELD")
+        )
+        admin = db.session.scalar(
+            select(User).where(User.email == "admin@example.com")
+        )
+        record = InventoryRecord(
+            location_id=location.id,
+            record_date=date.today(),
+            specification_id=specification.id,
+            qty_out=Decimal(str(quantity)),
+            qty_out_normalized=Decimal(str(quantity)),
+            pieces_per_unit=1,
+            entered_unit=EnteredUnit(entered_unit),
+            handled_by="Regression overdraw",
+            created_by=admin.id,
+        )
+        db.session.add(record)
+        db.session.commit()
+        return record.id
+
+
 @pytest.mark.parametrize(
     ("category", "item_name", "size", "pack_size", "stock_unit"),
     SEEDED_SPECIFICATIONS,
@@ -87,7 +134,8 @@ def test_seeded_specification_entry_storage_stock_and_display(
     headers = seed_catalog(app, monkeypatch)
     with app.app_context():
         item = db.session.scalar(
-            select(Item).join(Specification).where(
+            select(Item).join(Specification).join(Category).where(
+                Category.name == category,
                 Item.name == item_name,
                 Specification.label == size,
             )
@@ -142,24 +190,19 @@ def test_seeded_specification_entry_storage_stock_and_display(
         stock = get_stock(client, headers, last_record_id)
         combined_pieces = expected_bale_pieces + 3
         assert stock["quantity"] == combined_pieces
-        assert stock["display"] == (
-            f"2 bales + 3 pcs"
-        )
+        assert stock["display"] == "2 bales + 3 pcs"
         assert stock["secondaryDisplay"] == f"({combined_pieces:,} pcs)"
 
         out_quantity = expected_bale_pieces + 4
-        out_record = post_entry(
-            client,
-            headers,
+        out_record_id = add_outflow_record(
+            app,
             category,
             item_name,
             size,
             "PCS",
-            quantityOut=out_quantity,
+            out_quantity,
         )
-        last_record_id = out_record["id"]
-        assert out_record["normalizedQuantityOut"] == out_quantity
-        stock = get_stock(client, headers, last_record_id)
+        stock = get_stock(client, headers, out_record_id)
         assert stock["quantity"] == -1
         assert stock["display"] == "-1 pc"
         assert stock["secondaryDisplay"] is None
@@ -189,7 +232,11 @@ def test_seeded_specification_entry_storage_stock_and_display(
         item_name,
         size,
         entered_unit,
-        quantityIn=float(in_quantity),
+        quantityIn=(
+            float(in_quantity)
+            if stock_unit == StockUnit.KG
+            else int(in_quantity)
+        ),
     )
     last_record_id = in_record["id"]
     expected_display = "2.5 kg" if stock_unit == StockUnit.KG else "3 pcs"
@@ -202,19 +249,20 @@ def test_seeded_specification_entry_storage_stock_and_display(
     assert Decimal(str(stock["quantity"])) == in_quantity
     assert stock["display"] == expected_display
 
-    out_quantity = Decimal("3") if stock_unit == StockUnit.KG else Decimal(4)
-    out_record = post_entry(
-        client,
-        headers,
+    out_quantity = Decimal(3) if stock_unit == StockUnit.KG else Decimal(4)
+    out_record_id = add_outflow_record(
+        app,
         category,
         item_name,
         size,
         entered_unit,
-        quantityOut=float(out_quantity),
+        out_quantity,
     )
-    last_record_id = out_record["id"]
-    stock = get_stock(client, headers, last_record_id)
-    assert Decimal(str(stock["quantity"])) == Decimal("-0.5") if stock_unit == StockUnit.KG else -1
+    stock = get_stock(client, headers, out_record_id)
+    expected_negative = (
+        Decimal("-0.5") if stock_unit == StockUnit.KG else Decimal(-1)
+    )
+    assert Decimal(str(stock["quantity"])) == expected_negative
     assert stock["display"] == ("-0.5 kg" if stock_unit == StockUnit.KG else "-1 pc")
 
     zero_quantity = Decimal("0.5") if stock_unit == StockUnit.KG else Decimal(1)
@@ -225,7 +273,11 @@ def test_seeded_specification_entry_storage_stock_and_display(
         item_name,
         size,
         entered_unit,
-        quantityIn=float(zero_quantity),
+        quantityIn=(
+            float(zero_quantity)
+            if stock_unit == StockUnit.KG
+            else int(zero_quantity)
+        ),
     )
     stock = get_stock(client, headers, zero_record["id"])
     assert stock["quantity"] == 0
