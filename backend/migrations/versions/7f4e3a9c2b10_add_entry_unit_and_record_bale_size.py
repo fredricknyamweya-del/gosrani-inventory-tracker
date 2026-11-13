@@ -78,8 +78,26 @@ def _create_legacy_stock_view() -> None:
 
 def upgrade() -> None:
     op.execute("DROP VIEW v_stock")
-    with op.batch_alter_table("items") as batch_op:
-        batch_op.add_column(
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute(
+            """
+            ALTER TABLE items
+            ADD COLUMN entry_unit VARCHAR(4) NOT NULL DEFAULT 'PCS'
+            CONSTRAINT items_entry_unit_valid
+            CHECK (entry_unit IN ('PCS', 'BALE', 'KG'))
+            """
+        )
+        op.execute(
+            """
+            ALTER TABLE inventory_records
+            ADD COLUMN pieces_per_bale INTEGER
+            CONSTRAINT pieces_per_bale_positive
+            CHECK (pieces_per_bale IS NULL OR pieces_per_bale > 0)
+            """
+        )
+    else:
+        op.add_column(
+            "items",
             sa.Column(
                 "entry_unit",
                 sa.Enum(
@@ -94,14 +112,18 @@ def upgrade() -> None:
                 nullable=False,
             )
         )
-        batch_op.create_check_constraint(
+        op.create_check_constraint(
             "items_entry_unit_valid",
+            "items",
             "entry_unit IN ('PCS', 'BALE', 'KG')",
         )
-    with op.batch_alter_table("inventory_records") as batch_op:
-        batch_op.add_column(sa.Column("pieces_per_bale", sa.Integer(), nullable=True))
-        batch_op.create_check_constraint(
+        op.add_column(
+            "inventory_records",
+            sa.Column("pieces_per_bale", sa.Integer(), nullable=True),
+        )
+        op.create_check_constraint(
             "pieces_per_bale_positive",
+            "inventory_records",
             "pieces_per_bale IS NULL OR pieces_per_bale > 0",
         )
 
@@ -122,10 +144,16 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("DROP VIEW v_stock")
-    with op.batch_alter_table("inventory_records") as batch_op:
-        batch_op.drop_constraint("pieces_per_bale_positive", type_="check")
-        batch_op.drop_column("pieces_per_bale")
-    with op.batch_alter_table("items") as batch_op:
-        batch_op.drop_constraint("items_entry_unit_valid", type_="check")
-        batch_op.drop_column("entry_unit")
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute("ALTER TABLE inventory_records DROP COLUMN pieces_per_bale")
+        op.execute("ALTER TABLE items DROP COLUMN entry_unit")
+    else:
+        op.drop_constraint(
+            "pieces_per_bale_positive",
+            "inventory_records",
+            type_="check",
+        )
+        op.drop_column("inventory_records", "pieces_per_bale")
+        op.drop_constraint("items_entry_unit_valid", "items", type_="check")
+        op.drop_column("items", "entry_unit")
     _create_legacy_stock_view()

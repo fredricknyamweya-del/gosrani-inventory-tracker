@@ -60,6 +60,9 @@ def test_entry_unit_migration_round_trip_preserves_stock(app):
         record_id = record.id
         location_id = location.id
         specification_id = bale_specification.id
+        piece_specification_id = piece_specification.id
+        category_id = category.id
+        user_id = user.id
 
         db.session.remove()
         downgrade(revision="f8b2c4d6e0a1")
@@ -84,3 +87,13 @@ def test_entry_unit_migration_round_trip_preserves_stock(app):
         assert stock.stock == 200
         assert stock.stock_pieces == 200
         assert stock.stock_bales == 10
+
+        db.session.delete(migrated_record)
+        db.session.delete(db.session.get(Specification, specification_id))
+        db.session.delete(db.session.get(Specification, piece_specification_id))
+        db.session.delete(migrated_bale)
+        db.session.delete(migrated_piece)
+        db.session.delete(db.session.get(Category, category_id))
+        db.session.delete(db.session.get(Location, location_id))
+        db.session.delete(db.session.get(User, user_id))
+        db.session.commit()
