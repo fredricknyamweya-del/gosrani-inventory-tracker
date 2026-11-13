@@ -266,6 +266,11 @@ def get_catalog_summary():
                 "size": specification.label,
                 "inventoryUnit": item.inventory_unit.value,
                 "remainingStock": float(normalized_stock) / conversion,
+                "equivalentPieces": (
+                    float(normalized_stock)
+                    if item.inventory_unit == InventoryUnit.BALE
+                    else None
+                ),
             }
         )
 

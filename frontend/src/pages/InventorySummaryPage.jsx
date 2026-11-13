@@ -163,6 +163,11 @@ export default function InventorySummaryPage() {
                           <span className="inventory-summary-stock">
                             <strong>{formatQuantity(row.remainingStock)}</strong>
                             <span>{unitName(row.inventoryUnit, row.remainingStock)}</span>
+                            {row.inventoryUnit === "BALE" && (
+                              <span>
+                                {formatQuantity(row.equivalentPieces)} pieces
+                              </span>
+                            )}
                           </span>
                         </td>
                       </tr>
