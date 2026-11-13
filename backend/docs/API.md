@@ -135,10 +135,13 @@ CSRF values are provided in the non-HttpOnly `csrf_access_token` and
   ```json
   {
     "data": {
-      "quantity": 998,
-      "unit": "PCS",
+      "quantity": 99.8,
+      "unit": "BALE",
+      "normalizedQuantity": 998,
+      "equivalentPieces": 998,
       "packSize": 10,
-      "display": "99 bales + 8 pcs",
+      "piecesPerBale": 10,
+      "display": "99.8 bales (998 pcs)",
       "locationId": "1",
       "locationName": "Eldoret Godown",
       "specificationId": "5",
@@ -149,6 +152,8 @@ CSRF values are provided in the non-HttpOnly `csrf_access_token` and
   }
   ```
 
+- `packSize` is specification metadata; bale stock conversions use
+  `piecesPerBale`.
 - `404`: Record does not exist or has been soft-deleted.
 - `Cache-Control: no-store`; the stock response is not cached.
 - This endpoint does not add fields or ETags to the inventory record detail

@@ -448,6 +448,8 @@ export default function EntryFormPage() {
               (item) => item.name === entry.item,
             );
             const enteredUnitLabel = unitLabel(entry.enteredUnit);
+            const quantityStep =
+              selectedItem?.inventoryUnit === "KG" ? "0.001" : "1";
 
             return (
               <section className="entry-batch-row" key={entry.id}>
@@ -608,7 +610,7 @@ export default function EntryFormPage() {
                       >
                         <Input
                           min="0"
-                          step={selectedItem?.inventoryUnit === "KG" ? "0.001" : "1"}
+                          step={quantityStep}
                           type="number"
                           value={entry.quantityIn ?? ""}
                           onChange={(event) =>
@@ -628,7 +630,7 @@ export default function EntryFormPage() {
                       >
                         <Input
                           min="0"
-                          step={selectedItem?.inventoryUnit === "KG" ? "0.001" : "1"}
+                          step={quantityStep}
                           type="number"
                           value={entry.quantityOut ?? ""}
                           onChange={(event) =>
