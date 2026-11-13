@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api_utils import (
@@ -531,6 +531,63 @@ def update_item(item_id: int):
         db.session.rollback()
         return error_response(409, "The catalog update conflicts with an existing item or specification.", "catalog_conflict")
     return jsonify({"data": _serialize_item(item)})
+
+
+@catalog_bp.delete("/items/<int:item_id>")
+@jwt_required()
+def delete_item(item_id: int):
+    user, denied = _require_admin()
+    if denied:
+        return denied
+    item = db.session.get(Item, item_id)
+    if item is None:
+        return error_response(404, "Catalog item not found.", "not_found")
+
+    has_inventory = db.session.scalar(
+        select(InventoryRecord.id)
+        .join(Specification, Specification.id == InventoryRecord.specification_id)
+        .where(Specification.item_id == item.id)
+        .limit(1)
+    )
+    if has_inventory:
+        return error_response(
+            409,
+            "This item has inventory history and cannot be permanently deleted. Deactivate it instead.",
+            "item_has_inventory",
+        )
+
+    has_requests = db.session.scalar(
+        select(ItemRequest.id).where(ItemRequest.item_id == item.id).limit(1)
+    )
+    if has_requests:
+        return error_response(
+            409,
+            "This item is referenced by catalog requests and cannot be permanently deleted. Deactivate it instead.",
+            "item_has_requests",
+        )
+
+    before = _serialize_item(item)
+    try:
+        audit(
+            AuditEntity.ITEM,
+            item.id,
+            AuditAction.DELETE,
+            user.id,
+            before=before,
+        )
+        db.session.execute(
+            delete(Specification).where(Specification.item_id == item.id)
+        )
+        db.session.delete(item)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return error_response(
+            409,
+            "This item is linked to historical records and cannot be permanently deleted. Deactivate it instead.",
+            "item_delete_conflict",
+        )
+    return jsonify({"data": {"id": item_id}})
 
 
 @catalog_bp.get("/requests")

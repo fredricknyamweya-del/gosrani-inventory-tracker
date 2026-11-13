@@ -84,6 +84,8 @@ export default function CatalogPage() {
   const [dialogError, setDialogError] = useState("");
   const [dialogSuggestion, setDialogSuggestion] = useState("");
   const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
   const [approveTarget, setApproveTarget] = useState(null);
   const [approveName, setApproveName] = useState("");
   const [rejectTarget, setRejectTarget] = useState(null);
@@ -201,6 +203,11 @@ export default function CatalogPage() {
     setDeactivateTarget(null);
   }, []);
 
+  const closeDeleteModal = useCallback(() => {
+    setDeleteTarget(null);
+    setDeleteError("");
+  }, []);
+
   const closeApproveModal = useCallback(() => {
     setApproveTarget(null);
     setApproveName("");
@@ -284,6 +291,22 @@ export default function CatalogPage() {
       setToast({ message: `${deactivateTarget.name} was deactivated.` });
     } catch (error) {
       setToast({ tone: "error", message: error.message });
+    } finally {
+      setSavingAction(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setSavingAction(true);
+    setDeleteError("");
+    try {
+      await api.deleteCatalogItem(deleteTarget.id);
+      await reloadCatalog();
+      closeDeleteModal();
+      setToast({ message: `${deleteTarget.name} was permanently deleted.` });
+    } catch (error) {
+      setDeleteError(error.message);
     } finally {
       setSavingAction(false);
     }
@@ -532,6 +555,17 @@ export default function CatalogPage() {
                                     Reactivate
                                   </Button>
                                 )}
+                                <Button
+                                  aria-label={`Permanently delete ${item.name}`}
+                                  onClick={() => {
+                                    setDeleteTarget(item);
+                                    setDeleteError("");
+                                  }}
+                                  variant="ghost"
+                                >
+                                  <Trash2 aria-hidden="true" size={15} />
+                                  Delete permanently
+                                </Button>
                               </div>
                             </div>
                             <p className="catalog-item-unit">
@@ -968,6 +1002,39 @@ export default function CatalogPage() {
           This item will be hidden from new entries. Existing inventory records
           are not affected.
         </p>
+      </Modal>
+
+      <Modal
+        description="This permanently removes the item and its specifications from the catalog. Inventory history and catalog requests are preserved; items referenced by either cannot be deleted."
+        footer={
+          <>
+            <Button onClick={closeDeleteModal} variant="secondary">
+              Cancel
+            </Button>
+            <Button
+              loading={savingAction}
+              onClick={confirmDelete}
+              variant="destructive"
+            >
+              <Trash2 aria-hidden="true" size={16} />
+              Delete permanently
+            </Button>
+          </>
+        }
+        onClose={closeDeleteModal}
+        open={Boolean(deleteTarget)}
+        title={`Delete ${deleteTarget?.name ?? "item"} permanently?`}
+      >
+        <p>
+          This action cannot be undone. Items with inventory history or linked
+          catalog requests cannot be permanently deleted; deactivate those
+          items instead.
+        </p>
+        {deleteError && (
+          <p className="catalog-inline-error" role="alert">
+            {deleteError}
+          </p>
+        )}
       </Modal>
 
       <Modal

@@ -7,6 +7,9 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models import (
+    AuditAction,
+    AuditEntity,
+    AuditLog,
     Category,
     InventoryUnit,
     Item,
@@ -323,6 +326,56 @@ def test_conversion_changes_do_not_rewrite_historical_transactions(client):
     )
     assert configured["remainingStock"] == 1
     assert configured["equivalentPieces"] == 10
+
+
+def test_catalog_item_can_be_permanently_deleted_when_unreferenced(client):
+    admin, _, _, _, _, specification, _, _ = create_case()
+
+    response = client.delete(
+        f"/api/catalog/items/{specification.item_id}",
+        headers=authorization(admin),
+    )
+
+    assert response.status_code == 200
+    assert response.json["data"]["id"] == specification.item_id
+    assert db.session.get(Item, specification.item_id) is None
+    assert db.session.get(Specification, specification.id) is None
+    audit_entry = db.session.scalar(
+        select(AuditLog).where(
+            AuditLog.entity_type == AuditEntity.ITEM,
+            AuditLog.entity_id == specification.item_id,
+            AuditLog.action == AuditAction.DELETE,
+        )
+    )
+    assert audit_entry is not None
+    assert audit_entry.before["name"] == "Configured Duvet"
+
+
+def test_catalog_item_deletion_requires_admin_and_preserves_inventory_history(client):
+    admin, user, _, _, item, specification, _, _ = create_case()
+
+    forbidden = client.delete(
+        f"/api/catalog/items/{item.id}",
+        headers=authorization(user),
+    )
+    assert forbidden.status_code == 403
+
+    received = client.post(
+        "/api/inventory",
+        json=transaction_payload(item.name, specification.label, quantityIn=1),
+        headers=authorization(user),
+    )
+    assert received.status_code == 201
+
+    response = client.delete(
+        f"/api/catalog/items/{item.id}",
+        headers=authorization(admin),
+    )
+
+    assert response.status_code == 409
+    assert response.json["code"] == "item_has_inventory"
+    assert db.session.get(Item, item.id) is not None
+    assert db.session.get(Specification, specification.id) is not None
 
 
 def test_switching_product_to_pieces_preserves_stock_and_defaults_new_entries(client):

@@ -284,6 +284,12 @@ export const api = {
     });
   },
 
+  deleteCatalogItem(id) {
+    return request(`/catalog/items/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  },
+
   createCatalogCategory(input = {}) {
     return request("/catalog/categories", { method: "POST", body: input });
   },
