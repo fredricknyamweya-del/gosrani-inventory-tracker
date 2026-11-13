@@ -10,7 +10,7 @@ from pathlib import Path
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required
 from openai import OpenAI, OpenAIError
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select, true
 
 from app.api_utils import current_user, json_number, user_location_ids
 from app.errors import error_response, validation_error
@@ -18,12 +18,15 @@ from app.extensions import db
 from app.models import (
     AssistantQuery,
     Category,
-    InventoryUnit,
     InventoryRecord,
     Item,
+    Location,
     Specification,
+    StockUnit,
     UserRole,
+    v_stock,
 )
+from app.units import format_quantity_display
 
 assistant_bp = Blueprint("assistant", __name__, url_prefix="/api/assistant")
 
@@ -247,47 +250,54 @@ def _date_range(query: str) -> tuple[date | None, date | None]:
     return None, None
 
 
-def _format_quantity(value: Decimal) -> str:
-    return format(value.normalize(), "f")
-
-
 def _query_item_stock(
     item_id: int,
     location_ids: list[int],
     specification_id: int | None = None,
-) -> Decimal:
+) -> list[tuple[int, str, int, str, int | None, StockUnit, Decimal]]:
+    if not location_ids:
+        return []
     statement = (
         select(
-            func.coalesce(
-                func.sum(
-                    func.coalesce(
-                        InventoryRecord.qty_in_normalized,
-                        InventoryRecord.qty_in,
-                    )
-                ),
-                0,
-            )
-            - func.coalesce(
-                func.sum(
-                    func.coalesce(
-                        InventoryRecord.qty_out_normalized,
-                        InventoryRecord.qty_out,
-                    )
-                ),
-                0,
-            )
+            Location.id,
+            Location.name,
+            Specification.id,
+            Specification.label,
+            Specification.pack_size,
+            Item.unit,
+            func.coalesce(v_stock.c.stock, 0),
         )
-        .select_from(InventoryRecord)
-        .join(InventoryRecord.specification)
+        .select_from(Location)
+        .join(Specification, true())
         .where(
+            Location.id.in_(location_ids),
             Specification.item_id == item_id,
-            InventoryRecord.location_id.in_(location_ids),
-            InventoryRecord.deleted_at.is_(None),
+            Specification.active.is_(True),
         )
+        .join(Item, Item.id == Specification.item_id)
+        .outerjoin(
+            v_stock,
+            and_(
+                v_stock.c.location_id == Location.id,
+                v_stock.c.specification_id == Specification.id,
+            ),
+        )
+        .order_by(Location.name, Specification.label)
     )
     if specification_id is not None:
-        statement = statement.where(InventoryRecord.specification_id == specification_id)
-    return Decimal(str(db.session.scalar(statement) or 0))
+        statement = statement.where(Specification.id == specification_id)
+    return [
+        (
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+            row[5],
+            Decimal(str(row[6])),
+        )
+        for row in db.session.execute(statement).all()
+    ]
 
 
 def _generate_openai_answer(
